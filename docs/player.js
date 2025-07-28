@@ -1,4 +1,4 @@
-const VERSION = "20250728-01";
+const VERSION = "20250728-02";
 let media="https://blog.liu32162048.dpdns.org/media/"
 
 // Cache references to DOM elements.
