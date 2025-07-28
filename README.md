@@ -1,3 +1,4 @@
+## 原作者不是我是[https://github.com/Meekdai/Gmemp](https://github.com/Meekdai/Gmemp)，这只是一个fork的个人使用版本，如果感兴趣可以给作者项目stsrt,[Gmemp](https://github.com/Meekdai/Gmemp)
 # Gmemp
 
 一个纯静态页面设计的音乐播放器，可以完全托管在`Github Pages`上或者其他任意静态服务器（如阿里云OSS）。
