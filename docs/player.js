@@ -1,4 +1,3 @@
-const VERSION = "20250728-02";
 let media="https://blog.liu32162048.dpdns.org/media/"
 
 // Cache references to DOM elements.
@@ -13,7 +12,7 @@ let requestJson="memp.json"
 // let requestJson="https://music.meekdai.com/memp.json"
 
 let request=new XMLHttpRequest();
-request.open("GET", `./memp.json?v=${VERSION}`);
+request.open("GET",requestJson);
 request.responseType='text';
 request.send();
 request.onload=function(){
@@ -51,7 +50,7 @@ let Player = function(playlist) {
   artist.innerHTML =  playlist[this.index].artist;
   document.querySelector("body").style.backgroundImage = "url('" +media+ encodeURI(playlist[this.index].pic) + "')";
   post.innerHTML = '<p><b>'+playlist[this.index].date+'</b></p>' + playlist[this.index].article;
-  document.querySelector("body").style.backgroundImage = `url('${media}${playlist[this.index].pic}?v=${VERSION}')`;
+  document.querySelector('meta[property="og:image"]').setAttribute('content', media+ encodeURI(playlist[this.index].pic));
 
   // Setup the playlist display.
   playlist.forEach(function(song) {
@@ -83,7 +82,7 @@ Player.prototype = {
       sound = data.howl;
     } else {
       sound = data.howl = new Howl({
-        src: [`${media}${data.mp3}?v=${VERSION}`]
+        src: [media + data.mp3],
         html5: isMobile(), // Force to HTML5 so that the audio can stream in (best for large files).
         onplay: function() {
           // Display the duration.
