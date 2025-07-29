@@ -344,3 +344,40 @@ body {
 #postBtn{left:5%;margin: -80px auto;}
 #waveBtn{right:5%;margin: -80px auto;}
 }
+/* 添加歌词容器样式 */
+#lyricsContainer {
+  position: absolute;
+  bottom: 100px;
+  width: 80%;
+  left: 10%;
+  text-align: center;
+  color: white;
+  font-size: 24px;
+  line-height: 1.5;
+  text-shadow: 1px 1px 2px rgba(0,0,0,0.7);
+  display: none; /* 默认隐藏 */
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+#lyricsText {
+  transition: all 0.3s ease;
+}
+
+/* 当前歌词高亮样式 */
+.current-lyric {
+  font-size: 28px;
+  font-weight: bold;
+  color: #ffcc00;
+}
+
+/* 歌词按钮样式 */
+#lyricsBtn {
+  background-image: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'><path fill='white' d='M448 96c-44.09 0-79.97 35.88-79.97 80 0 23.29 12.67 44.3 33.17 55.83l-38.93 38.93c-4.92-.82-9.97-1.25-15.27-1.25-35.35 0-64 28.65-64 64 0 5.3.43 10.35 1.25 15.27L183.8 391.77C172.3 371.3 151.3 358.6 128 358.6c-44.09 0-79.97 35.88-79.97 80s35.88 80 79.97 80c44.11 0 79.94-35.88 79.94-80 0-23.29-12.67-44.3-33.17-55.83l38.93-38.93c4.92.82 9.97 1.25 15.27 1.25 35.35 0 64-28.65 64-64 0-5.3-.43-10.35-1.25-15.27l38.93-38.93C363.7 300.7 384.7 313.4 408 313.4c44.09 0 79.97-35.88 79.97-80S492.09 153.4 448 153.4zm-320 0c-44.11 0-79.94 35.88-79.94 80s35.83 80 79.94 80c44.09 0 79.97-35.88 79.97-80S172.09 96 128 96z'/></svg>");
+  width: 35px;
+  height: 35px;
+  top: 50%;
+  left: calc(5% + 40px); /* 放在文章按钮和播放列表按钮之间 */
+  margin: -17.5px auto;
+}
+
