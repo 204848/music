@@ -1,7 +1,6 @@
 let media="https://music.1357924680liu.dpdns.org/media/"
-
 // Cache references to DOM elements.
-let elms = ['track','artist', 'timer', 'duration','post', 'playBtn', 'pauseBtn', 'prevBtn', 'nextBtn', 'playlistBtn', 'postBtn', 'waveBtn', 'volumeBtn', 'progress', 'progressBar','waveCanvas', 'loading', 'playlist', 'list', 'volume', 'barEmpty', 'barFull', 'sliderBtn'];
+let elms = ['track','artist', 'timer', 'duration','post', 'playBtn', 'pauseBtn', 'prevBtn', 'nextBtn', 'playlistBtn', 'postBtn', 'waveBtn', 'volumeBtn', 'progress', 'progressBar','waveCanvas', 'loading', 'playlist', 'list', 'volume', 'barEmpty', 'barFull', 'sliderBtn', 'lyricsBtn', 'lyricsText'];
 elms.forEach(function(elm) {
   window[elm] = document.getElementById(elm);
 });
@@ -44,6 +43,9 @@ function isMobile() {
 let Player = function(playlist) {
   this.playlist = playlist;
   this.index = playNum;
+  this.lyricsVisible = false; // 歌词显示状态
+  this.currentLyrics = []; // 当前歌词数组
+  this.currentLyricIndex = -1; // 当前歌词索引
 
   // Display the title of the first track.
   track.innerHTML =  playlist[this.index].title;
@@ -63,7 +65,109 @@ let Player = function(playlist) {
     };
     list.appendChild(div);
   });
+  
+  // 加载歌词（如果有）
+  if (playlist[this.index].lrc) {
+    this.loadLyrics(playlist[this.index].lrc);
+  }
 };
+
+// 加载歌词文件
+Player.prototype.loadLyrics = function(lrcPath) {
+  let self = this;
+  self.currentLyrics = [];
+  self.currentLyricIndex = -1;
+  lyricsText.innerHTML = '';
+  
+  let lyricsRequest = new XMLHttpRequest();
+  lyricsRequest.open('GET', media + lrcPath);
+  lyricsRequest.onload = function() {
+    if (lyricsRequest.status === 200) {
+      self.parseSRTLyrics(lyricsRequest.responseText);
+    }
+  };
+  lyricsRequest.send();
+};
+
+// 解析SRT格式歌词
+Player.prototype.parseSRTLyrics = function(text) {
+  this.currentLyrics = [];
+  
+  // 分割成单独的歌词条目
+  let blocks = text.split(/\r?\n\r?\n/);
+  
+  blocks.forEach(block => {
+    if (!block.trim()) return;
+    
+    let lines = block.split(/\r?\n/);
+    if (lines.length < 3) return;
+    
+    // 解析时间轴 (00:00:01,600 --> 00:00:02,400)
+    let timeMatch = lines[1].match(/(\d{2}):(\d{2}):(\d{2}),(\d{3}) --> (\d{2}):(\d{2}):(\d{2}),(\d{3})/);
+    if (!timeMatch) return;
+    
+    // 计算开始时间（秒）
+    let startTime = parseInt(timeMatch[1]) * 3600 + 
+                   parseInt(timeMatch[2]) * 60 + 
+                   parseInt(timeMatch[3]) + 
+                   parseInt(timeMatch[4]) / 1000;
+    
+    // 合并歌词文本（可能有多行）
+    let lyricText = '';
+    for (let i = 2; i < lines.length; i++) {
+      lyricText += (lyricText ? '<br>' : '') + lines[i];
+    }
+    
+    this.currentLyrics.push({
+      start: startTime,
+      text: lyricText
+    });
+  });
+  
+  // 按时间排序
+  this.currentLyrics.sort((a, b) => a.start - b.start);
+  
+  // 生成歌词HTML
+  lyricsText.innerHTML = this.currentLyrics.map(lyric => 
+    `<div class="lyric-line" data-time="${lyric.start}">${lyric.text}</div>`
+  ).join('');
+};
+
+// 更新歌词显示
+Player.prototype.updateLyrics = function(time) {
+  if (!this.currentLyrics.length) return;
+  
+  // 找到当前时间对应的歌词
+  let newIndex = -1;
+  for (let i = this.currentLyrics.length - 1; i >= 0; i--) {
+    if (time >= this.currentLyrics[i].start) {
+      newIndex = i;
+      break;
+    }
+  }
+  
+  // 如果歌词索引没有变化，不需要更新
+  if (newIndex === this.currentLyricIndex) return;
+  this.currentLyricIndex = newIndex;
+  
+  // 更新歌词显示
+  const lines = lyricsText.querySelectorAll('.lyric-line');
+  lines.forEach((line, index) => {
+    line.className = index === newIndex ? 'lyric-line current-lyric' : 'lyric-line';
+  });
+  
+  // 自动滚动到当前歌词
+  if (newIndex >= 0) {
+    const currentLine = lines[newIndex];
+    const container = lyricsContainer;
+    const lineTop = currentLine.offsetTop;
+    const lineHeight = currentLine.offsetHeight;
+    const containerHeight = container.offsetHeight;
+    
+    container.scrollTop = lineTop - containerHeight / 2 + lineHeight / 2;
+  }
+};
+
 Player.prototype = {
   /**
    * Play a song in the playlist.
@@ -214,6 +318,14 @@ Player.prototype = {
     Howler.masterGain.connect(this.analyser);
     draw();
 
+    // 加载歌词（如果有）
+    if (data.lrc) {
+      this.loadLyrics(data.lrc);
+    } else {
+      lyricsText.innerHTML = '';
+      this.currentLyrics = [];
+    }
+
     // Show the pause button.
     if (sound.state() === 'loaded') {
       playBtn.style.display = 'none';
@@ -332,9 +444,25 @@ Player.prototype = {
     timer.innerHTML = self.formatTime(Math.round(seek));
     progress.style.width = (((seek / sound.duration()) * 100) || 0) + '%';
 
+    // 更新歌词
+    if (self.lyricsVisible && self.currentLyrics.length > 0) {
+      self.updateLyrics(seek);
+    }
+
     // If the sound is still playing, continue stepping.
     if (sound.playing()) {
       requestAnimationFrame(self.step.bind(self));
+    }
+  },
+
+  // 切换歌词显示
+  toggleLyrics: function() {
+    this.lyricsVisible = !this.lyricsVisible;
+    lyricsContainer.style.display = this.lyricsVisible ? 'block' : 'none';
+    
+    // 如果正在播放且需要显示歌词，立即更新一次
+    if (this.lyricsVisible && this.playlist[this.index].howl && this.playlist[this.index].howl.playing()) {
+      this.updateLyrics(this.playlist[this.index].howl.seek());
     }
   },
 
@@ -363,7 +491,7 @@ Player.prototype = {
   //是否显示频率
   toggleWave: function() {
     if(waveCanvas.style.display=="none"){waveCanvas.style.display="block";}
-    else{waveCanvas.style.display="none";}
+    else{waveCanvas.style="none";}
   },
 
   //是否显示音量调节界面
@@ -418,6 +546,10 @@ volumeBtn.addEventListener('click', function() {
 });
 volume.addEventListener('click', function() {
   player.toggleVolume();
+});
+// 绑定歌词按钮事件
+lyricsBtn.addEventListener('click', function() {
+  player.toggleLyrics();
 });
 
 // Setup the event listeners to enable dragging of volume slider.
@@ -495,74 +627,7 @@ document.addEventListener('keyup', function(event) {
   else if(event.key == "p"|| event.key === "P"){player.togglePost();}
   else if(event.key == "w"|| event.key === "W"){player.toggleWave();}
   else if(event.key == "v"|| event.key === "V"){player.toggleVolume();}
+  else if(event.key == "y"|| event.key === "Y"){player.toggleLyrics();} // 添加歌词快捷键
 });
 
 console.log("\n %c Gmemp v3.4.8 %c https://github.com/Meekdai/Gmemp \n", "color: #fff; background-image: linear-gradient(90deg, rgb(47, 172, 178) 0%, rgb(45, 190, 96) 100%); padding:5px 1px;", "background-image: linear-gradient(90deg, rgb(45, 190, 96) 0%, rgb(255, 255, 255) 100%); padding:5px 0;");
-/* 歌词容器样式 - 修复版 */
-#lyricsContainer {
-  position: absolute;
-  bottom: 70px; /* 在控制按钮上方 */
-  width: 80%;
-  left: 10%;
-  text-align: center;
-  color: white;
-  font-size: 24px;
-  line-height: 1.5;
-  text-shadow: 1px 1px 2px rgba(0,0,0,0.7);
-  display: none; /* 默认隐藏 */
-  max-height: 200px;
-  overflow-y: auto;
-  z-index: 10; /* 确保在其他元素上方 */
-}
-
-/* 歌词按钮位置修正 */
-#lyricsBtn {
-  background-image: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'><path fill='white' d='M448 96c-44.09 0-79.97 35.88-79.97 80 0 23.29 12.67 44.3 33.17 55.83l-38.93 38.93c-4.92-.82-9.97-1.25-15.27-1.25-35.35 0-64 28.65-64 64 0 5.3.43 10.35 1.25 15.27L183.8 391.77C172.3 371.3 151.3 358.6 128 358.6c-44.09 0-79.97 35.88-79.97 80s35.88 80 79.97 80c44.11 0 79.94-35.88 79.94-80 0-23.29-12.67-44.3-33.17-55.83l38.93-38.93c4.92.82 9.97 1.25 15.27 1.25 35.35 0 64-28.65 64-64 0-5.3-.43-10.35-1.25-15.27l38.93-38.93C363.7 300.7 384.7 313.4 408 313.4c44.09 0 79.97-35.88 79.97-80S492.09 153.4 448 153.4zm-320 0c-44.11 0-79.94 35.88-79.94 80s35.83 80 79.94 80c44.09 0 79.97-35.88 79.97-80S172.09 96 128 96z'/></svg>");
-  width: 35px;
-  height: 35px;
-  position: absolute; /* 确保绝对定位 */
-  bottom: 20px; /* 在控制按钮区域内 */
-  right: calc(5% + 120px); /* 在音量按钮左侧 */
-  z-index: 20;
-}
-
-/* 调整其他按钮位置避免重叠 */
-#playlistBtn {
-  right: calc(5% + 160px); /* 在歌词按钮左侧 */
-}
-#postBtn {
-  right: calc(5% + 200px); /* 在播放列表按钮左侧 */
-}
-#waveBtn {
-  right: calc(5% + 80px); /* 在歌词按钮右侧 */
-}
-#volumeBtn {
-  right: 5%; /* 最右侧 */
-}
-
-/* 小屏幕适配 */
-@media screen and (max-width: 600px) {
-  #track, #artist { display: none; }
-  
-  /* 移动设备按钮位置调整 */
-  #lyricsBtn {
-    bottom: 20px;
-    right: calc(50% - 60px);
-  }
-  #waveBtn {
-    bottom: 20px;
-    right: calc(50% + 20px);
-  }
-  #volumeBtn {
-    bottom: 20px;
-    right: calc(50% + 60px);
-  }
-  #postBtn {
-    bottom: 20px;
-    right: calc(50% - 140px);
-  }
-  #playlistBtn {
-    bottom: 20px;
-    right: calc(50% - 100px);
-  }
-}
