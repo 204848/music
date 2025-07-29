@@ -1,4 +1,4 @@
-let media="https://204848.github.io/music/media/"
+let media="https://music.1357924680liu.dpdns.org/media/"
 
 // Cache references to DOM elements.
 let elms = ['track','artist', 'timer', 'duration','post', 'playBtn', 'pauseBtn', 'prevBtn', 'nextBtn', 'playlistBtn', 'postBtn', 'waveBtn', 'volumeBtn', 'progress', 'progressBar','waveCanvas', 'loading', 'playlist', 'list', 'volume', 'barEmpty', 'barFull', 'sliderBtn'];
