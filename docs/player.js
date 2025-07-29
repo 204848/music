@@ -498,3 +498,71 @@ document.addEventListener('keyup', function(event) {
 });
 
 console.log("\n %c Gmemp v3.4.8 %c https://github.com/Meekdai/Gmemp \n", "color: #fff; background-image: linear-gradient(90deg, rgb(47, 172, 178) 0%, rgb(45, 190, 96) 100%); padding:5px 1px;", "background-image: linear-gradient(90deg, rgb(45, 190, 96) 0%, rgb(255, 255, 255) 100%); padding:5px 0;");
+/* 歌词容器样式 - 修复版 */
+#lyricsContainer {
+  position: absolute;
+  bottom: 70px; /* 在控制按钮上方 */
+  width: 80%;
+  left: 10%;
+  text-align: center;
+  color: white;
+  font-size: 24px;
+  line-height: 1.5;
+  text-shadow: 1px 1px 2px rgba(0,0,0,0.7);
+  display: none; /* 默认隐藏 */
+  max-height: 200px;
+  overflow-y: auto;
+  z-index: 10; /* 确保在其他元素上方 */
+}
+
+/* 歌词按钮位置修正 */
+#lyricsBtn {
+  background-image: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'><path fill='white' d='M448 96c-44.09 0-79.97 35.88-79.97 80 0 23.29 12.67 44.3 33.17 55.83l-38.93 38.93c-4.92-.82-9.97-1.25-15.27-1.25-35.35 0-64 28.65-64 64 0 5.3.43 10.35 1.25 15.27L183.8 391.77C172.3 371.3 151.3 358.6 128 358.6c-44.09 0-79.97 35.88-79.97 80s35.88 80 79.97 80c44.11 0 79.94-35.88 79.94-80 0-23.29-12.67-44.3-33.17-55.83l38.93-38.93c4.92.82 9.97 1.25 15.27 1.25 35.35 0 64-28.65 64-64 0-5.3-.43-10.35-1.25-15.27l38.93-38.93C363.7 300.7 384.7 313.4 408 313.4c44.09 0 79.97-35.88 79.97-80S492.09 153.4 448 153.4zm-320 0c-44.11 0-79.94 35.88-79.94 80s35.83 80 79.94 80c44.09 0 79.97-35.88 79.97-80S172.09 96 128 96z'/></svg>");
+  width: 35px;
+  height: 35px;
+  position: absolute; /* 确保绝对定位 */
+  bottom: 20px; /* 在控制按钮区域内 */
+  right: calc(5% + 120px); /* 在音量按钮左侧 */
+  z-index: 20;
+}
+
+/* 调整其他按钮位置避免重叠 */
+#playlistBtn {
+  right: calc(5% + 160px); /* 在歌词按钮左侧 */
+}
+#postBtn {
+  right: calc(5% + 200px); /* 在播放列表按钮左侧 */
+}
+#waveBtn {
+  right: calc(5% + 80px); /* 在歌词按钮右侧 */
+}
+#volumeBtn {
+  right: 5%; /* 最右侧 */
+}
+
+/* 小屏幕适配 */
+@media screen and (max-width: 600px) {
+  #track, #artist { display: none; }
+  
+  /* 移动设备按钮位置调整 */
+  #lyricsBtn {
+    bottom: 20px;
+    right: calc(50% - 60px);
+  }
+  #waveBtn {
+    bottom: 20px;
+    right: calc(50% + 20px);
+  }
+  #volumeBtn {
+    bottom: 20px;
+    right: calc(50% + 60px);
+  }
+  #postBtn {
+    bottom: 20px;
+    right: calc(50% - 140px);
+  }
+  #playlistBtn {
+    bottom: 20px;
+    right: calc(50% - 100px);
+  }
+}
