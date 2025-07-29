@@ -1,5 +1,5 @@
 // Cache references to DOM elements.
-let elms = ['track','artist', 'timer', 'duration','post', 'playBtn', 'pauseBtn', 'prevBtn', 'nextBtn', 'playlistBtn', 'postBtn', 'waveBtn', 'volumeBtn', 'progress', 'progressBar','waveCanvas', 'loading', 'playlist', 'list', 'volume', 'barEmpty', 'barFull', 'sliderBtn', 'lyricsBtn', 'lyricsText', 'lyricsContainer'];
+let elms = ['track','artist', 'timer', 'duration','post', 'playBtn', 'pauseBtn', 'prevBtn', 'nextBtn', 'playlistBtn', 'postBtn', 'waveBtn', 'volumeBtn', 'progress', 'progressBar','waveCanvas', 'loading', 'playlist', 'list', 'volume', 'barEmpty', 'barFull', 'sliderBtn', 'lyricsBtn', 'lyricsContainer', 'lyricsText'];
 elms.forEach(function(elm) {
   window[elm] = document.getElementById(elm);
 });
@@ -8,9 +8,7 @@ let player;
 let playNum=0;
 let requestJson="memp.json"
 // let requestJson="https://music.meekdai.com/memp.json"
-
-// 媒体文件基础路径 - 这是修复的关键
-let media="https://music.1357924680liu.dpdns.org/media/";
+let media="https://music.1357924680liu.dpdns.org/media/"; // 确保media定义存在
 
 let request=new XMLHttpRequest();
 request.open("GET",requestJson);
@@ -68,14 +66,15 @@ let Player = function(playlist) {
     list.appendChild(div);
   });
   
-  // 加载歌词（如果有）
+  // 初始加载歌词（如果有）
   if (playlist[this.index].lrc) {
     this.loadLyrics(playlist[this.index].lrc);
   } else {
-    // 如果没有歌词，隐藏歌词容器
-    lyricsContainer.style.display = 'none';
-    this.lyricsVisible = false;
+    lyricsText.innerHTML = '<div class="lyric-line">暂无歌词</div>';
   }
+  
+  // 默认显示歌词容器
+  lyricsContainer.style.display = this.lyricsVisible ? 'block' : 'none';
 };
 
 // 加载歌词文件
@@ -83,28 +82,20 @@ Player.prototype.loadLyrics = function(lrcPath) {
   let self = this;
   self.currentLyrics = [];
   self.currentLyricIndex = -1;
-  lyricsText.innerHTML = '加载歌词中...';
+  lyricsText.innerHTML = '<div class="lyric-line">加载歌词中...</div>';
   
-  // 显示歌词容器
-  lyricsContainer.style.display = 'block';
-  
-  // 使用完整的媒体路径加载歌词
   let lyricsRequest = new XMLHttpRequest();
-  lyricsRequest.open('GET', media + lrcPath);
+  lyricsRequest.open('GET', media + encodeURI(lrcPath));
   lyricsRequest.onload = function() {
     if (lyricsRequest.status === 200) {
       self.parseSRTLyrics(lyricsRequest.responseText);
     } else {
-      lyricsText.innerHTML = '歌词加载失败';
-      console.error('歌词加载失败:', lyricsRequest.status, lrcPath);
+      lyricsText.innerHTML = '<div class="lyric-line">歌词加载失败</div>';
     }
   };
-  
   lyricsRequest.onerror = function() {
-    lyricsText.innerHTML = '歌词加载失败';
-    console.error('歌词加载失败:', lrcPath);
+    lyricsText.innerHTML = '<div class="lyric-line">歌词加载失败</div>';
   };
-  
   lyricsRequest.send();
 };
 
@@ -122,7 +113,7 @@ Player.prototype.parseSRTLyrics = function(text) {
     if (lines.length < 3) return;
     
     // 解析时间轴 (00:00:01,600 --> 00:00:02,400)
-    let timeMatch = lines[1].match(/(\d{2}):(\d{2}):(\d{2}),(\d{3}) --> (\d{2}):(\d{2}):(\d{2}),(\d{3})/);
+    let timeMatch = lines[1].match(/(\d{2}):(\d{2}):(\d{2})[,.](\d{3})\s*-->\s*(\d{2}):(\d{2}):(\d{2})[,.](\d{3})/);
     if (!timeMatch) return;
     
     // 计算开始时间（秒）
@@ -147,19 +138,16 @@ Player.prototype.parseSRTLyrics = function(text) {
   this.currentLyrics.sort((a, b) => a.start - b.start);
   
   // 生成歌词HTML
-  lyricsText.innerHTML = this.currentLyrics.map(lyric => 
-    `<div class="lyric-line" data-time="${lyric.start}">${lyric.text}</div>`
-  ).join('');
-  
-  // 如果没有歌词，显示提示
-  if (this.currentLyrics.length === 0) {
-    lyricsText.innerHTML = '无可用歌词';
-  }
+  lyricsText.innerHTML = this.currentLyrics.length > 0 
+    ? this.currentLyrics.map(lyric => 
+        `<div class="lyric-line" data-time="${lyric.start}">${lyric.text}</div>`
+      ).join('')
+    : '<div class="lyric-line">暂无歌词</div>';
 };
 
 // 更新歌词显示
 Player.prototype.updateLyrics = function(time) {
-  if (!this.currentLyrics.length || !this.lyricsVisible) return;
+  if (!this.currentLyrics.length) return;
   
   // 找到当前时间对应的歌词
   let newIndex = -1;
@@ -185,7 +173,7 @@ Player.prototype.updateLyrics = function(time) {
   });
   
   // 自动滚动到当前歌词
-  if (newIndex >= 0 && lines.length > 0) {
+  if (newIndex >= 0) {
     const currentLine = lines[newIndex];
     const container = lyricsContainer;
     const lineTop = currentLine.offsetTop;
@@ -193,6 +181,17 @@ Player.prototype.updateLyrics = function(time) {
     const containerHeight = container.offsetHeight;
     
     container.scrollTop = lineTop - containerHeight / 2 + lineHeight / 2;
+  }
+};
+
+// 切换歌词显示
+Player.prototype.toggleLyrics = function() {
+  this.lyricsVisible = !this.lyricsVisible;
+  lyricsContainer.style.display = this.lyricsVisible ? 'block' : 'none';
+  
+  // 如果正在播放且需要显示歌词，立即更新一次
+  if (this.lyricsVisible && this.playlist[this.index].howl && this.playlist[this.index].howl.playing()) {
+    this.updateLyrics(this.playlist[this.index].howl.seek());
   }
 };
 
@@ -350,9 +349,8 @@ Player.prototype = {
     if (data.lrc) {
       this.loadLyrics(data.lrc);
     } else {
-      // 如果没有歌词，隐藏歌词容器
-      lyricsContainer.style.display = 'none';
-      this.lyricsVisible = false;
+      lyricsText.innerHTML = '<div class="lyric-line">暂无歌词</div>';
+      this.currentLyrics = [];
     }
 
     // Show the pause button.
@@ -474,24 +472,13 @@ Player.prototype = {
     progress.style.width = (((seek / sound.duration()) * 100) || 0) + '%';
 
     // 更新歌词
-    if (self.lyricsVisible) {
+    if (self.lyricsVisible && self.currentLyrics.length > 0) {
       self.updateLyrics(seek);
     }
 
     // If the sound is still playing, continue stepping.
     if (sound.playing()) {
       requestAnimationFrame(self.step.bind(self));
-    }
-  },
-
-  // 切换歌词显示
-  toggleLyrics: function() {
-    this.lyricsVisible = !this.lyricsVisible;
-    lyricsContainer.style.display = this.lyricsVisible ? 'block' : 'none';
-    
-    // 如果正在播放且需要显示歌词，立即更新一次
-    if (this.lyricsVisible && this.playlist[this.index].howl && this.playlist[this.index].howl.playing()) {
-      this.updateLyrics(this.playlist[this.index].howl.seek());
     }
   },
 
