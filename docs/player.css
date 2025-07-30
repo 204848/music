@@ -364,7 +364,7 @@ body {
     position: absolute;
     top: 50%;
     right: calc(5% + 150px);
-    margin: 17.5px auto;
+    margin: -17.5px auto;
     opacity: 0.9;
     cursor: pointer;
 }
