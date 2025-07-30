@@ -1,7 +1,8 @@
-let media="https://music.1357924680liu.dpdns.org/media/"
+// 确保 media 变量在顶部定义
+let media = "https://music.1357924680liu.dpdns.org/media/";
 
 // Cache references to DOM elements.
-let elms = ['track','artist', 'timer', 'duration','post', 'playBtn', 'pauseBtn', 'prevBtn', 'nextBtn', 'playlistBtn', 'postBtn', 'waveBtn', 'volumeBtn', 'progress', 'progressBar','waveCanvas', 'loading', 'playlist', 'list', 'volume', 'barEmpty', 'barFull', 'sliderBtn'];
+let elms = ['track','artist', 'timer', 'duration','post', 'playBtn', 'pauseBtn', 'prevBtn', 'nextBtn', 'playlistBtn', 'postBtn', 'waveBtn', 'volumeBtn', 'progress', 'progressBar','waveCanvas', 'loading', 'playlist', 'list', 'volume', 'barEmpty', 'barFull', 'sliderBtn', 'lyricsBtn', 'lyricsContainer', 'lyricsText'];
 elms.forEach(function(elm) {
   window[elm] = document.getElementById(elm);
 });
@@ -44,6 +45,9 @@ function isMobile() {
 let Player = function(playlist) {
   this.playlist = playlist;
   this.index = playNum;
+  this.lyricsVisible = false; // 歌词显示状态
+  this.currentLyrics = []; // 当前歌词数组
+  this.currentLyricIndex = -1; // 当前歌词索引
 
   // Display the title of the first track.
   track.innerHTML =  playlist[this.index].title;
@@ -63,7 +67,15 @@ let Player = function(playlist) {
     };
     list.appendChild(div);
   });
+  
+  // 如果有歌词，默认显示歌词
+  if (playlist[this.index].lrc) {
+    this.loadLyrics(playlist[this.index].lrc);
+    this.lyricsVisible = true;
+    lyricsContainer.style.display = 'block';
+  }
 };
+
 Player.prototype = {
   /**
    * Play a song in the playlist.
@@ -214,6 +226,17 @@ Player.prototype = {
     Howler.masterGain.connect(this.analyser);
     draw();
 
+    // 加载歌词（如果有）
+    if (data.lrc) {
+      this.loadLyrics(data.lrc);
+      // 默认显示歌词
+      this.lyricsVisible = true;
+      lyricsContainer.style.display = 'block';
+    } else {
+      lyricsText.innerHTML = '暂无歌词';
+      this.currentLyrics = [];
+    }
+
     // Show the pause button.
     if (sound.state() === 'loaded') {
       playBtn.style.display = 'none';
@@ -226,6 +249,118 @@ Player.prototype = {
 
     // Keep track of the index we are currently playing.
     self.index = index;
+  },
+
+  // 加载歌词文件
+  loadLyrics: function(lrcPath) {
+    let self = this;
+    self.currentLyrics = [];
+    self.currentLyricIndex = -1;
+    lyricsText.innerHTML = '歌词加载中...';
+    
+    let lyricsRequest = new XMLHttpRequest();
+    lyricsRequest.open('GET', media + lrcPath);
+    lyricsRequest.onload = function() {
+      if (lyricsRequest.status === 200) {
+        self.parseSRTLyrics(lyricsRequest.responseText);
+      } else {
+        lyricsText.innerHTML = '歌词加载失败';
+      }
+    };
+    lyricsRequest.onerror = function() {
+      lyricsText.innerHTML = '歌词加载失败';
+    };
+    lyricsRequest.send();
+  },
+
+  // 解析SRT格式歌词
+  parseSRTLyrics: function(text) {
+    this.currentLyrics = [];
+    
+    // 分割成单独的歌词条目
+    let blocks = text.split(/\r?\n\r?\n/);
+    
+    blocks.forEach(block => {
+      if (!block.trim()) return;
+      
+      let lines = block.split(/\r?\n/);
+      if (lines.length < 3) return;
+      
+      // 解析时间轴 (00:00:01,600 --> 00:00:02,400)
+      let timeMatch = lines[1].match(/(\d{2}):(\d{2}):(\d{2}),(\d{3}) --> (\d{2}):(\d{2}):(\d{2}),(\d{3})/);
+      if (!timeMatch) return;
+      
+      // 计算开始时间（秒）
+      let startTime = parseInt(timeMatch[1]) * 3600 + 
+                     parseInt(timeMatch[2]) * 60 + 
+                     parseInt(timeMatch[3]) + 
+                     parseInt(timeMatch[4]) / 1000;
+      
+      // 合并歌词文本（可能有多行）
+      let lyricText = '';
+      for (let i = 2; i < lines.length; i++) {
+        lyricText += (lyricText ? '<br>' : '') + lines[i];
+      }
+      
+      this.currentLyrics.push({
+        start: startTime,
+        text: lyricText
+      });
+    });
+    
+    // 按时间排序
+    this.currentLyrics.sort((a, b) => a.start - b.start);
+    
+    // 生成歌词HTML
+    lyricsText.innerHTML = this.currentLyrics.map(lyric => 
+      `<div class="lyric-line" data-time="${lyric.start}">${lyric.text}</div>`
+    ).join('');
+  },
+
+  // 更新歌词显示
+  updateLyrics: function(time) {
+    if (!this.currentLyrics.length) return;
+    
+    // 找到当前时间对应的歌词
+    let newIndex = -1;
+    for (let i = this.currentLyrics.length - 1; i >= 0; i--) {
+      if (time >= this.currentLyrics[i].start) {
+        newIndex = i;
+        break;
+      }
+    }
+    
+    // 如果歌词索引没有变化，不需要更新
+    if (newIndex === this.currentLyricIndex) return;
+    this.currentLyricIndex = newIndex;
+    
+    // 更新歌词显示
+    const lines = lyricsText.querySelectorAll('.lyric-line');
+    lines.forEach((line, index) => {
+      line.className = index === newIndex ? 'lyric-line current-lyric' : 'lyric-line';
+    });
+    
+    // 自动滚动到当前歌词
+    if (newIndex >= 0) {
+      const currentLine = lines[newIndex];
+      const container = lyricsContainer;
+      const lineTop = currentLine.offsetTop;
+      const lineHeight = currentLine.offsetHeight;
+      const containerHeight = container.offsetHeight;
+      
+      container.scrollTop = lineTop - containerHeight / 2 + lineHeight / 2;
+    }
+  },
+
+  // 切换歌词显示
+  toggleLyrics: function() {
+    this.lyricsVisible = !this.lyricsVisible;
+    lyricsContainer.style.display = this.lyricsVisible ? 'block' : 'none';
+    
+    // 如果正在播放且需要显示歌词，立即更新一次
+    if (this.lyricsVisible && this.playlist[this.index].howl && this.playlist[this.index].howl.playing()) {
+      this.updateLyrics(this.playlist[this.index].howl.seek());
+    }
   },
 
   //暂停
@@ -332,6 +467,11 @@ Player.prototype = {
     timer.innerHTML = self.formatTime(Math.round(seek));
     progress.style.width = (((seek / sound.duration()) * 100) || 0) + '%';
 
+    // 更新歌词
+    if (self.lyricsVisible && self.currentLyrics.length > 0) {
+      self.updateLyrics(seek);
+    }
+
     // If the sound is still playing, continue stepping.
     if (sound.playing()) {
       requestAnimationFrame(self.step.bind(self));
@@ -419,6 +559,10 @@ volumeBtn.addEventListener('click', function() {
 volume.addEventListener('click', function() {
   player.toggleVolume();
 });
+// 绑定歌词按钮事件
+lyricsBtn.addEventListener('click', function() {
+  player.toggleLyrics();
+});
 
 // Setup the event listeners to enable dragging of volume slider.
 barEmpty.addEventListener('click', function(event) {
@@ -484,7 +628,6 @@ function draw() {
 
 
 document.addEventListener('keyup', function(event) {
-  console.log(event.key);
   if (event.key == ' ' || event.key == "MediaPlayPause"){
     if(pauseBtn.style.display == 'none' || pauseBtn.style.display=="") {player.play();}
     else {player.pause();}
@@ -495,6 +638,7 @@ document.addEventListener('keyup', function(event) {
   else if(event.key == "p"|| event.key === "P"){player.togglePost();}
   else if(event.key == "w"|| event.key === "W"){player.toggleWave();}
   else if(event.key == "v"|| event.key === "V"){player.toggleVolume();}
+  else if(event.key == "y"|| event.key === "Y"){player.toggleLyrics();} // 添加歌词快捷键
 });
 
 console.log("\n %c Gmemp v3.4.8 %c https://github.com/Meekdai/Gmemp \n", "color: #fff; background-image: linear-gradient(90deg, rgb(47, 172, 178) 0%, rgb(45, 190, 96) 100%); padding:5px 1px;", "background-image: linear-gradient(90deg, rgb(45, 190, 96) 0%, rgb(255, 255, 255) 100%); padding:5px 0;");
