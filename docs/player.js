@@ -9,7 +9,6 @@ elms.forEach(function(elm) {
 let player;
 let playNum=0;
 let requestJson="memp.json"
-// let requestJson="https://music.meekdai.com/memp.json"
 
 let request=new XMLHttpRequest();
 request.open("GET",requestJson);
@@ -64,6 +63,8 @@ let Player = function(playlist) {
     list.appendChild(div);
   });
 };
+
+// 扩展Player原型，添加歌词功能
 Player.prototype = {
   /**
    * Play a song in the playlist.
@@ -94,6 +95,11 @@ Player.prototype = {
           // Start the wave animation if we have already loaded
           progressBar.style.display = 'block';
           pauseBtn.style.display = 'block';
+
+          // Load and display lyrics if available
+          if (data.lyric) {
+            self.loadLyrics(data);
+          }
         },
         onload: function() {
           // Start the wave animation.
@@ -117,6 +123,11 @@ Player.prototype = {
           requestAnimationFrame(self.step.bind(self));
         }
       });
+    }
+
+    // Show lyrics if enabled by default on play
+    if (data.lyric) {
+      document.getElementById('showLyrics').checked = true;
     }
 
     // Begin playing the sound.
@@ -175,13 +186,11 @@ Player.prototype = {
         // 转换为 Data URL（JPEG 格式，质量 90%）
         const croppedUrl = canvas.toDataURL('image/jpeg', 0.9);
     
-        // 传递给 MediaSession
+        // 传递给我们 MediaSession
         applyMediaSession({src: croppedUrl,sizes: `${targetSize}x${targetSize}`,type: 'image/jpeg'});
       };
     
       img.onerror = (err) => {console.warn("图片加载失败，继续使用无图片：", artworkUrl, err);};
-
-      // 开始加载原图
       img.crossOrigin = 'Anonymous';
       img.src = artworkUrl;
     }
@@ -214,6 +223,11 @@ Player.prototype = {
     Howler.masterGain.connect(this.analyser);
     draw();
 
+    // Show wave button if there are audio effects
+    if (Howler.ctx) {
+      waveBtn.style.display = 'block';
+    }
+
     // Show the pause button.
     if (sound.state() === 'loaded') {
       playBtn.style.display = 'none';
@@ -224,29 +238,161 @@ Player.prototype = {
       pauseBtn.style.display = 'none';
     }
 
+    // Load lyrics if enabeled
+    if(data.lyric && document.getElementById('showLyrics').checked) {
+      self.loadLyrics(data);
+    }
+
     // Keep track of the index we are currently playing.
     self.index = index;
   },
 
-  //暂停
-  pause: function() {
+  // 添加歌词相关功能
+  loadLyrics(song) {
     let self = this;
+    // 获取歌词切换开关状态
+    const showLyrics = document.getElementById('showLyrics').checked;
+    
+    if (!showLyrics) {
+      // 如果歌词显示已关闭，跳过加载
+      console.log("Lyrics display is off. Skipping lyrics loading.");
+      return;
+    }
 
-    // Get the Howl we want to manipulate.
-    let sound = self.playlist[self.index].howl;
-
-    // Puase the sound.
-    sound.pause();
-
-    // Show the play button.
-    playBtn.style.display = 'block';
-    pauseBtn.style.display = 'none';
+    if (!song.lyric || typeof song.lyric !== 'string' || song.lyric.trim() === '') {
+      console.log("No valid lyric file specified for this song.");
+      return;
+    }
+    
+    if (self.lyricInterval) {
+      clearInterval(self.lyricInterval);
+    }
+    
+    // 解释歌词文件URL
+    let lyricUrl = song.lyric;
+    let toFetch = [];
+    
+    // 如果是相对URL，转换为完整URL
+    if (media) {
+      lyricUrl = media + song.lyric;
+    }
+    
+    console.log("Loading lyrics from:", lyricUrl);
+    
+    fetch(lyricUrl)
+      .then(response => {
+        if (!response.ok) {
+          throw new Error('Network response was not ok');
+        }
+        return response.text();
+      })
+      .then(text => {
+        try {
+          self.lyricsData = self.parseSRT(text);
+          self.displayLyrics();
+        } catch (error) {
+          console.error("Error parsing lyrics:", error);
+        }
+      })
+      .catch(error => {
+        console.error("Error loading lyrics:", error);
+        alert("错误: " + error.message);
+      });
   },
-
-  /**
-   * Skip to the next or previous track.
-   * @param  {String} direction 'next' or 'prev'.
-   */
+  
+  parseSRT(data) {
+    // 解析SRT歌词格式
+    const blocks = data.trim().split(/\n\n/);
+    const result = [];
+    
+    blocks.forEach(block => {
+      if (!block.trim()) return;
+      
+      const lines = block.split('\n');
+      const timeLine = lines[0];
+      const textLines = lines.slice(1);
+      const text = textLines.join('').replace(/\n/g, ' ');
+      
+      const [startTimeStr, endTimeStr] = timeLine.split(' --> ');
+      
+      // 解析时间格式
+      const parseTime = (time) => {
+        const [hours = '00', minutes = '00', secondsPart = '00'] = time.split(':');
+        const [seconds = '00', ms] = secondsPart.split(',');
+        return (hours * 3600) + (minutes * 60) + (seconds + '.' + ms);
+      };
+      
+      const startTime = parseTime(startTimeStr);
+      const endTime = parseTime(endTimeStr);
+      
+      result.push({
+        startTime,
+        endTime,
+        text,
+        duration: endTime - startTime
+      });
+    });
+    
+    return result;
+  },
+  
+  displayLyrics() {
+    let self = this;
+    if (!self.lyricsData || !self.sound) return;
+    
+    // 确保歌词显示开关
+    const showLyrics = document.getElementById('showLyrics').checked;
+    if (!showLyrics) return;
+    
+    // 清空当前歌词
+    const lyricContainer = document.createElement('div');
+    lyricContainer.id = 'lyricContainer';
+    document.getElementById('lyricPanel').appendChild(lyricContainer);
+    
+    // 定义当前显示的歌词行
+    let currentLine = 0;
+    
+    // 设置歌词显示间隔
+    if (self.lyricInterval) clearInterval(self.lyricInterval);
+    self.lyricInterval = setInterval(() => {
+      self.updateLyrics();
+    }, 100);
+    
+    // 初始更新歌词
+    self.updateLyrics();
+  },
+  
+  updateLyrics() {
+    let self = this;
+    if (!self.lyricsData || !self.sound) return;
+    
+    // 获取当前播放位置
+    const currentTime = self.sound.seek() || 0;
+    
+    // 查找当前歌词行
+    let currentLine = 0;
+    for (let i = 0; i < self.lyricsData.length; i++) {
+      if (currentTime >= self.lyricsData[i].startTime && 
+          currentTime < self.lyricsData[i].endTime) {
+        currentLine = i;
+        break;
+      }
+    }
+    
+    // 如果没有歌词数据或超出范围，显示提示信息
+    if (!self.lyricsData || currentLine >= self.lyricsData.length) {
+      document.getElementById('lyricContainer').innerHTML = "歌词已结束";
+      return;
+    }
+    
+    // 显示当前歌词行（处理HTML特殊字符）
+    let text = self.lyricsData[currentLine].text.replace(/\n/g, '<br>');
+    
+    // 简单样式
+    let style = "font-size: 20px; color: white; text-shadow: 1px 1px 1px rgba(0,0,0,0.5);";
+    document.getElementById('lyricContainer').innerHTML = `<span style="${style}">${text}</span>`;
+  },
+  
   skip: function(direction) {
     let self = this;
 
@@ -267,6 +413,13 @@ Player.prototype = {
     self.skipTo(index);
   },
 
+  /**
+   * Skip to the next or previous track.
+   * @param  {String} direction 'next' or 'prev'.
+   */
+  skip: function(direction) {
+  },
+  
   /**
    * Skip to a specific track based on its playlist index.
    * @param  {Number} index Index in the playlist.
@@ -360,6 +513,18 @@ Player.prototype = {
     else{post.style.display="none";}
   },
 
+  //显示/隐藏歌词
+  toggleLyrics: function() {
+    let showLyrics = document.getElementById('showLyrics').checked;
+    showLyrics = !showLyrics;
+    document.getElementById('showLyrics').checked = showLyrics;
+    
+    // 如果播放了歌曲，刷新歌词显示
+    if(this.sound) {
+      showLyrics ? this.displayLyrics() : document.getElementById('lyricContainer').style.display = "none";
+    }
+  },
+  
   //是否显示频率
   toggleWave: function() {
     if(waveCanvas.style.display=="none"){waveCanvas.style.display="block";}
@@ -404,9 +569,6 @@ progressBar.addEventListener('click', function(event) {
 playlistBtn.addEventListener('click', function() {
   player.togglePlaylist();
 });
-playlist.addEventListener('click', function() {
-  player.togglePlaylist();
-});
 postBtn.addEventListener('click', function() {
   player.togglePost();
 });
@@ -416,40 +578,14 @@ waveBtn.addEventListener('click', function() {
 volumeBtn.addEventListener('click', function() {
   player.toggleVolume();
 });
-volume.addEventListener('click', function() {
-  player.toggleVolume();
+playlist.addEventListener('click', function() {
+  player.togglePlaylist();
 });
 
-// Setup the event listeners to enable dragging of volume slider.
-barEmpty.addEventListener('click', function(event) {
-  let per = event.layerX / parseFloat(barEmpty.scrollWidth);
-  player.volume(per);
+// 添加歌词显示开关的事件处理
+document.getElementById('lyricToggle').addEventListener('change', function() {
+  player.toggleLyrics();
 });
-sliderBtn.addEventListener('mousedown', function() {
-  window.sliderDown = true;
-});
-sliderBtn.addEventListener('touchstart', function() {
-  window.sliderDown = true;
-});
-volume.addEventListener('mouseup', function() {
-  window.sliderDown = false;
-});
-volume.addEventListener('touchend', function() {
-  window.sliderDown = false;
-});
-
-let move = function(event) {
-  if (window.sliderDown) {
-    let x = event.clientX || event.touches[0].clientX;
-    let startX = window.innerWidth * 0.05;
-    let layerX = x - startX;
-    let per = Math.min(1, Math.max(0, layerX / parseFloat(barEmpty.scrollWidth)));
-    player.volume(per);
-  }
-};
-
-volume.addEventListener('mousemove', move);
-volume.addEventListener('touchmove', move);
 
 let canvasCtx=waveCanvas.getContext("2d");
 
@@ -462,26 +598,27 @@ function draw() {
   canvasCtx.clearRect(0, 0, WIDTH, HEIGHT);
   drawVisual = requestAnimationFrame(draw);
 
-  player.analyser.getByteFrequencyData(player.dataArray);
+  if(player.sound && player.analyser) {
+    canvasCtx.fillStyle = "rgba(0,0,0,0)";
+    canvasCtx.fillRect(0, 0, WIDTH, HEIGHT);
+    
+    player.analyser.getByteFrequencyData(player.dataArray);
 
-  canvasCtx.fillStyle = "rgba(0,0,0,0)";
-  canvasCtx.fillRect(0, 0, WIDTH, HEIGHT);
+    const barWidth = (WIDTH / player.bufferLength);
+    let barHeight;
+    let x = 0;
 
-  const barWidth = (WIDTH / player.bufferLength);
-  let barHeight;
-  let x = 0;
+    for (let i = 0; i < player.bufferLength; i++) {
+      const v = player.dataArray[i] / 2;
+      barHeight = v;
 
-  for (let i = 0; i < player.bufferLength; i++) {
-    barHeight = player.dataArray[i];
+      canvasCtx.fillStyle = `rgb(${v}, ${v}, ${v})`;
+      canvasCtx.fillRect(x, HEIGHT - barHeight, barWidth, barHeight/2);
 
-    // canvasCtx.fillStyle = `rgb(${barHeight + 100}, 50, 50)`;
-    canvasCtx.fillStyle = 'rgba(255,255,255,0.5)';
-    canvasCtx.fillRect(x, HEIGHT - barHeight / 2, barWidth, barHeight/2);
-
-    x += barWidth + 1;
+      x += barWidth + 1;
+    }
   }
 }
-
 
 document.addEventListener('keyup', function(event) {
   console.log(event.key);
@@ -494,7 +631,8 @@ document.addEventListener('keyup', function(event) {
   else if(event.key == "l"|| event.key === "L"){player.togglePlaylist();}
   else if(event.key == "p"|| event.key === "P"){player.togglePost();}
   else if(event.key == "w"|| event.key === "W"){player.toggleWave();}
-  else if(event.key == "v"|| event.key === "V"){player.toggleVolume();}
+  else if(event.key == "v"|| event.key === "V"){player.toggleVolume;}
+  else if(event.key == "k"|| event.key === "K"){player.toggleLyrics();} // 添加K键切换歌词
 });
 
 console.log("\n %c Gmemp v3.4.8 %c https://github.com/Meekdai/Gmemp \n", "color: #fff; background-image: linear-gradient(90deg, rgb(47, 172, 178) 0%, rgb(45, 190, 96) 100%); padding:5px 1px;", "background-image: linear-gradient(90deg, rgb(45, 190, 96) 0%, rgb(255, 255, 255) 100%); padding:5px 0;");
