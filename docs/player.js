@@ -9,6 +9,8 @@ elms.forEach(function (elm) {
 let player;
 let playNum = 0;
 let requestJson = "memp.json";
+let currentLyrics = [];
+let lyricInterval = null;
 
 let request = new XMLHttpRequest();
 request.open("GET", requestJson);
@@ -36,7 +38,46 @@ function isMobile() {
     return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
 }
 
-// 解析 SRT 字幕
+// 解析 LRC 格式 [mm:ss.xx]或[mm:ss.xxx]
+function parseLRC(lrcText) {
+    if (!lrcText) return [];
+    const lines = lrcText.split(/\r?\n/);
+    const result = [];
+    for (let line of lines) {
+        line = line.trim();
+        if (!line) continue;
+        const regex = /\[(\d{1,2}):(\d{2})(?:\.(\d{2,3})|\:(\d{2}))?\]/g;
+        let match;
+        let lastIndex = 0;
+        let times = [];
+        while ((match = regex.exec(line)) !== null) {
+            let min = parseInt(match[1]);
+            let sec = parseInt(match[2]);
+            let ms = 0;
+            if (match[3]) ms = parseInt(match[3].length === 2 ? match[3] + '0' : match[3]);
+            else if (match[4]) ms = parseInt(match[4]) * 10;
+            times.push(min * 60 + sec + ms / 1000);
+            lastIndex = match.index + match[0].length;
+        }
+        const text = line.substring(lastIndex).trim();
+        if (text && times.length > 0) {
+            for (let time of times) {
+                result.push({ time, text });
+            }
+        }
+    }
+    // 排序并补充结束时间
+    result.sort((a, b) => a.time - b.time);
+    for (let i = 0; i < result.length - 1; i++) {
+        result[i].end = result[i + 1].time;
+    }
+    if (result.length > 0) {
+        result[result.length - 1].end = Infinity;
+    }
+    return result;
+}
+
+// 解析 SRT 格式
 function parseSRT(srtText) {
     if (!srtText) return [];
     const lines = srtText.split(/\r?\n/);
@@ -60,13 +101,20 @@ function parseSRT(srtText) {
             i++;
         }
         if (text) result.push({ start, end, text });
-        i++;
     }
     return result;
 }
 
-let currentLyrics = [];
-let lyricInterval = null;
+// 获取当前时间对应的歌词
+function getCurrentLyric(time, isSRT = false) {
+    if (isSRT) {
+        const active = currentLyrics.find(l => time >= l.start && time < l.end);
+        return active ? active.text : '';
+    } else {
+        const active = currentLyrics.find(l => time >= l.time && time < l.end);
+        return active ? active.text : '';
+    }
+}
 
 /**
  * Player class
@@ -76,24 +124,19 @@ let Player = function (playlist) {
     this.playlist = playlist;
     this.index = playNum;
 
-    // Display initial track info
+    // Initial display
     track.innerHTML = playlist[this.index].title;
     artist.innerHTML = playlist[this.index].artist;
-
-    // 背景和文章
     document.querySelector("body").style.backgroundImage = "url('" + media + encodeURI(playlist[this.index].pic) + "')";
     post.innerHTML = '<p><b>' + playlist[this.index].date + '</b></p>' + playlist[this.index].article;
-
-    // OG信息
     document.querySelector('meta[property="og:image"]').setAttribute('content', media + encodeURI(playlist[this.index].pic));
     document.querySelector('meta[property="og:title"]').setAttribute('content', playlist[this.index].title);
-    document.querySelector('meta[property="og:description"]').setAttribute('content', playlist[this.index].article);
-    document.querySelector('meta[property="og:url"]').setAttribute('content', window.location.href);
+    document.title = playlist[this.index].title + " - Gmemp";
 
-    // 加载当前歌曲歌词
+    // 加载初始歌词 (0)
     this.loadLyric(playlist[this.index].lyric || null);
 
-    // Setup playlist display
+    // Setup playlist
     playlist.forEach(function (song) {
         let div = document.createElement('div');
         div.className = 'list-song';
@@ -104,8 +147,6 @@ let Player = function (playlist) {
         };
         list.appendChild(div);
     });
-
-    // 当前播放高亮
     document.querySelector('#list-song-' + playNum).style.backgroundColor = 'rgba(255, 255, 255, 0.1)';
 };
 
@@ -137,16 +178,12 @@ Player.prototype = {
                     playBtn.style.display = 'none';
                     loading.style.display = 'none';
 
-                    // 歌词更新定时器
-                    if (currentLyrics.length > 0) {
-                        lyricInterval = setInterval(function () {
-                            const pos = sound.seek();
-                            const active = currentLyrics.filter(l => pos >= l.start && pos < l.end);
-                            lyricContainer.innerHTML = active.length > 0 ? active[0].text : '';
-                        }, 250);
-                    } else {
-                        lyricContainer.innerHTML = '';
-                    }
+                    // 启动歌词定时更新
+                    const isSRT = data.lyric && /\.srt$/i.test(data.lyric);
+                    lyricInterval = setInterval(function () {
+                        const pos = sound.seek();
+                        lyricContainer.innerHTML = getCurrentLyric(pos, isSRT);
+                    }, 250);
                 },
                 onload: function () {
                     loading.style.display = 'none';
@@ -170,6 +207,9 @@ Player.prototype = {
                     progressBar.style.display = 'none';
                 },
                 onseek: function () {
+                    // 跳转时立即更新歌词
+                    const pos = sound.seek();
+                    lyricContainer.innerHTML = getCurrentLyric(pos, data.lyric && /\.srt$/i.test(data.lyric));
                     requestAnimationFrame(self.step.bind(self));
                 }
             });
@@ -177,50 +217,50 @@ Player.prototype = {
 
         sound.play();
 
-        // 手机系统控制
+        // 手机系统控制...
         if ('mediaSession' in navigator) {
-            const artworkUrl = media + encodeURI(data.pic);
-            const img = new Image();
             const applyMediaSession = (artwork) => {
                 navigator.mediaSession.metadata = new MediaMetadata({
                     title: data.title, artist: data.artist, artwork: artwork ? [artwork] : []
                 });
+                navigator.mediaSession.setActionHandler('play', () => { const s = self.playlist[self.index].howl; s.play(); });
+                navigator.mediaSession.setActionHandler('pause', () => { const s = self.playlist[self.index].howl; s.pause(); });
+                navigator.mediaSession.setActionHandler('previoustrack', () => self.skip('prev'));
+                navigator.mediaSession.setActionHandler('nexttrack', () => self.skip('next'));
             };
             applyMediaSession(null);
+            const img = new Image();
             img.onload = () => {
                 const canvas = document.createElement('canvas');
                 const ctx = canvas.getContext('2d');
                 const size = 512;
                 canvas.width = size; canvas.height = size;
                 const srcSize = Math.min(img.width, img.height);
-                const sx = (img.width - srcSize) / 2;
-                const sy = (img.height - srcSize) / 2;
+                const sx = (img.width - srcSize) / 2, sy = (img.height - srcSize) / 2;
                 ctx.drawImage(img, sx, sy, srcSize, srcSize, 0, 0, size, size);
-                const croppedUrl = canvas.toDataURL('image/jpeg', 0.9);
-                applyMediaSession({ src: croppedUrl, sizes: '512x512', type: 'image/jpeg' });
+                const cropped = canvas.toDataURL('image/jpeg', 0.9);
+                applyMediaSession({ src: cropped, sizes: '512x512', type: 'image/jpeg' });
             };
-            img.onerror = (err) => console.warn("图片加载失败", err);
+            img.onerror = () => { console.warn("图片加载失败"); };
             img.crossOrigin = 'Anonymous';
-            img.src = artworkUrl;
+            img.src = media + encodeURI(data.pic);
         }
 
-        // 更新显示
+        // 更新 UI
         track.innerHTML = data.title;
         artist.innerHTML = data.artist;
         document.title = data.title + " - Gmemp";
         post.innerHTML = '<p><b>' + data.date + '</b></p>' + data.article;
         document.querySelector("body").style.backgroundImage = "url('" + media + encodeURI(data.pic) + "')";
         window.location.hash = "#" + (index);
-
         document.querySelector('meta[property="og:title"]').setAttribute('content', data.title);
         document.querySelector('meta[property="og:image"]').setAttribute('content', media + encodeURI(data.pic));
-
         progressBar.style.margin = -(window.innerHeight * 0.3 / 2) + 'px auto';
         document.querySelector('#list-song-' + playNum).style.backgroundColor = '';
         document.querySelector('#list-song-' + index).style.backgroundColor = 'rgba(255, 255, 255, 0.1)';
         playNum = index;
 
-        // Web Audio 分析器
+        // Web Audio
         this.analyser = Howler.ctx.createAnalyser();
         this.analyser.fftSize = Math.pow(2, Math.floor(Math.log2((window.innerWidth / 15) * 2)));
         this.bufferLength = this.analyser.frequencyBinCount;
@@ -228,7 +268,7 @@ Player.prototype = {
         Howler.masterGain.connect(this.analyser);
         draw();
 
-        // 加载新歌词
+        // 加载新歌词文件
         self.loadLyric(data.lyric || null);
 
         if (sound.state() === 'loaded') {
@@ -287,7 +327,11 @@ Player.prototype = {
         let self = this;
         let sound = self.playlist[self.index].howl;
         if (sound.playing()) {
-            sound.seek(sound.duration() * per);
+            const pos = sound.duration() * per;
+            sound.seek(pos);
+            // 手动跳转时立即更新歌词
+            const isSRT = self.playlist[self.index].lyric && /\.srt$/i.test(self.playlist[self.index].lyric);
+            lyricContainer.innerHTML = getCurrentLyric(pos, isSRT);
         }
     },
 
@@ -310,186 +354,94 @@ Player.prototype = {
             lyricContainer.innerHTML = '';
             return;
         }
+        const ext = filename.toLowerCase().split('.').pop();
         fetch(media + encodeURI(filename))
             .then(r => r.text())
             .then(text => {
-                currentLyrics = parseSRT(text);
-                // 首次加载时显示第一句（或清空）
+                if (ext === 'srt') {
+                    currentLyrics = parseSRT(text);
+                } else if (ext === 'lrc') {
+                    currentLyrics = parseLRC(text);
+                } else {
+                    currentLyrics = [];
+                }
+                // 初始显示
                 if (currentLyrics.length > 0) {
                     const sound = this.playlist[this.index].howl;
                     const pos = sound ? sound.seek() : 0;
-                    const first = currentLyrics.find(l => pos >= l.start && pos < l.end);
-                    lyricContainer.innerHTML = first ? first.text : '';
+                    const isSRT = ext === 'srt';
+                    lyricContainer.innerHTML = getCurrentLyric(pos, isSRT);
                 } else {
                     lyricContainer.innerHTML = '';
                 }
             })
-            .catch(err => {
-                console.error('歌词加载失败', filename, err);
+            .catch(() => {
                 currentLyrics = [];
                 lyricContainer.innerHTML = '';
             });
     },
 
-    togglePlaylist: function () {
-        let self = this;
-        let display = (playlist.style.display === 'block') ? 'none' : 'block';
-        setTimeout(function () {
-            playlist.style.display = display;
-            if (playlist.style.display == 'block') {
-                let parentDoc = list, childDoc = document.querySelector('#list-song-' + playNum);
-                parentDoc.scrollTop = childDoc.offsetTop - parentDoc.offsetHeight / 2;
-            }
-        }, (display === 'block') ? 0 : 500);
-        playlist.className = (display === 'block') ? 'fadein' : 'fadeout';
-    },
-
-    togglePost: function () {
-        if (post.style.display == "none") post.style.display = "block";
-        else post.style.display = "none";
-    },
-
-    toggleWave: function () {
-        if (waveCanvas.style.display == "none") waveCanvas.style.display = "block";
-        else waveCanvas.style.display = "none";
-    },
-
-    toggleVolume: function () {
-        let self = this;
-        let display = (volume.style.display === 'block') ? 'none' : 'block';
-        setTimeout(function () {
-            volume.style.display = display;
-        }, (display === 'block') ? 0 : 500);
-        volume.className = (display === 'block') ? 'fadein' : 'fadeout';
-    },
-
-    formatTime: function (secs) {
-        let minutes = Math.floor(secs / 60) || 0;
-        let seconds = (secs - minutes * 60) || 0;
-        return minutes + ':' + (seconds < 10 ? '0' : '') + seconds;
-    }
+    // 保持原有方法不变...
+    togglePlaylist: function () { let self = this; let display = (playlist.style.display === 'block') ? 'none' : 'block'; setTimeout(function () { playlist.style.display = display; if (playlist.style.display == 'block') { list.scrollTop = document.querySelector('#list-song-' + playNum).offsetTop - list.offsetHeight / 2; } }, (display === 'block') ? 0 : 500); playlist.className = (display === 'block') ? 'fadein' : 'fadeout'; },
+    togglePost: function () { post.style.display = (post.style.display == "none") ? "block" : "none"; },
+    toggleWave: function () { waveCanvas.style.display = (waveCanvas.style.display == "none") ? "block" : "none"; },
+    toggleVolume: function () { let self = this; let display = (volume.style.display === 'block') ? 'none' : 'block'; setTimeout(function () { volume.style.display = display; }, (display === 'block') ? 0 : 500); volume.className = (display === 'block') ? 'fadein' : 'fadeout'; },
+    formatTime: function (secs) { let minutes = Math.floor(secs / 60) || 0; let seconds = (secs - minutes * 60) || 0; return minutes + ':' + (seconds < 10 ? '0' : '') + seconds; }
 };
 
-// Control listeners
-playBtn.addEventListener('click', function () {
-    player.play();
-});
-pauseBtn.addEventListener('click', function () {
-    player.pause();
-});
-prevBtn.addEventListener('click', function () {
-    player.skip('prev');
-});
-nextBtn.addEventListener('click', function () {
-    player.skip('next');
-});
-progressBar.addEventListener('click', function (event) {
-    player.seek(event.clientX / window.innerWidth);
-});
-playlistBtn.addEventListener('click', function () {
-    player.togglePlaylist();
-});
-playlist.addEventListener('click', function () {
-    player.togglePlaylist();
-});
-postBtn.addEventListener('click', function () {
-    player.togglePost();
-});
-waveBtn.addEventListener('click', function () {
-    player.toggleWave();
-});
-volumeBtn.addEventListener('click', function () {
-    player.toggleVolume();
-});
-volume.addEventListener('click', function () {
-    player.toggleVolume();
-});
+// Controls
+playBtn.addEventListener('click', function () { player.play(); });
+pauseBtn.addEventListener('click', function () { player.pause(); });
+prevBtn.addEventListener('click', function () { player.skip('prev'); });
+nextBtn.addEventListener('click', function () { player.skip('next'); });
+progressBar.addEventListener('click', function (event) { player.seek(event.clientX / window.innerWidth); });
+playlistBtn.addEventListener('click', function () { player.togglePlaylist(); });
+playlist.addEventListener('click', function () { player.togglePlaylist(); });
+postBtn.addEventListener('click', function () { player.togglePost(); });
+waveBtn.addEventListener('click', function () { player.toggleWave(); });
+volumeBtn.addEventListener('click', function () { player.toggleVolume(); });
+volume.addEventListener('click', function () { player.toggleVolume(); });
 
-// Volume control
-barEmpty.addEventListener('click', function (event) {
-    let per = event.layerX / parseFloat(barEmpty.scrollWidth);
-    player.volume(per);
-});
-sliderBtn.addEventListener('mousedown', function () {
-    window.sliderDown = true;
-});
-sliderBtn.addEventListener('touchstart', function () {
-    window.sliderDown = true;
-});
-volume.addEventListener('mouseup', function () {
-    window.sliderDown = false;
-});
-volume.addEventListener('touchend', function () {
-    window.sliderDown = false;
-});
-let move = function (event) {
-    if (window.sliderDown) {
-        let x = event.clientX || event.touches[0].clientX;
-        let startX = window.innerWidth * 0.05;
-        let layerX = x - startX;
-        let per = Math.min(1, Math.max(0, layerX / parseFloat(barEmpty.scrollWidth)));
-        player.volume(per);
-    }
-};
-volume.addEventListener('mousemove', move);
-volume.addEventListener('touchmove', move);
+// Volume
+barEmpty.addEventListener('click', function (event) { let per = event.layerX / barEmpty.scrollWidth; player.volume(per); });
+['mousedown', 'touchstart'].forEach(e => sliderBtn.addEventListener(e, () => window.sliderDown = true));
+['mouseup', 'touchend'].forEach(e => volume.addEventListener(e, () => window.sliderDown = false));
+volume.addEventListener('mousemove', e => { if (window.sliderDown) { let x = e.clientX || e.touches[0].clientX; let per = Math.min(1, Math.max(0, (x - window.innerWidth * 0.05) / (window.innerWidth * 0.9))); player.volume(per); } });
+volume.addEventListener('touchmove', e => { if (window.sliderDown) { let x = e.touches[0].clientX; let per = Math.min(1, Math.max(0, (x - window.innerWidth * 0.05) / (window.innerWidth * 0.9))); player.volume(per); } });
 
 // Audio visualization
 let canvasCtx = waveCanvas.getContext("2d");
 function draw() {
-    let HEIGHT = window.innerHeight;
-    let WIDTH = window.innerWidth;
-    waveCanvas.setAttribute('width', WIDTH);
-    waveCanvas.setAttribute('height', HEIGHT);
-
-    canvasCtx.clearRect(0, 0, WIDTH, HEIGHT);
-    drawVisual = requestAnimationFrame(draw);
-
     if (!player.analyser) return;
+    let W = window.innerWidth, H = window.innerHeight;
+    waveCanvas.width = W; waveCanvas.height = H;
+    canvasCtx.clearRect(0, 0, W, H);
     player.analyser.getByteFrequencyData(player.dataArray);
-
-    canvasCtx.fillStyle = "rgba(0,0,0,0)";
-    canvasCtx.fillRect(0, 0, WIDTH, HEIGHT);
-
-    const barWidth = (WIDTH / player.bufferLength);
+    canvasCtx.fillStyle = 'rgba(255,255,255,0.5)';
+    const barW = W / player.bufferLength;
     let x = 0;
-
     for (let i = 0; i < player.bufferLength; i++) {
-        let barHeight = player.dataArray[i];
-        canvasCtx.fillStyle = 'rgba(255,255,255,0.5)';
-        canvasCtx.fillRect(x, HEIGHT - barHeight / 2, barWidth, barHeight / 2);
-        x += barWidth + 1;
+        let barH = player.dataArray[i] / 2;
+        canvasCtx.fillRect(x, H - barH, barW, barH);
+        x += barW + 1;
     }
+    requestAnimationFrame(draw);
 }
 
-// 键盘控制
-document.addEventListener('keyup', function (event) {
-    if (event.key == ' ' || event.key == "MediaPlayPause") {
-        if (pauseBtn.style.display == 'none' || pauseBtn.style.display == "") player.play();
-        else player.pause();
-    } else if (event.key == "MediaTrackNext") {
-        player.skip('next');
-    } else if (event.key == "MediaTrackPrevious") {
-        player.skip('prev');
-    } else if (event.key == "l" || event.key === "L") {
-        player.togglePlaylist();
-    } else if (event.key == "p" || event.key === "P") {
-        player.togglePost();
-    } else if (event.key == "w" || event.key === "W") {
-        player.toggleWave();
-    } else if (event.key == "v" || event.key === "V") {
-        player.toggleVolume();
-    }
+// Keyboard
+document.addEventListener('keyup', e => {
+    if (e.key === ' ' || e.key === "MediaPlayPause") { pauseBtn.style.display === 'block' ? player.pause() : player.play(); }
+    else if (e.key === "MediaTrackNext") { player.skip('next'); }
+    else if (e.key === "MediaTrackPrevious") { player.skip('prev'); }
+    else if (e.key === "l" || e.key === "L") { player.togglePlaylist(); }
+    else if (e.key === "p" || e.key === "P") { player.togglePost(); }
+    else if (e.key === "w" || e.key === "W") { player.toggleWave(); }
+    else if (e.key === "v" || e.key === "V") { player.toggleVolume(); }
 });
 
-// 歌词按钮控制
+// 歌词开关
 lyricBtn.addEventListener('click', function () {
-    if (lyricContainer.style.display === 'none' || !lyricContainer.style.display) {
-        lyricContainer.style.display = 'block';
-    } else {
-        lyricContainer.style.display = 'none';
-    }
+    lyricContainer.style.display = (lyricContainer.style.display === 'none' || !lyricContainer.style.display) ? 'block' : 'none';
 });
 
-// 控制台日志
 console.log("\n %c Gmemp v3.4.8 %c https://github.com/Meekdai/Gmemp \n", "color: #fff; background-image: linear-gradient(90deg, rgb(47, 172, 178) 0%, rgb(45, 190, 96) 100%); padding:5px 1px;", "background-image: linear-gradient(90deg, rgb(45, 190, 96) 0%, rgb(255, 255, 255) 100%); padding:5px 0;");
