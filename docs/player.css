@@ -70,6 +70,31 @@ body {
   color: #fff;
   background-color: rgba(0, 0, 0, 0.5);
 }
+
+#lyricsContainer {
+  position: absolute;
+  top: 60%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 80%;
+  height: 100px;
+  text-align: center;
+  overflow: hidden;
+  display: none; /* Initially hidden */
+}
+
+#lyricsText {
+  font-size: 24px;
+  color: #fff;
+  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
+  line-height: 1.5;
+  transition: all 0.3s ease-in-out;
+}
+
+#lyricsText .current-lyric {
+  color: #ffeb3b; /* Highlight color for current lyric */
+  font-weight: bold;
+}
 /* Controls */
 .controlsOuter {
   position: absolute;
