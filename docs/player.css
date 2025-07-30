@@ -363,8 +363,8 @@ body {
     height: 35px;
     position: absolute;
     top: 50%;
-    right: calc(5% + 1200px);
-    margin: -17.5px auto;
+    right: calc(5% + 120px);
+    margin: -25px auto;
     opacity: 0.9;
     cursor: pointer;
 }
