@@ -125,11 +125,6 @@ Player.prototype = {
       });
     }
 
-    // Show lyrics if enabled by default on play
-    if (data.lyric) {
-      document.getElementById('showLyrics').checked = true;
-    }
-
     // Begin playing the sound.
     sound.play();
 
@@ -237,35 +232,17 @@ Player.prototype = {
       playBtn.style.display = 'none';
       pauseBtn.style.display = 'none';
     }
-
-    // Load lyrics if enabeled
-    if(data.lyric && document.getElementById('showLyrics').checked) {
-      self.loadLyrics(data);
-    }
-
-    // Keep track of the index we are currently playing.
-    self.index = index;
   },
 
   // 添加歌词相关功能
   loadLyrics(song) {
-    let self = this;
-    // 获取歌词切换开关状态
-    const showLyrics = document.getElementById('showLyrics').checked;
-    
-    if (!showLyrics) {
-      // 如果歌词显示已关闭，跳过加载
-      console.log("Lyrics display is off. Skipping lyrics loading.");
-      return;
-    }
-
     if (!song.lyric || typeof song.lyric !== 'string' || song.lyric.trim() === '') {
       console.log("No valid lyric file specified for this song.");
       return;
     }
     
-    if (self.lyricInterval) {
-      clearInterval(self.lyricInterval);
+    if (this.lyricInterval) {
+      clearInterval(this.lyricInterval);
     }
     
     // 解释歌词文件URL
@@ -288,8 +265,8 @@ Player.prototype = {
       })
       .then(text => {
         try {
-          self.lyricsData = self.parseSRT(text);
-          self.displayLyrics();
+          this.lyricsData = this.parseSRT(text);
+          this.displayLyrics();
         } catch (error) {
           console.error("Error parsing lyrics:", error);
         }
@@ -317,14 +294,18 @@ Player.prototype = {
       
       // 解析时间格式
       const parseTime = (time) => {
-        const [hours = '00', minutes = '00', secondsPart = '00'] = time.split(':');
-        const [seconds = '00', ms] = secondsPart.split(',');
-        return (hours * 3600) + (minutes * 60) + (seconds + '.' + ms);
+        const parts = time.split(':');
+        const hours = parts[0] || '00';
+        const minutes = parts[1] || '00';
+        const secondsPart = parts[2] || '00';
+        const [seconds, ms] = secondsPart.split(',');
+        const totalSeconds = (parseInt(hours, 10) * 3600) + (parseInt(minutes, 10) * 60) + (parseInt(seconds, 10) + (parseInt(ms, 10) / 1000));
+        return totalSeconds;
       };
       
       const startTime = parseTime(startTimeStr);
       const endTime = parseTime(endTimeStr);
-      
+
       result.push({
         startTime,
         endTime,
@@ -337,60 +318,73 @@ Player.prototype = {
   },
   
   displayLyrics() {
-    let self = this;
-    if (!self.lyricsData || !self.sound) return;
+    const lyricContainer = this.lyricContainer = document.createElement('div');
+    lyricContainer.id = 'lyricContainer';
+    lyricContainer.style.cssText = `
+      position: absolute; 
+      bottom: 120px;
+      left: 5%; 
+      width: 240px;
+      max-height: 220px;
+      background: rgba(0,0,0,0.45);
+      backdrop-filter: blur(8px);
+      color: #fff;
+      padding: 10px;
+      line-height: 1.4;
+      font-size: 16px;
+      text-align: center;
+      border-radius: 8px;
+      opacity: 0;
+      pointer-events: none;
+      transition: .3s;
+      overflow-y: auto;
+      z-index: 2;
+    `;
+    document.getElementById('controlsOuter').appendChild(lyricContainer);
     
     // 确保歌词显示开关
-    const showLyrics = document.getElementById('showLyrics').checked;
-    if (!showLyrics) return;
-    
-    // 清空当前歌词
-    const lyricContainer = document.createElement('div');
-    lyricContainer.id = 'lyricContainer';
-    document.getElementById('lyricPanel').appendChild(lyricContainer);
-    
-    // 定义当前显示的歌词行
-    let currentLine = 0;
+    this.showLyrics = document.getElementById('showLyrics');
     
     // 设置歌词显示间隔
-    if (self.lyricInterval) clearInterval(self.lyricInterval);
-    self.lyricInterval = setInterval(() => {
-      self.updateLyrics();
+    if (this.lyricInterval) {
+      clearInterval(this.lyricInterval);
+    }
+    this.lyricInterval = setInterval(() => {
+      this.updateLyrics();
     }, 100);
     
     // 初始更新歌词
-    self.updateLyrics();
+    this.updateLyrics();
   },
   
   updateLyrics() {
-    let self = this;
-    if (!self.lyricsData || !self.sound) return;
+    if (!this.lyricsData) return;
     
     // 获取当前播放位置
-    const currentTime = self.sound.seek() || 0;
+    const currentTime = this.sound.seek() || 0;
     
     // 查找当前歌词行
-    let currentLine = 0;
-    for (let i = 0; i < self.lyricsData.length; i++) {
-      if (currentTime >= self.lyricsData[i].startTime && 
-          currentTime < self.lyricsData[i].endTime) {
+    let currentLine = null;
+    for (let i = 0; i < this.lyricsData.length; i++) {
+      if (currentTime >= this.lyricsData[i].startTime && 
+          currentTime < this.lyricsData[i].endTime) {
         currentLine = i;
         break;
       }
     }
     
     // 如果没有歌词数据或超出范围，显示提示信息
-    if (!self.lyricsData || currentLine >= self.lyricsData.length) {
-      document.getElementById('lyricContainer').innerHTML = "歌词已结束";
+    if (!this.lyricsData || currentLine === null || currentLine >= this.lyricsData.length) {
+      this.lyricContainer.innerHTML = "无歌词";
       return;
     }
     
     // 显示当前歌词行（处理HTML特殊字符）
-    let text = self.lyricsData[currentLine].text.replace(/\n/g, '<br>');
+    let text = this.lyricsData[currentLine].text.replace(/\n/g, '<br>');
     
     // 简单样式
-    let style = "font-size: 20px; color: white; text-shadow: 1px 1px 1px rgba(0,0,0,0.5);";
-    document.getElementById('lyricContainer').innerHTML = `<span style="${style}">${text}</span>`;
+    let style = "color: white; text-shadow: 1px 1px 1px rgba(0,0,0,0.5);";
+    this.lyricContainer.innerHTML = `<span style="${style}">${text}</span>`;
   },
   
   skip: function(direction) {
@@ -411,13 +405,6 @@ Player.prototype = {
     }
 
     self.skipTo(index);
-  },
-
-  /**
-   * Skip to the next or previous track.
-   * @param  {String} direction 'next' or 'prev'.
-   */
-  skip: function(direction) {
   },
   
   /**
@@ -466,7 +453,7 @@ Player.prototype = {
     let sound = self.playlist[self.index].howl;
 
     // Convert the percent into a seek position.
-    if (sound.playing()) {
+    if (sound?.playing()) {
       sound.seek(sound.duration() * per);
     }
   },
@@ -481,12 +468,12 @@ Player.prototype = {
     let sound = self.playlist[self.index].howl;
 
     // Determine our current seek position.
-    let seek = sound.seek() || 0;
+    let seek = sound?.seek() || 0;
     timer.innerHTML = self.formatTime(Math.round(seek));
     progress.style.width = (((seek / sound.duration()) * 100) || 0) + '%';
 
     // If the sound is still playing, continue stepping.
-    if (sound.playing()) {
+    if (sound?.playing()) {
       requestAnimationFrame(self.step.bind(self));
     }
   },
@@ -515,13 +502,28 @@ Player.prototype = {
 
   //显示/隐藏歌词
   toggleLyrics: function() {
-    let showLyrics = document.getElementById('showLyrics').checked;
-    showLyrics = !showLyrics;
-    document.getElementById('showLyrics').checked = showLyrics;
+    let showLyrics = this.showLyrics?.checked;
     
-    // 如果播放了歌曲，刷新歌词显示
-    if(this.sound) {
-      showLyrics ? this.displayLyrics() : document.getElementById('lyricContainer').style.display = "none";
+    // 确保DOM元素存在
+    if (!this.showLyrics) {
+      this.showLyrics = document.getElementById('lyricToggle');
+    }
+    
+    showLyrics = !showLyrics;
+    this.showLyrics.checked = showLyrics;
+    
+    if(s(this.sound)) {
+      if (showLyrics) {
+        // 初始加载歌词
+        this.displayLyrics();
+      } else {
+        // 清除歌词
+        const lyricContainer = document.getElementById('lyricContainer');
+        if (lyricContainer) {
+          lyricContainer.style.opacity = "0";
+          lyricContainer.style.pointerEvents = "none";
+        }
+      }
     }
   },
   
@@ -583,7 +585,12 @@ playlist.addEventListener('click', function() {
 });
 
 // 添加歌词显示开关的事件处理
-document.getElementById('lyricToggle').addEventListener('change', function() {
+const lyricToggle = document.createElement('input');
+lyricToggle.id = 'lyricToggle';
+lyricToggle.type = 'checkbox';
+lyricToggle.style.display = 'none';
+document.body.appendChild(lyricToggle);
+lyricToggle.addEventListener('change', function() {
   player.toggleLyrics();
 });
 
@@ -599,22 +606,23 @@ function draw() {
   drawVisual = requestAnimationFrame(draw);
 
   if(player.sound && player.analyser) {
-    canvasCtx.fillStyle = "rgba(0,0,0,0)";
-    canvasCtx.fillRect(0, 0, WIDTH, HEIGHT);
-    
     player.analyser.getByteFrequencyData(player.dataArray);
 
     const barWidth = (WIDTH / player.bufferLength);
     let barHeight;
     let x = 0;
 
-    for (let i = 0; i < player.bufferLength; i++) {
-      const v = player.dataArray[i] / 2;
-      barHeight = v;
-
-      canvasCtx.fillStyle = `rgb(${v}, ${v}, ${v})`;
+    canvasCtx.clearRect(0, 0, WIDTH, HEIGHT);
+    for(let i = 0; i < player.bufferLength; i++){
+      barHeight = player.dataArray[i] / 2;
+      canvasCtx.fillStyle = `rgb(${
+        Math.round(Math.min(255, 200 + (i * 3 % 100))
+      },${
+        Math.round(Math.min(255, 200 + (i * 5 % 100))
+      },${
+        Math.round(Math.min(255, 200 + (i * 7 % 100))
+      ))`;
       canvasCtx.fillRect(x, HEIGHT - barHeight, barWidth, barHeight/2);
-
       x += barWidth + 1;
     }
   }
@@ -631,8 +639,14 @@ document.addEventListener('keyup', function(event) {
   else if(event.key == "l"|| event.key === "L"){player.togglePlaylist();}
   else if(event.key == "p"|| event.key === "P"){player.togglePost();}
   else if(event.key == "w"|| event.key === "W"){player.toggleWave();}
-  else if(event.key == "v"|| event.key === "V"){player.toggleVolume;}
-  else if(event.key == "k"|| event.key === "K"){player.toggleLyrics();} // 添加K键切换歌词
+  else if(event.key == "v"|| event.key === "V"){player.toggleVolume();}
+  else if(event.key == "k"|| event.key === "K"){
+    if(player.showLyrics) {
+      player.toggleLyrics();
+    } else {
+      player.displayLyrics();
+    }
+  }
 });
 
 console.log("\n %c Gmemp v3.4.8 %c https://github.com/Meekdai/Gmemp \n", "color: #fff; background-image: linear-gradient(90deg, rgb(47, 172, 178) 0%, rgb(45, 190, 96) 100%); padding:5px 1px;", "background-image: linear-gradient(90deg, rgb(45, 190, 96) 0%, rgb(255, 255, 255) 100%); padding:5px 0;");
