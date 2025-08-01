@@ -369,8 +369,55 @@ body {
     cursor: pointer;
 }
 
+/* 新增歌词按钮手机端适配 */
 @media screen and (max-width: 600px) {
-    #lyricBtn { right: calc(5% + 60px); }
+    #lyricBtn {
+        right: calc(5% + 120px);
+        top: calc(50% - 80px);
+    }
+    
+    /* 调整按钮位置避免重叠 */
+    #prevBtn {
+        left: 15%;
+    }
+    
+    #nextBtn {
+        right: 15%;
+    }
+    
+    #playlistBtn {
+        left: 5%;
+    }
+    
+    #postBtn {
+        left: calc(5% + 50px);
+    }
+    
+    #waveBtn {
+        right: calc(5% + 50px);
+    }
+    
+    #volumeBtn {
+        right: 5%;
+    }
 }
+
+/* 歌词容器手机端适配 */
+@media screen and (max-width: 600px) {
+    #lyricContainer {
+        font-size: 16px;
+        max-height: 80px;
+        padding: 5px 0;
+    }
+    
+    #track {
+        font-size: 28px;
+    }
+    
+    #artist {
+        font-size: 16px;
+    }
+}
+
 
 
