@@ -392,8 +392,8 @@ Player.prototype = {
 // Controls
 playBtn.addEventListener('click', function () { player.play(); });
 pauseBtn.addEventListener('click', function () { player.pause(); });
-prevBtn.addEventListener('click', function () { player.skip('prev'); });
-nextBtn.addEventListener('click', function () { player.skip('next'); });
+prevBtn.addEventListener('click', function () { player.skip('next'); });
+nextBtn.addEventListener('click', function () { player.skip('prev'); });
 progressBar.addEventListener('click', function (event) { player.seek(event.clientX / window.innerWidth); });
 playlistBtn.addEventListener('click', function () { player.togglePlaylist(); });
 playlist.addEventListener('click', function () { player.togglePlaylist(); });
