@@ -38,7 +38,7 @@ function isMobile() {
     return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
 }
 
-// 解析 LRC 格式 [mm:ss.xx]或[mm:ss.xxx]
+// 解析 LRC 格式
 function parseLRC(lrcText) {
     if (!lrcText) return [];
     const lines = lrcText.split(/\r?\n/);
@@ -66,7 +66,6 @@ function parseLRC(lrcText) {
             }
         }
     }
-    // 排序并补充结束时间
     result.sort((a, b) => a.time - b.time);
     for (let i = 0; i < result.length - 1; i++) {
         result[i].end = result[i + 1].time;
@@ -124,7 +123,6 @@ let Player = function (playlist) {
     this.playlist = playlist;
     this.index = playNum;
 
-    // Initial display
     track.innerHTML = playlist[this.index].title;
     artist.innerHTML = playlist[this.index].artist;
     document.querySelector("body").style.backgroundImage = "url('" + media + encodeURI(playlist[this.index].pic) + "')";
@@ -133,10 +131,8 @@ let Player = function (playlist) {
     document.querySelector('meta[property="og:title"]').setAttribute('content', playlist[this.index].title);
     document.title = playlist[this.index].title + " - Gmemp";
 
-    // 加载初始歌词 (0)
     this.loadLyric(playlist[this.index].lyric || null);
 
-    // Setup playlist
     playlist.forEach(function (song) {
         let div = document.createElement('div');
         div.className = 'list-song';
@@ -158,7 +154,6 @@ Player.prototype = {
         index = typeof index === 'number' ? index : self.index;
         let data = self.playlist[index];
 
-        // 清除旧的歌词定时器
         if (lyricInterval) {
             clearInterval(lyricInterval);
             lyricInterval = null;
@@ -178,7 +173,6 @@ Player.prototype = {
                     playBtn.style.display = 'none';
                     loading.style.display = 'none';
 
-                    // 启动歌词定时更新
                     const isSRT = data.lyric && /\.srt$/i.test(data.lyric);
                     lyricInterval = setInterval(function () {
                         const pos = sound.seek();
@@ -207,7 +201,6 @@ Player.prototype = {
                     progressBar.style.display = 'none';
                 },
                 onseek: function () {
-                    // 跳转时立即更新歌词
                     const pos = sound.seek();
                     lyricContainer.innerHTML = getCurrentLyric(pos, data.lyric && /\.srt$/i.test(data.lyric));
                     requestAnimationFrame(self.step.bind(self));
@@ -217,7 +210,6 @@ Player.prototype = {
 
         sound.play();
 
-        // 手机系统控制...
         if ('mediaSession' in navigator) {
             const applyMediaSession = (artwork) => {
                 navigator.mediaSession.metadata = new MediaMetadata({
@@ -246,7 +238,6 @@ Player.prototype = {
             img.src = media + encodeURI(data.pic);
         }
 
-        // 更新 UI
         track.innerHTML = data.title;
         artist.innerHTML = data.artist;
         document.title = data.title + " - Gmemp";
@@ -260,7 +251,6 @@ Player.prototype = {
         document.querySelector('#list-song-' + index).style.backgroundColor = 'rgba(255, 255, 255, 0.1)';
         playNum = index;
 
-        // Web Audio
         this.analyser = Howler.ctx.createAnalyser();
         this.analyser.fftSize = Math.pow(2, Math.floor(Math.log2((window.innerWidth / 15) * 2)));
         this.bufferLength = this.analyser.frequencyBinCount;
@@ -268,7 +258,6 @@ Player.prototype = {
         Howler.masterGain.connect(this.analyser);
         draw();
 
-        // 加载新歌词文件
         self.loadLyric(data.lyric || null);
 
         if (sound.state() === 'loaded') {
@@ -296,12 +285,12 @@ Player.prototype = {
     skip: function (direction) {
         let self = this;
         let index = 0;
-        if (direction === 'next') {
-            index = self.index - 1;
-            if (index < 0) index = self.playlist.length - 1;
-        } else {
+        if (direction === 'prev') { // 修复：prev 应该是前一首（索引+1）
             index = self.index + 1;
             if (index >= self.playlist.length) index = 0;
+        } else { // next
+            index = self.index - 1;
+            if (index < 0) index = self.playlist.length - 1;
         }
         self.skipTo(index);
     },
@@ -329,7 +318,6 @@ Player.prototype = {
         if (sound.playing()) {
             const pos = sound.duration() * per;
             sound.seek(pos);
-            // 手动跳转时立即更新歌词
             const isSRT = self.playlist[self.index].lyric && /\.srt$/i.test(self.playlist[self.index].lyric);
             lyricContainer.innerHTML = getCurrentLyric(pos, isSRT);
         }
@@ -365,7 +353,6 @@ Player.prototype = {
                 } else {
                     currentLyrics = [];
                 }
-                // 初始显示
                 if (currentLyrics.length > 0) {
                     const sound = this.playlist[this.index].howl;
                     const pos = sound ? sound.seek() : 0;
@@ -381,7 +368,6 @@ Player.prototype = {
             });
     },
 
-    // 保持原有方法不变...
     togglePlaylist: function () { let self = this; let display = (playlist.style.display === 'block') ? 'none' : 'block'; setTimeout(function () { playlist.style.display = display; if (playlist.style.display == 'block') { list.scrollTop = document.querySelector('#list-song-' + playNum).offsetTop - list.offsetHeight / 2; } }, (display === 'block') ? 0 : 500); playlist.className = (display === 'block') ? 'fadein' : 'fadeout'; },
     togglePost: function () { post.style.display = (post.style.display == "none") ? "block" : "none"; },
     toggleWave: function () { waveCanvas.style.display = (waveCanvas.style.display == "none") ? "block" : "none"; },
@@ -392,8 +378,8 @@ Player.prototype = {
 // Controls
 playBtn.addEventListener('click', function () { player.play(); });
 pauseBtn.addEventListener('click', function () { player.pause(); });
-prevBtn.addEventListener('click', function () { player.skip('prev'); });
-nextBtn.addEventListener('click', function () { player.skip('next'); });
+prevBtn.addEventListener('click', function () { player.skip('prev'); }); // 左边按钮：上一首
+nextBtn.addEventListener('click', function () { player.skip('next'); }); // 右边按钮：下一首
 progressBar.addEventListener('click', function (event) { player.seek(event.clientX / window.innerWidth); });
 playlistBtn.addEventListener('click', function () { player.togglePlaylist(); });
 playlist.addEventListener('click', function () { player.togglePlaylist(); });
