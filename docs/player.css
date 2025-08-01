@@ -355,6 +355,8 @@ body {
     overflow: hidden;
     padding: 8px 0;
     transition: opacity 0.3s;
+    position: relative;
+    z-index: 10;
 }
 
 #lyricBtn {
@@ -367,6 +369,7 @@ body {
     margin: -17.5px auto;
     opacity: 0.9;
     cursor: pointer;
+    z-index: 20;
 }
 
 /* 新增歌词按钮手机端适配 */
@@ -377,6 +380,11 @@ body {
     }
     
     /* 调整按钮位置避免重叠 */
+    .controlsInner {
+        width: 300px;
+        margin: 0 -150px;
+    }
+    
     #prevBtn {
         left: 15%;
     }
@@ -400,14 +408,12 @@ body {
     #volumeBtn {
         right: 5%;
     }
-}
-
-/* 歌词容器手机端适配 */
-@media screen and (max-width: 600px) {
+    
     #lyricContainer {
         font-size: 16px;
         max-height: 80px;
         padding: 5px 0;
+        margin-top: 10px;
     }
     
     #track {
@@ -418,6 +424,7 @@ body {
         font-size: 16px;
     }
 }
+
 
 
 
