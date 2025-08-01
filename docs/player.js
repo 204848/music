@@ -11,6 +11,7 @@ let playNum = 0;
 let requestJson = "memp.json";
 let currentLyrics = [];
 let lyricInterval = null;
+let lastLyricTime = -1; // 用于优化歌词更新频率
 
 let request = new XMLHttpRequest();
 request.open("GET", requestJson);
@@ -163,6 +164,7 @@ Player.prototype = {
             clearInterval(lyricInterval);
             lyricInterval = null;
         }
+        lastLyricTime = -1; // 重置歌词时间标记
 
         if (data.howl) {
             sound = data.howl;
@@ -182,8 +184,12 @@ Player.prototype = {
                     const isSRT = data.lyric && /\.srt$/i.test(data.lyric);
                     lyricInterval = setInterval(function () {
                         const pos = sound.seek();
-                        lyricContainer.innerHTML = getCurrentLyric(pos, isSRT);
-                    }, 250);
+                        // 优化：只有时间变化超过0.1秒才更新歌词
+                        if (Math.abs(pos - lastLyricTime) > 0.1) {
+                            lyricContainer.innerHTML = getCurrentLyric(pos, isSRT);
+                            lastLyricTime = pos;
+                        }
+                    }, 100); // 降低更新频率到100ms
                 },
                 onload: function () {
                     loading.style.display = 'none';
@@ -209,7 +215,9 @@ Player.prototype = {
                 onseek: function () {
                     // 跳转时立即更新歌词
                     const pos = sound.seek();
-                    lyricContainer.innerHTML = getCurrentLyric(pos, data.lyric && /\.srt$/i.test(data.lyric));
+                    const isSRT = data.lyric && /\.srt$/i.test(data.lyric);
+                    lyricContainer.innerHTML = getCurrentLyric(pos, isSRT);
+                    lastLyricTime = pos; // 更新时间标记
                     requestAnimationFrame(self.step.bind(self));
                 }
             });
@@ -332,6 +340,7 @@ Player.prototype = {
             // 手动跳转时立即更新歌词
             const isSRT = self.playlist[self.index].lyric && /\.srt$/i.test(self.playlist[self.index].lyric);
             lyricContainer.innerHTML = getCurrentLyric(pos, isSRT);
+            lastLyricTime = pos; // 更新时间标记
         }
     },
 
@@ -371,6 +380,7 @@ Player.prototype = {
                     const pos = sound ? sound.seek() : 0;
                     const isSRT = ext === 'srt';
                     lyricContainer.innerHTML = getCurrentLyric(pos, isSRT);
+                    lastLyricTime = pos; // 初始化时间标记
                 } else {
                     lyricContainer.innerHTML = '';
                 }
