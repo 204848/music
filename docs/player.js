@@ -1,10 +1,16 @@
 let media = "https://music.1357924680liu.dpdns.org/media/";
 
 // Cache references to DOM elements.
-let elms = ['track', 'artist', 'timer', 'duration', 'post', 'playBtn', 'pauseBtn', 'prevBtn', 'nextBtn', 'playlistBtn', 'postBtn', 'waveBtn', 'volumeBtn', 'progress', 'progressBar', 'waveCanvas', 'loading', 'playlist', 'list', 'volume', 'barEmpty', 'barFull', 'sliderBtn', 'lyricBtn', 'lyricContainer', 'bg-layer1', 'bg-layer2'];
+// **已修正: 移除 bg-layer1 和 bg-layer2**
+let elms = ['track', 'artist', 'timer', 'duration', 'post', 'playBtn', 'pauseBtn', 'prevBtn', 'nextBtn', 'playlistBtn', 'postBtn', 'waveBtn', 'volumeBtn', 'progress', 'progressBar', 'waveCanvas', 'loading', 'playlist', 'list', 'volume', 'barEmpty', 'barFull', 'sliderBtn', 'lyricBtn', 'lyricContainer'];
 elms.forEach(function (elm) {
     window[elm] = document.getElementById(elm);
 });
+
+// **已修正: 单独、正确地获取背景层元素**
+const bgLayer1 = document.getElementById('bg-layer1');
+const bgLayer2 = document.getElementById('bg-layer2');
+
 
 let player;
 let playNum = 0;
@@ -133,7 +139,7 @@ let Player = function (playlist) {
     // Initial display
     track.innerHTML = playlist[this.index].title;
     artist.innerHTML = playlist[this.index].artist;
-    this.setBackground(playlist[this.index].pic); // 修改：使用新的背景设置函数
+    this.setBackground(playlist[this.index].pic);
     post.innerHTML = '<p><b>' + playlist[this.index].date + '</b></p>' + playlist[this.index].article;
     document.querySelector('meta[property="og:image"]').setAttribute('content', media + encodeURI(Array.isArray(playlist[this.index].pic) ? playlist[this.index].pic[0] : playlist[this.index].pic));
     document.querySelector('meta[property="og:title"]').setAttribute('content', playlist[this.index].title);
@@ -226,7 +232,31 @@ Player.prototype = {
         sound.play();
 
         if ('mediaSession' in navigator) {
-            // ... (mediaSession logic remains the same)
+            const applyMediaSession = (artwork) => {
+                navigator.mediaSession.metadata = new MediaMetadata({
+                    title: data.title, artist: data.artist, artwork: artwork ? [artwork] : []
+                });
+                navigator.mediaSession.setActionHandler('play', () => { const s = self.playlist[self.index].howl; s.play(); });
+                navigator.mediaSession.setActionHandler('pause', () => { const s = self.playlist[self.index].howl; s.pause(); });
+                navigator.mediaSession.setActionHandler('previoustrack', () => self.skip('prev'));
+                navigator.mediaSession.setActionHandler('nexttrack', () => self.skip('next'));
+            };
+            applyMediaSession(null);
+            const img = new Image();
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                const ctx = canvas.getContext('2d');
+                const size = 512;
+                canvas.width = size; canvas.height = size;
+                const srcSize = Math.min(img.width, img.height);
+                const sx = (img.width - srcSize) / 2, sy = (img.height - srcSize) / 2;
+                ctx.drawImage(img, sx, sy, srcSize, srcSize, 0, 0, size, size);
+                const cropped = canvas.toDataURL('image/jpeg', 0.9);
+                applyMediaSession({ src: cropped, sizes: '512x512', type: 'image/jpeg' });
+            };
+            img.onerror = () => { console.warn("图片加载失败"); };
+            img.crossOrigin = 'Anonymous';
+            img.src = media + encodeURI(data.pic);
         }
 
         // 更新 UI
@@ -234,7 +264,7 @@ Player.prototype = {
         artist.innerHTML = data.artist;
         document.title = data.title + " - Gmemp";
         post.innerHTML = '<p><b>' + data.date + '</b></p>' + data.article;
-        this.setBackground(data.pic); // 修改：使用新的背景设置函数
+        this.setBackground(data.pic);
         window.location.hash = "#" + (index);
         document.querySelector('meta[property="og:title"]').setAttribute('content', data.title);
         const ogImage = Array.isArray(data.pic) ? data.pic[0] : data.pic;
@@ -266,21 +296,17 @@ Player.prototype = {
         self.index = index;
     },
 
-    // 新增：设置背景的函数
     setBackground: function(picData) {
-        // 停止任何正在运行的背景轮询
         if (backgroundInterval) {
             clearInterval(backgroundInterval);
             backgroundInterval = null;
         }
 
-        // 判断 picData 是数组（多图）还是字符串（单图）
         if (Array.isArray(picData) && picData.length > 1) {
             this.startBackgroundSlideshow(picData);
         } else {
             const singlePic = Array.isArray(picData) ? picData[0] : picData;
             const imageUrl = `url('${media}${encodeURI(singlePic)}')`;
-            // 对于单张图片，我们只设置一个层并确保它可见
             if (activeBgLayer === 1) {
                 bgLayer1.style.backgroundImage = imageUrl;
                 bgLayer1.style.opacity = 1;
@@ -293,11 +319,9 @@ Player.prototype = {
         }
     },
 
-    // 新增：开始背景图轮播的函数
     startBackgroundSlideshow: function(images) {
         currentBgIndex = 0;
         
-        // 设置初始图片
         const initialImage = `url('${media}${encodeURI(images[currentBgIndex])}')`;
         if (activeBgLayer === 1) {
             bgLayer1.style.backgroundImage = initialImage;
@@ -313,11 +337,9 @@ Player.prototype = {
             currentBgIndex = (currentBgIndex + 1) % images.length;
             const nextImageUrl = `url('${media}${encodeURI(images[currentBgIndex])}')`;
             
-            // 为了平滑过渡，我们先在不可见的层上加载新图片
-            let nextLayer = (activeBgLayer === 1) ? bg_layer2 : bg_layer1;
-            let currentLayer = (activeBgLayer === 1) ? bg_layer1 : bg_layer2;
+            let nextLayer = (activeBgLayer === 1) ? bgLayer2 : bgLayer1;
+            let currentLayer = (activeBgLayer === 1) ? bgLayer1 : bgLayer2;
 
-            // 预加载图片，加载完成后再切换
             const img = new Image();
             img.src = media + encodeURI(images[currentBgIndex]);
             img.onload = () => {
@@ -328,7 +350,6 @@ Player.prototype = {
             };
         };
 
-        // 每5秒切换一次图片
         backgroundInterval = setInterval(changeImage, 5000);
     },
 
@@ -364,7 +385,6 @@ Player.prototype = {
     },
 
     volume: function (val) {
-        let self = this;
         Howler.volume(val);
         let barWidth = (val * 90) / 100;
         barFull.style.width = (barWidth * 100) + '%';
@@ -397,7 +417,6 @@ Player.prototype = {
     },
 
     loadLyric: function (filename) {
-        // ... (loadLyric logic remains the same)
         if (!filename) {
             currentLyrics = [];
             lyricContainer.innerHTML = '';
@@ -437,7 +456,7 @@ Player.prototype = {
     formatTime: function (secs) { let minutes = Math.floor(secs / 60) || 0; let seconds = (secs - minutes * 60) || 0; return minutes + ':' + (seconds < 10 ? '0' : '') + seconds; }
 };
 
-// Controls (remain the same)
+// Controls
 playBtn.addEventListener('click', function () { player.play(); });
 pauseBtn.addEventListener('click', function () { player.pause(); });
 prevBtn.addEventListener('click', function () { player.skip('next'); });
@@ -450,16 +469,27 @@ waveBtn.addEventListener('click', function () { player.toggleWave(); });
 volumeBtn.addEventListener('click', function () { player.toggleVolume(); });
 volume.addEventListener('click', function () { player.toggleVolume(); });
 
-// Volume controls (remain the same)
-barEmpty.addEventListener('click', function (event) { let per = event.layerX / barEmpty.scrollWidth; player.volume(per); });
-['mousedown', 'touchstart'].forEach(e => sliderBtn.addEventListener(e, () => window.sliderDown = true));
-['mouseup', 'touchend'].forEach(e => volume.addEventListener(e, () => window.sliderDown = false));
-['mousemove', 'touchmove'].forEach(e => volume.addEventListener(e, ev => { if (window.sliderDown) { let x = ev.clientX || ev.touches[0].clientX; let per = Math.min(1, Math.max(0, (x - window.innerWidth * 0.05) / (window.innerWidth * 0.9))); player.volume(per); } }));
+// Volume
+barEmpty.addEventListener('click', function (event) { let per = event.layerX / parseFloat(getComputedStyle(barEmpty, null).width.replace("px", "")); player.volume(per); });
+sliderBtn.addEventListener('mousedown', () => window.sliderDown = true);
+sliderBtn.addEventListener('touchstart', () => window.sliderDown = true);
+volume.addEventListener('mouseup', () => window.sliderDown = false);
+volume.addEventListener('touchend', () => window.sliderDown = false);
+const move = (event) => {
+    if (window.sliderDown) {
+        let x = event.clientX || event.touches[0].clientX;
+        let per = Math.min(1, Math.max(0, (x - barEmpty.getBoundingClientRect().left) / barEmpty.clientWidth));
+        player.volume(per);
+    }
+};
+volume.addEventListener('mousemove', move);
+volume.addEventListener('touchmove', move);
 
-// Audio visualization (remains the same)
+
+// Audio visualization
 let canvasCtx = waveCanvas.getContext("2d");
 function draw() {
-    if (!player.analyser) return;
+    if (!player || !player.analyser) return;
     let W = window.innerWidth, H = window.innerHeight;
     waveCanvas.width = W; waveCanvas.height = H;
     canvasCtx.clearRect(0, 0, W, H);
@@ -475,8 +505,9 @@ function draw() {
     requestAnimationFrame(draw);
 }
 
-// Keyboard controls (remain the same)
+// Keyboard
 document.addEventListener('keyup', e => {
+    if (!player) return;
     if (e.key === ' ' || e.key === "MediaPlayPause") { pauseBtn.style.display === 'block' ? player.pause() : player.play(); }
     else if (e.key === "MediaTrackNext") { player.skip('next'); }
     else if (e.key === "MediaTrackPrevious") { player.skip('prev'); }
@@ -486,10 +517,9 @@ document.addEventListener('keyup', e => {
     else if (e.key === "v" || e.key === "V") { player.toggleVolume(); }
 });
 
-// Lyric button (remains the same)
+// 歌词开关
 lyricBtn.addEventListener('click', function () {
     lyricContainer.style.display = (lyricContainer.style.display === 'none' || !lyricContainer.style.display) ? 'block' : 'none';
 });
 
 console.log("\n %c Gmemp v3.4.8 %c https://github.com/Meekdai/Gmemp \n", "color: #fff; background-image: linear-gradient(90deg, rgb(47, 172, 178) 0%, rgb(45, 190, 96) 100%); padding:5px 1px;", "background-image: linear-gradient(90deg, rgb(45, 190, 96) 0%, rgb(255, 255, 255) 100%); padding:5px 0;");
-
