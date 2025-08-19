@@ -1,16 +1,20 @@
 let media = "https://music.1357924680liu.dpdns.org/media/";
 
+// ==========================================================
+// == 配置项 ==
+// 背景图轮播的切换间隔时间（单位：毫秒）。例如：5000 代表 5 秒
+const BACKGROUND_SLIDESHOW_INTERVAL = 5000;
+// ==========================================================
+
+
 // Cache references to DOM elements.
-// **已修正: 移除 bg-layer1 和 bg-layer2**
 let elms = ['track', 'artist', 'timer', 'duration', 'post', 'playBtn', 'pauseBtn', 'prevBtn', 'nextBtn', 'playlistBtn', 'postBtn', 'waveBtn', 'volumeBtn', 'progress', 'progressBar', 'waveCanvas', 'loading', 'playlist', 'list', 'volume', 'barEmpty', 'barFull', 'sliderBtn', 'lyricBtn', 'lyricContainer'];
 elms.forEach(function (elm) {
     window[elm] = document.getElementById(elm);
 });
 
-// **已修正: 单独、正确地获取背景层元素**
 const bgLayer1 = document.getElementById('bg-layer1');
 const bgLayer2 = document.getElementById('bg-layer2');
-
 
 let player;
 let playNum = 0;
@@ -19,7 +23,7 @@ let currentLyrics = [];
 let lyricInterval = null;
 let lastLyricTime = -1;
 
-// 新增：背景轮询相关变量
+// 背景轮询相关变量
 let backgroundInterval = null;
 let currentBgIndex = 0;
 let activeBgLayer = 1;
@@ -141,20 +145,21 @@ let Player = function (playlist) {
     artist.innerHTML = playlist[this.index].artist;
     this.setBackground(playlist[this.index].pic);
     post.innerHTML = '<p><b>' + playlist[this.index].date + '</b></p>' + playlist[this.index].article;
-    document.querySelector('meta[property="og:image"]').setAttribute('content', media + encodeURI(Array.isArray(playlist[this.index].pic) ? playlist[this.index].pic[0] : playlist[this.index].pic));
+    const initialPic = Array.isArray(playlist[this.index].pic) ? playlist[this.index].pic[0] : playlist[this.index].pic;
+    document.querySelector('meta[property="og:image"]').setAttribute('content', media + encodeURI(initialPic));
     document.querySelector('meta[property="og:title"]').setAttribute('content', playlist[this.index].title);
     document.title = playlist[this.index].title + " - Gmemp";
 
     this.loadLyric(playlist[this.index].lyric || null);
 
     // Setup playlist
-    playlist.forEach(function (song) {
+    playlist.forEach((song, index) => {
         let div = document.createElement('div');
         div.className = 'list-song';
-        div.id = 'list-song-' + playlist.indexOf(song);
+        div.id = 'list-song-' + index;
         div.innerHTML = song.title + ' - ' + song.artist;
-        div.onclick = function () {
-            player.skipTo(playlist.indexOf(song));
+        div.onclick = () => {
+            player.skipTo(index);
         };
         list.appendChild(div);
     });
@@ -242,6 +247,9 @@ Player.prototype = {
                 navigator.mediaSession.setActionHandler('nexttrack', () => self.skip('next'));
             };
             applyMediaSession(null);
+            
+            // **已修复: 仅使用第一张图片作为封面**
+            const coverPic = Array.isArray(data.pic) ? data.pic[0] : data.pic;
             const img = new Image();
             img.onload = () => {
                 const canvas = document.createElement('canvas');
@@ -254,9 +262,9 @@ Player.prototype = {
                 const cropped = canvas.toDataURL('image/jpeg', 0.9);
                 applyMediaSession({ src: cropped, sizes: '512x512', type: 'image/jpeg' });
             };
-            img.onerror = () => { console.warn("图片加载失败"); };
+            img.onerror = () => { console.warn("封面图片加载失败 for mediaSession"); };
             img.crossOrigin = 'Anonymous';
-            img.src = media + encodeURI(data.pic);
+            img.src = media + encodeURI(coverPic); 
         }
 
         // 更新 UI
@@ -270,7 +278,11 @@ Player.prototype = {
         const ogImage = Array.isArray(data.pic) ? data.pic[0] : data.pic;
         document.querySelector('meta[property="og:image"]').setAttribute('content', media + encodeURI(ogImage));
         progressBar.style.margin = -(window.innerHeight * 0.3 / 2) + 'px auto';
-        document.querySelector('#list-song-' + playNum).style.backgroundColor = '';
+        
+        //
+        if(document.querySelector('#list-song-' + playNum)){
+             document.querySelector('#list-song-' + playNum).style.backgroundColor = '';
+        }
         document.querySelector('#list-song-' + index).style.backgroundColor = 'rgba(255, 255, 255, 0.1)';
         playNum = index;
 
@@ -335,7 +347,6 @@ Player.prototype = {
 
         const changeImage = () => {
             currentBgIndex = (currentBgIndex + 1) % images.length;
-            const nextImageUrl = `url('${media}${encodeURI(images[currentBgIndex])}')`;
             
             let nextLayer = (activeBgLayer === 1) ? bgLayer2 : bgLayer1;
             let currentLayer = (activeBgLayer === 1) ? bgLayer1 : bgLayer2;
@@ -343,14 +354,15 @@ Player.prototype = {
             const img = new Image();
             img.src = media + encodeURI(images[currentBgIndex]);
             img.onload = () => {
-                nextLayer.style.backgroundImage = nextImageUrl;
+                nextLayer.style.backgroundImage = `url('${img.src}')`;
                 currentLayer.style.opacity = 0;
                 nextLayer.style.opacity = 1;
                 activeBgLayer = (activeBgLayer === 1) ? 2 : 1;
             };
         };
 
-        backgroundInterval = setInterval(changeImage, 5000);
+        // **已优化: 使用可配置的变量**
+        backgroundInterval = setInterval(changeImage, BACKGROUND_SLIDESHOW_INTERVAL);
     },
 
     pause: function () {
@@ -472,7 +484,7 @@ volume.addEventListener('click', function () { player.toggleVolume(); });
 // Volume
 barEmpty.addEventListener('click', function (event) { let per = event.layerX / parseFloat(getComputedStyle(barEmpty, null).width.replace("px", "")); player.volume(per); });
 sliderBtn.addEventListener('mousedown', () => window.sliderDown = true);
-sliderBtn.addEventListener('touchstart', () => window.sliderDown = true);
+sliderBtn.addEventListener('touchstart', () => window.sliderDown = true, { passive: true });
 volume.addEventListener('mouseup', () => window.sliderDown = false);
 volume.addEventListener('touchend', () => window.sliderDown = false);
 const move = (event) => {
@@ -483,7 +495,7 @@ const move = (event) => {
     }
 };
 volume.addEventListener('mousemove', move);
-volume.addEventListener('touchmove', move);
+volume.addEventListener('touchmove', move, { passive: true });
 
 
 // Audio visualization
