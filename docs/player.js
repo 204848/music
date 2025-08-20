@@ -7,7 +7,7 @@ const BACKGROUND_SLIDESHOW_INTERVAL = 5000;
 // ==========================================================
 
 // Cache references to DOM elements
-let elms = ['track', 'artist', 'timer', 'duration', 'post', 'playBtn', 'pauseBtn', 'prevBtn', 'nextBtn', 'playlistBtn', 'postBtn', 'waveBtn', 'volumeBtn', 'progress', 'progressBar', 'waveCanvas', 'loading', 'playlist', 'list', 'volume', 'barEmpty', 'barFull', 'sliderBtn', 'lyricBtn', 'lyricContainer', 'modeBtn']; // 添加 modeBtn
+let elms = ['track', 'artist', 'timer', 'duration', 'post', 'playBtn', 'pauseBtn', 'prevBtn', 'nextBtn', 'playlistBtn', 'postBtn', 'waveBtn', 'volumeBtn', 'progress', 'progressBar', 'waveCanvas', 'loading', 'playlist', 'list', 'volume', 'barEmpty', 'barFull', 'sliderBtn', 'lyricBtn', 'lyricContainer', 'modeBtn'];
 elms.forEach(function (elm) {
     window[elm] = document.getElementById(elm);
 });
@@ -66,7 +66,6 @@ request.onload = function () {
 function isMobile() {
     return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
 }
-
 
 function parseLRC(lrcText) {
     if (!lrcText) return [];
@@ -157,7 +156,7 @@ let Player = function (playlist) {
     document.querySelector('meta[property="og:title"]').setAttribute('content', playlist[this.index].title);
     document.title = `${playlist[this.index].title} - Gmemp`;
     this.loadLyric(playlist[this.index].lyric || null);
-    
+
     playlist.forEach((song, index) => {
         let div = document.createElement('div');
         div.className = 'list-song';
@@ -200,6 +199,9 @@ Player.prototype = {
                             lyricContainer.innerHTML = getCurrentLyric(pos, isSRT); lastLyricTime = pos;
                         }
                     }, 100);
+
+                    // 每次播放开始时启动或重启可视化
+                    this.setupVisualization(sound);
                 },
                 onload: () => { loading.style.display = 'none'; progressBar.style.display = 'block'; },
                 onend: () => { this.playNextTrack(); },
@@ -225,22 +227,58 @@ Player.prototype = {
             playNum = index;
             this.loadLyric(data.lyric || null);
             if ('mediaSession' in navigator) this.updateMediaSession(data);
-            
-            // ============== 节奏条初始化代码 ==============
-            this.analyser = Howler.ctx.createAnalyser();
-            this.analyser.fftSize = Math.pow(2, Math.floor(Math.log2((window.innerWidth / 15) * 2)));
-            this.bufferLength = this.analyser.frequencyBinCount;
-            this.dataArray = new Uint8Array(this.bufferLength);
-            Howler.masterGain.connect(this.analyser);
-            draw(); // 首次调用绘制函数，启动requestAnimationFrame循环
-            // ============================================
+            this.setupVisualization(sound); // 也为新曲目设置
         }
 
         progressBar.style.margin = `-${window.innerHeight * 0.3 / 2}px auto`;
         if (sound.state() === 'loaded') { loading.style.display = 'none'; } else { loading.style.display = 'block'; playBtn.style.display = 'none'; pauseBtn.style.display = 'none'; }
         this.index = index;
     },
+
+    // 这是新增的核心：设置音频可视化
+    setupVisualization: function(sound) {
+        if (this.analyser) {
+            try {
+                this.analyser.disconnect(0); // 断开旧的分析器连接
+            } catch (e) { /* 忽略潜在的断开错误 */ }
+        }
+        this.analyser = Howler.ctx.createAnalyser();
+        this.analyser.fftSize = Math.pow(2, Math.floor(Math.log2((window.innerWidth / 15) * 2)));
+        this.bufferLength = this.analyser.frequencyBinCount;
+        this.dataArray = new Uint8Array(this.bufferLength);
+
+        // 将 Howler 的 masterGain 连接到新的分析器
+        Howler.masterGain.connect(this.analyser);
+        
+        // 启动或重启动画绘图循环
+        if (!this.drawId) {
+            this.drawId = requestAnimationFrame(this.draw.bind(this));
+        }
+    },
     
+    // 音频可视化绘制函数 - 这是新增的核心函数
+    draw: function() {
+        if (!this.analyser) {
+            this.drawId = null;
+            return;
+        }
+        let W = window.innerWidth, H = window.innerHeight;
+        waveCanvas.width = W; waveCanvas.height = H;
+        // 获取频率数据
+        this.analyser.getByteFrequencyData(this.dataArray);
+        const canvasCtx = waveCanvas.getContext("2d");
+        canvasCtx.clearRect(0, 0, W, H);
+        canvasCtx.fillStyle = 'rgba(255,255,255,0.5)';
+        const barW = W / this.bufferLength;
+        let x = 0;
+        for (let i = 0; i < this.bufferLength; i++) {
+            let barH = (this.dataArray[i] / 255) * H * 0.8; // 归一化到屏幕高度
+            canvasCtx.fillRect(x, H - barH, barW, barH);
+            x += barW + 1;
+        }
+        this.drawId = requestAnimationFrame(this.draw.bind(this)); // 递归调用以保持动画
+    },
+
     playNextTrack: function() {
         if (this.playbackMode === 'single') {
             this.skipTo(this.index);
@@ -312,7 +350,7 @@ Player.prototype = {
         if (backgroundInterval) clearInterval(backgroundInterval);
         if (resetIndex) currentBgIndex = 0;
         const initialImage = currentImageCache[currentBgIndex];
-        if (initialImage) {
+        if(initialImage) {
             const currentActiveLayer = (activeBgLayer === 1) ? bgLayer1 : bgLayer2;
             currentActiveLayer.style.backgroundImage = `url('${initialImage.src}')`;
             currentActiveLayer.style.opacity = 1;
@@ -320,7 +358,7 @@ Player.prototype = {
         const changeImage = () => {
             currentBgIndex = (currentBgIndex + 1) % images.length;
             const nextImage = currentImageCache[currentBgIndex];
-            if (nextImage) {
+            if(nextImage) {
                 let nextLayer = (activeBgLayer === 1) ? bgLayer2 : bgLayer1;
                 let currentLayer = (activeBgLayer === 1) ? bgLayer1 : bgLayer2;
                 nextLayer.style.backgroundImage = `url('${nextImage.src}')`;
@@ -338,6 +376,9 @@ Player.prototype = {
         if (backgroundInterval) clearInterval(backgroundInterval);
         playBtn.style.display = 'block';
         pauseBtn.style.display = 'none';
+        // 暂停时，不取消动画，这样画面会停止在最后一帧
+        // 如果你想在暂停时也停止可视化动画，可以取消下面的注释：
+        // cancelAnimationFrame(this.drawId); this.drawId = null;
     },
 
     skip: function (direction) {
@@ -375,7 +416,6 @@ Player.prototype = {
     },
     
     updateModeButton: function() {
-        // 确保 modeBtn 元素存在才更新，避免在初始化时还未完全加载 DOM 的情况
         if (modeBtn) {
             modeBtn.style.backgroundImage = `url("${modeIcons[this.playbackMode]}")`;
             modeBtn.title = modeTitles[this.playbackMode];
@@ -426,7 +466,16 @@ Player.prototype = {
 
     togglePlaylist: function () { let display = (playlist.style.display === 'block') ? 'none' : 'block'; setTimeout(() => { playlist.style.display = display; if (display === 'block') { list.scrollTop = document.querySelector('#list-song-' + playNum).offsetTop - list.offsetHeight / 2; } }, (display === 'block') ? 0 : 500); playlist.className = (display === 'block') ? 'fadein' : 'fadeout'; },
     togglePost: function () { post.style.display = (post.style.display == "none") ? "block" : "none"; },
-    toggleWave: function () { waveCanvas.style.display = (waveCanvas.style.display == "none") ? "block" : "none"; }, // 节奏条开关
+    toggleWave: function () {
+        waveCanvas.style.display = (waveCanvas.style.display == "none") ? "block" : "none";
+        // 如果波形图被隐藏并且当前正在播放，我们需要确保动画也被暂停以节省资源
+        if (waveCanvas.style.display == "none" && player && player.playlist[player.index].howl && player.playlist[player.index].howl.playing()) {
+             cancelAnimationFrame(player.drawId); player.drawId = null;
+        } else if (waveCanvas.style.display == "block" && player && player.playlist[player.index].howl && player.playlist[player.index].howl.playing()) {
+            // 如果被显示且正在播放，则重启
+            if (!player.drawId) player.drawId = requestAnimationFrame(player.draw.bind(player));
+        }
+    },
     toggleVolume: function () { let display = (volume.style.display === 'block') ? 'none' : 'block'; setTimeout(() => { volume.style.display = display; }, (display === 'block') ? 0 : 500); volume.className = (display === 'block') ? 'fadein' : 'fadeout'; },
     formatTime: function (secs) { let minutes = Math.floor(secs / 60) || 0; let seconds = (secs - minutes * 60) || 0; return `${minutes}:${(seconds < 10 ? '0' : '')}${seconds}`; }
 };
@@ -440,7 +489,7 @@ progressBar.addEventListener('click', (event) => player.seek(event.clientX / win
 playlistBtn.addEventListener('click', () => player.togglePlaylist());
 playlist.addEventListener('click', () => player.togglePlaylist());
 postBtn.addEventListener('click', () => player.togglePost());
-waveBtn.addEventListener('click', () => player.toggleWave()); // 节奏条开关按钮事件
+waveBtn.addEventListener('click', () => player.toggleWave());
 volumeBtn.addEventListener('click', () => player.toggleVolume());
 volume.addEventListener('click', () => player.toggleVolume());
 modeBtn.addEventListener('click', () => player.toggleMode());
@@ -453,7 +502,6 @@ sliderBtn.addEventListener('mousedown', () => window.sliderDown = true);
 sliderBtn.addEventListener('touchstart', () => window.sliderDown = true, { passive: true });
 volume.addEventListener('mouseup', () => window.sliderDown = false);
 volume.addEventListener('touchend', () => window.sliderDown = false);
-// 确保只定义一次 move 函数
 const move = (event) => {
     if (window.sliderDown) {
         let x = event.clientX || event.touches[0].clientX;
@@ -464,25 +512,6 @@ const move = (event) => {
 volume.addEventListener('mousemove', move);
 volume.addEventListener('touchmove', move, { passive: true });
 
-// ============== 节奏条绘制函数 ==============
-let canvasCtx = waveCanvas.getContext("2d"); // 确保 canvasCtx 在这里被定义
-function draw() {
-    if (!player || !player.analyser) return;
-    let W = window.innerWidth, H = window.innerHeight;
-    waveCanvas.width = W; waveCanvas.height = H;
-    canvasCtx.clearRect(0, 0, W, H);
-    player.analyser.getByteFrequencyData(player.dataArray);
-    canvasCtx.fillStyle = 'rgba(255,255,255,0.5)';
-    const barW = W / player.bufferLength;
-    let x = 0;
-    for (let i = 0; i < player.bufferLength; i++) {
-        let barH = player.dataArray[i] / 2;
-        canvasCtx.fillRect(x, H - barH, barW, barH);
-        x += barW + 1;
-    }
-    requestAnimationFrame(draw);
-}
-// ============================================
 
 document.addEventListener('keyup', e => {
     if (!player) return;
@@ -499,4 +528,11 @@ lyricBtn.addEventListener('click', () => {
     lyricContainer.style.display = (lyricContainer.style.display === 'none' || !lyricContainer.style.display) ? 'block' : 'none';
 });
 
-console.log("\n %c Gmemp v3.6.2 (Waveform Confirmed & Fixed) %c https://github.com/Meekdai/Gmemp \n", "color: #fff; background-image: linear-gradient(90deg, rgb(47, 172, 178) 0%, rgb(45, 190, 96) 100%); padding:5px 1px;", "background-image: linear-gradient(90deg, rgb(45, 190, 96) 0%, rgb(255, 255, 255) 100%); padding:5px 0;");
+// 在页面卸载时清理资源，避免内存泄漏
+window.addEventListener('beforeunload', () => {
+   if (player && player.drawId) {
+       cancelAnimationFrame(player.drawId);
+   }
+});
+
+console.log("\n %c Gmemp v3.6.2 (Modes & Visualization Restored) %c https://github.com/Meekdai/Gmemp \n", "color: #fff; background-image: linear-gradient(90deg, rgb(47, 172, 178) 0%, rgb(45, 190, 96) 100%); padding:5px 1px;", "background-image: linear-gradient(90deg, rgb(45, 190, 96) 0%, rgb(255, 255, 255) 100%); padding:5px 0;");
