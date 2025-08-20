@@ -22,28 +22,27 @@
     <span id="track"></span>
     <div id="artist"></div>
     <div id="lyricContainer"></div>
-    <!-- 时间显示已移至新的进度条容器 -->
     <div id="post" style="display:none;"></div>
-  </div>
-
-  <!-- 新增：进度条容器 -->
-  <div id="progress-container">
-    <div id="timer">0:00</div>
-    <div id="progress-track">
-      <div id="progress-bar-bg"></div>
-      <div id="progress-bar-fill"></div>
-      <div id="progress-handle"></div>
-    </div>
-    <div id="duration">0:00</div>
   </div>
   
   <div class="controlsOuter">
+    <!-- 全新的进度条结构 -->
+    <div id="progress-container">
+      <div id="timer">0:00</div>
+      <div id="progress-bar">
+        <div id="progress-track"></div>
+        <div id="progress-fill"></div>
+        <div id="progress-thumb"></div>
+      </div>
+      <div id="duration">0:00</div>
+    </div>
+    
     <div class="controlsInner">
       <div id="loading"></div>
       <div class="btn" id="playBtn" title="播放"></div>
       <div class="btn" id="pauseBtn" title="暂停"></div>
-      <div class="btn" id="nextBtn"></div>
-      <div class="btn" id="prevBtn"></div>
+      <div class="btn" id="nextBtn" title="下一首"></div>
+      <div class="btn" id="prevBtn" title="上一首"></div>
     </div>
     <div class="btn" id="lyricBtn" title="歌词开关"></div>
     <div class="btn" id="playlistBtn" title="歌单"></div>
@@ -53,7 +52,7 @@
     <div class="btn" id="volumeBtn" title="音量调节"></div>
   </div>
 
-  <!-- 旧的进度条已被移除 -->
+  <!-- 旧的进度条元素已移除 -->
   <canvas id="waveCanvas"></canvas>
 
   <div id="playlist">
