@@ -1,70 +1,59 @@
 <!doctype html>
-    <div id="artist"></div>
-  </div>
+<html lang="zh-CN">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <meta name="description" content="Meekdai music player page with journal">
+    <meta property="og:title" content="Gmemp">
+    <meta property="og:description" content="Meekdai music player page with journal">
+    <meta property="og:type" content="article">
+    <meta property="og:url" content="https://music.1357924680liu.dpdns.org/">
+    <meta property="og:image" content=""/>
+    <link rel="icon" href="favicon.svg">
+    <title>Gmemp</title>
+    <link rel="stylesheet" href="player.css">
+</head>
+<body>
+    <!-- 背景层 -->
+    <div id="bg-layer1" class="bg-layer"></div>
+    <div id="bg-layer2" class="bg-layer"></div>
+    <canvas id="waveCanvas"></canvas>
+    <div id="loading"></div>
 
-  <!-- 新的歌词视图 -->
-  <div id="lyric-view">
-    <div id="lyric-prev" class="lyric-line"></div>
-    <div id="lyric-current" class="lyric-line"></div>
-    <div id="lyric-next" class="lyric-line"></div>
-  </div>
-  
-  <!-- "简介/本人的话" 弹窗 -->
-  <div id="post-overlay" class="modal-overlay">
-      <div id="post"></div>
-  </div>
-
-  <!-- 加载动画 -->
-  <div id="loading"></div>
-
-  <!-- 可滑出的播放列表 -->
-  <div id="playlist">
-    <div id="list"></div>
-  </div>
-
-  <!-- 底部固定播放条 -->
-  <footer id="player-bar">
-    <!-- 播放控制 (左) -->
-    <div class="bar-section" id="controls-left">
-      <div class="btn" id="prevBtn" title="上一首"></div>
-      <div class="btn" id="playBtn" title="播放"></div>
-      <div class="btn" id="pauseBtn" title="暂停"></div>
-      <div class="btn" id="nextBtn" title="下一首"></div>
+    <!-- 顶部信息 -->
+    <div id="top-info">
+        <div id="track"></div>
+        <div id="artist"></div>
+    </div>
+    
+    <!-- 全屏日志文章 -->
+    <div id="post-panel" class="panel">
+        <div id="post-content"></div>
     </div>
 
-    <!-- 进度条 (中) -->
-    <div class="bar-section" id="progress-container">
-      <div id="timer">0:00</div>
-      <div id="progress-bar-wrapper">
-        <div id="progress-bar-bg"></div>
-        <div id="progress-bar-fg"></div>
-        <div id="progress-handle"></div>
-      </div>
-      <div id="duration">0:00</div>
+    <!-- 歌词容器 -->
+    <div id="lyric-container">
+        <div id="lyric-prev" class="lyric-line"></div>
+        <div id="lyric-current" class="lyric-line"></div>
+        <div id="lyric-next" class="lyric-line"></div>
     </div>
 
-    <!-- 功能按钮 (右) -->
-    <div class="bar-section" id="controls-right">
-      <div id="volume-control">
-        <div class="btn" id="volumeBtn" title="音量"></div>
-        <div id="volume-popup">
-            <div id="volume-percentage">100%</div>
-            <div id="volume-slider-wrapper">
-                <div id="volume-slider-bg"></div>
-                <div id="volume-slider-fg"></div>
-                <div id="volume-handle"></div>
+    <!-- 底部控制中心 -->
+    <div id="player-controls">
+        <!-- 进度条区域 -->
+        <div class="progress-container">
+            <div id="timer">0:00</div>
+            <div id="progress-bar">
+                <div id="progress-loaded"></div>
+                <div id="progress-played"></div>
+                <div id="progress-slider"></div>
             </div>
+            <div id="duration">0:00</div>
         </div>
-      </div>
-      <div class="btn" id="modeBtn" title="顺序播放"></div>
-      <div class="btn" id="lyricBtn" title="歌词开关"></div>
-      <div class="btn" id="waveBtn" title="节奏条开关"></div>
-      <div class="btn" id="postBtn" title="简介/本人的话"></div>
-      <div class="btn" id="playlistBtn" title="播放列表"></div>
-    </div>
-  </footer>
 
-  <script src="howler.min.js"></script>
-  <script src="player.js"></script>
-</body>
-</html>
+        <!-- 控制按钮区域 -->
+        <div class="buttons-container">
+            <div class="main-controls">
+                <div class="btn" id="prevBtn" title="上一首"></div>
+                <div class="btn" id="playBtn" title="播放"></div>
+                <div class="btn" id="pauseBtn" title="暂停"></div>
