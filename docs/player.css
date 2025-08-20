@@ -49,7 +49,6 @@ body {
   font-weight: 300;
   color: #fff;
   text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.33);
-  z-index: 10;
 }
 #artist{
   color: #fff;
@@ -91,7 +90,6 @@ body {
   width: 100%;
   height: 70px;
   bottom: 3%;
-  z-index: 10;
 }
 .controlsInner {
   position: absolute;
@@ -108,6 +106,9 @@ body {
   filter: drop-shadow(1px 1px 2px rgba(0, 0, 0, 0.33));
   -webkit-user-select: none;
   user-select: none;
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-position: center;
 }
 .btn:hover {
   opacity: 1;
@@ -144,7 +145,7 @@ body {
   margin: -17.5px auto;
 }
 #playlistBtn {
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 660 660'%3E%3Cpath fill='%23fff' d='M544.8 32.5c-70.5 23.5-73.4 24.8-80.2 34.2C456.3 78.1 457 60 457 272c0 103.4-.38 188-.8 188-.5 0-3.4-.9-6.4-1.9-28.4-9.8-73.4-9.8-107.2-.1-52 15-85 50.6-85 92 0 67 86.7 113.7 178 95.5 51.6-10.3 86.3-37.6 98.4-77.5 1.5-5 1.7-21.2 2.2-187.5l.5-182 47.5-16c57.4-19.4 58.7-20 65.8-31 6.2-9.7 6.3-11 6-64L655.5 39.5l-3-6.5c-6.5-13.7-17.9-21-33.4-21.7l-9.5-.4-64.7 21.6M51 90.6c-22.6 3.6-35 20-33.7 43.4 1.3 18.6 14.1 32.2 33 35 8.2 1.2 284.3 1.2 292.5 0 20.3-3 33.2-18.1 33.2-39 0-18.1-9.5-31.6-27-38.2-3.3-1.25-290.5-2.4-298-1.2m0 160C30 254 17 269 17 290c0 21 13 36.1 33.2 39 8.2 1.2 284.3 1.2 292.5 0 20.3-3 33.2-18 33.2-39 0-18.1-9.5-31.6-27-38.2-3.3-1.25-290.5-2.4-298-1.2m0 160C29.8 414.1 17 428.9 17 450c0 21 13 36 33.2 39 8.1 1.2 124.4 1.2 132.5 0 41.2-6 45.8-62.6 6.258-77.2-3.4-1.238-131-2.4-138-1.2'/%3E%3C/svg%3E");
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Cpath fill='%23fff' d='M40 48C26.7 48 16 58.7 16 72v48c0 13.3 10.7 24 24 24H88c13.3 0 24-10.7 24-24V72c0-13.3-10.7-48-24-48H40zM192 64c-17.7 0-32 14.3-32 32s14.3 32 32 32H480c17.7 0 32-14.3 32-32s-14.3-32-32-32H192zm0 160c-17.7 0-32 14.3-32 32s14.3 32 32 32H480c17.7 0 32-14.3 32-32s-14.3-32-32-32H192zm0 160c-17.7 0-32 14.3-32 32s14.3 32 32 32H480c17.7 0 32-14.3 32-32s-14.3-32-32-32H192zM16 232v48c0 13.3 10.7 24 24 24H88c13.3 0 24-10.7 24-24V232c0-13.3-10.7-24-24-24H40c-13.3 0-24 10.7-24 24zm0 160v48c0 13.3 10.7 24 24 24H88c13.3 0 24-10.7 24-24V392c0-13.3-10.7-24-24-24H40c-13.3 0-24 10.7-24 24z'/%3E%3C/svg%3E");
   width: 35px;
   height: 35px;
   top: 50%;
@@ -152,7 +153,7 @@ body {
   margin: -17.5px auto;
 }
 #modeBtn {
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Cpath fill='%23fff' d='M0 128c0-17.7 14.3-32 32-32H480c17.7 0 32 14.3 32 32s-14.3 32-32 32H32c-17.7 0-32-14.3-32-32zM0 256c0-17.7 14.3-32 32-32H480c17.7 0 32 14.3 32 32s-14.3 32-32 32H32c-17.7 0-32-14.3-32-32zM480 352c17.7 0 32 14.3 32 32s-14.3 32-32 32H32c-17.7 0-32-14.3-32-32s14.3-32 32-32H480z'/%3E%3C/svg%3E");
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Cpath fill='%23fff' d='M272 96c-17.7 0-32 14.3-32 32s14.3 32 32 32h16.8L194.5 280.9c-15.1 15.1-4.4 41 17 41H240v32c0 17.7 14.3 32 32 32s32-14.3 32-32V321.9l94.5-94.5c15.1-15.1 4.4-41-17-41H304V128c0-17.7-14.3-32-32-32zM448 416a48 48 0 1 0 -96 0 48 48 0 1 0 96 0zM112 160a48 48 0 1 0 0-96 48 48 0 1 0 0 96z'/%3E%3C/svg%3E");
   width: 35px;
   height: 35px;
   top: 50%;
@@ -160,23 +161,24 @@ body {
   margin: -17.5px auto;
 }
 #postBtn {
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Cpath fill='%23fff' d='M96 0C43 0 0 43 0 96V416c0 53 43 96 96 96H384h32c17.7 0 32-14.3 32-32s-14.3-32-32-32V384c17.7 0 32-14.3 32-32V32c0-17.7-14.3-32-32-32H384 96zm0 384H352v64H96c-17.7 0-32-14.3-32-32s14.3-32 32-32zm32-240c0-8.8 7.2-16 16-16H336c8.8 0 16 7.2 16 16s-7.2 16-16 16H144c-8.8 0-16-7.2-16-16zm16 48H336c8.8 0 16 7.2 16 16s-7.2 16-16 16H144c-8.8 0-16-7.2-16-16s7.2-16 16-16z'/%3E%3C/svg%3E");  width: 35px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 448 512'%3E%3Cpath fill='%23fff' d='M96 0C43 0 0 43 0 96V416c0 53 43 96 96 96H384h32c17.7 0 32-14.3 32-32s-14.3-32-32-32V384c17.7 0 32-14.3 32-32V96c0-53-43-96-96-96H96zM256 256c0 17.7-14.3 32-32 32s-32-14.3-32-32V160c0-17.7 14.3-32 32-32s32 14.3 32 32v96zm-64 96c0 17.7-14.3 32-32 32s-32-14.3-32-32V320c0-17.7 14.3-32 32-32s32 14.3 32 32v32zm96-96V160c0-17.7 14.3-32 32-32s32 14.3 32 32v96c0 17.7-14.3 32-32 32s-32-14.3-32-32z'/%3E%3C/svg%3E");
+  width: 30px; /* 略微调整以适应新图标 */
   height: 35px;
   top: 50%;
   left: calc(5% + 90px);
   margin: -17.5px auto;
 }
 #waveBtn {
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 640 512'%3E%3Cpath fill='%23fff' d='M128 64c0-17.7 14.3-32 32-32H320c17.7 0 32 14.3 32 32V416h96V256c0-17.7 14.3-32 32-32H608c17.7 0 32 14.3 32 32s-14.3 32-32 32H512V448c0 17.7-14.3 32-32 32H320c-17.7 0-32-14.3-32-32V96H192V256c0 17.7-14.3 32-32 32H32c-17.7 0-32-14.3-32-32s14.3-32 32-32h96V64z'/%3E%3C/svg%3E");
-  width: 44px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Cpath fill='%23fff' d='M64 128c0-17.7 14.3-32 32-32H224c17.7 0 32 14.3 32 32V384c0 17.7-14.3 32-32 32H96c-17.7 0-32-14.3-32-32V128zM288 384V128c0-17.7 14.3-32 32-32H416c17.7 0 32 14.3 32 32V384c0 17.7-14.3 32-32 32H320c-17.7 0-32-14.3-32-32z'/%3E%3C/svg%3E");
+  width: 35px;
   height: 35px;
   top: 50%;
   right: calc(5% + 80px);
   margin: -17.5px auto;
 }
 #volumeBtn {
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Cpath fill='%23fff' d='M301.1 34.8C312.6 40 320 51.4 320 64V448c0 12.6-7.4 24-18.9 29.2s-25 3.1-34.4-5.3L131.8 352H64c-35.3 0-64-28.7-64-64V224c0-35.3 28.7-64 64-64h67.8L266.7 40.1c9.4-8.4 22.9-10.4 34.4-5.3zM412.6 181.5C434.1 199.1 448 225.9 448 256s-13.9 56.9-35.4 74.5c-10.3 8.4-25.4 6.8-33.8-3.5s-6.8-25.4 3.5-33.8C393.1 284.4 400 271 400 256s-6.9-28.4-17.7-37.3c-10.3-8.4-11.8-23.5-3.5-33.8s23.5-11.8 33.8-3.5z'/%3E%3C/svg%3E");
-  width: 35px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 640 512'%3E%3Cpath fill='%23fff' d='M533.6 32.5C598.5 85.3 640 165.8 640 256s-41.5 170.8-106.4 223.5c-10.3 8.4-25.4 6.8-33.8-3.5s-6.8-25.4 3.5-33.8C557.5 398.2 592 331.2 592 256s-34.5-142.2-88.7-186.3c-10.3-8.4-11.8-23.5-3.5-33.8s23.5-11.8 33.8-3.5zM473.1 92.8c43.2 35.2 70.9 88.9 70.9 147.2s-27.7 112-70.9 147.2c-10.3 8.4-25.4 6.8-33.8-3.5s-6.8-25.4 3.5-33.8 C483.8 322.3 504 290.5 504 256s-20.2-66.3-61.2-92.8c-10.3-8.4-11.8-23.5-3.5-33.8s23.5-11.8 33.8-3.5zm-60.5 74.5C434.1 199.1 448 225.9 448 256s-13.9 56.9-35.4 74.5c-10.3 8.4-25.4 6.8-33.8-3.5s-6.8-25.4 3.5-33.8C393.1 284.4 400 271 400 256s-6.9-28.4-17.7-37.3c-10.3-8.4-11.8-23.5-3.5-33.8s23.5-11.8 33.8-3.5zM301.1 34.8C312.6 40 320 51.4 320 64V448c0 12.6-7.4 24-18.9 29.2s-25 3.1-34.4-5.3L131.8 352H64c-35.3 0-64-28.7-64-64V224c0-35.3 28.7-64 64-64h67.8L266.7 40.1c9.4-8.4 22.9-10.4 34.4-5.3z'/%3E%3C/svg%3E");
+  width: 42px;
   height: 35px;
   top: 50%;
   right: 5%;
@@ -185,17 +187,17 @@ body {
 
 #progressBar {
   width: 100%;
-  height: 8%; /* 缩小进度条高度，为歌词留出空间 */
+  height: 30%;
   position: absolute;
   left: 0;
   top: 50%;
-  margin: -4% auto; /* 调整进度条垂直位置 */
+  margin: -15% auto;
   display: none;
   cursor: pointer;
   opacity: 0.8;
   -webkit-user-select: none;
   user-select: none;
-  z-index: 10;
+  z-index: 1;
 }
 #progressBar:hover { opacity: 1; }
 #progress {
@@ -211,73 +213,88 @@ body {
   position: absolute;
   top: 0;
   left: 0;
-  z-index: -1;
+  z-index: -1; /* 让波形图在歌词下面 */
 }
 
-/* ... 之后的CSS省略，保持不变 ... */
+#loading { /* ... ... */ }
+#playlist { /* ... ... */ }
+#list { /* ... ... */ }
+.list-song { /* ... ... */ }
+#volume { /* ... ... */ }
+.bar { /* ... ... */ }
+#barEmpty { /* ... ... */ }
+#barFull { /* ... ... */ }
+#sliderBtn { /* ... ... */ }
+.fadeout { /* ... ... */ }
+.fadein { /* ... ... */ }
+
+/* ... (以上省略部分保持原样，下面是重点修改的歌词部分) ... */
 #loading { position: absolute; left: 50%; top: 50%; margin: -35px; width: 70px; height: 70px; background-color: #fff; border-radius: 100%; -webkit-animation: sk-scaleout 1.0s infinite ease-in-out; animation: sk-scaleout 1.0s infinite ease-in-out; display: none; }
 @-webkit-keyframes sk-scaleout { 0% { -webkit-transform: scale(0) } 100% { -webkit-transform: scale(1.0); opacity: 0; } }
 @keyframes sk-scaleout { 0% { -webkit-transform: scale(0); transform: scale(0); } 100% { -webkit-transform: scale(1.0); transform: scale(1.0); opacity: 0; } }
-#playlist { width: 100%; height: 100%; position: absolute; top: 0; left: 0; background-color: rgba(0, 0, 0, 0.5); display: none; z-index: 20; }
+#playlist { width: 100%; height: 100%; position: absolute; top: 0; left: 0; background-color: rgba(0, 0, 0, 0.5); display: none; }
 #list { width: 100%; height: 80%; position: absolute; overflow: auto; top: 20%; left: 0; }
 .list-song { width: 100%; height: 60px; font-size: 30px; line-height: 60px; text-align: center; font-weight: bold; color: #fff; text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.33); white-space:nowrap; }
 .list-song:hover { background-color: rgba(255, 255, 255, 0.1); cursor: pointer; }
-#volume { width: 100%; height: 100%; position: absolute; top: 0; left: 0; background-color: rgba(0, 0, 0, 0.5); touch-action: none; -webkit-user-select: none; -webkit-tap-highlight-color: rgba(0, 0, 0, 0); display: none; z-index: 20; }
+#volume { width: 100%; height: 100%; position: absolute; top: 0; left: 0; background-color: rgba(0, 0, 0, 0.5); touch-action: none; -webkit-user-select: none; -webkit-tap-highlight-color: rgba(0, 0, 0, 0); display: none; }
 .bar { position: absolute; top: 50%; left: 5%; margin: -5px auto; height: 10px; background-color: rgba(255, 255, 255, 0.9); box-shadow: 1px 1px 2px rgba(0, 0, 0, 0.33); }
 #barEmpty { width: 90%; opacity: 0.5; box-shadow: none; cursor: pointer; }
 #barFull { width: 90%; }
 #sliderBtn { width: 50px; height: 50px; position: absolute; top: 50%; left: 93.25%; margin: -25px auto; background-color: rgba(255, 255, 255, 0.8); box-shadow: 1px 1px 5px rgba(0, 0, 0, 0.33); border-radius: 25px; cursor: pointer; }
-.fadeout { -webkit-animation: fadeout 0.5s; -ms-animation: fadeout 0.5s; animation: fadeout 0.5s; }
-.fadein { -webkit-animation: fadein 0.5s; -ms-animation: fadein 0.5s; animation: fadein 0.5s; }
-@keyframes fadein { from { opacity: 0; } to   { opacity: 1; } } @-webkit-keyframes fadein { from { opacity: 0; } to   { opacity: 1; } } @-ms-keyframes fadein { from { opacity: 0; } to   { opacity: 1; } }
-@keyframes fadeout { from { opacity: 1; } to   { opacity: 0; } } @-webkit-keyframes fadeout { from { opacity: 1; } to   { opacity: 0; } } @-ms-keyframes fadeout { from { opacity: 1; } to   { opacity: 0; } }
+.fadeout { webkit-animation: fadeout 0.5s; -ms-animation: fadeout 0.5s; animation: fadeout 0.5s; }
+.fadein { webkit-animation: fadein 0.5s; -ms-animation: fadein 0.5s; animation: fadein 0.5s; }
+@keyframes fadein { from { opacity: 0; } to { opacity: 1; } } @-webkit-keyframes fadein { from { opacity: 0; } to { opacity: 1; } } @-ms-keyframes fadein { from { opacity: 0; } to { opacity: 1; } }
+@keyframes fadeout { from { opacity: 1; } to { opacity: 0; } } @-webkit-keyframes fadeout { from { opacity: 1; } to { opacity: 0; } } @-ms-keyframes fadeout { from { opacity: 1; } to { opacity: 0; } }
 
-/* === 新增和修改的歌词样式 === */
-#lyric-wrapper {
+/* ================== 新增/修改的歌词样式 ================== */
+#lyricWrapper {
   position: absolute;
-  top: calc(50% + 40px); /* 将歌词区域整体下移 */
+  top: 50%;
   left: 0;
   width: 100%;
-  transform: translateY(-50%);
-  z-index: 5;
-  padding: 0 20px;
-  box-sizing: border-box;
-  pointer-events: none; /* 让歌词区域不影响下层元素的点击 */
-}
-
-#lyric-container {
+  transform: translateY(-50%); /* 垂直居中 */
+  height: 200px; /* 给予足够的高度 */
   display: flex;
-  flex-direction: column;
   align-items: center;
   justify-content: center;
+  pointer-events: none; /* 让鼠标事件可以穿透 */
+  z-index: 5; /* 确保在进度条上，波形图下 */
+}
+
+#lyricContainer {
+  font-family: "Helvetica Neue", "Futura", "Trebuchet MS", Arial, sans-serif;
   text-align: center;
   text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.6);
-  transition: opacity 0.5s;
+  color: #fff;
+  width: 90%;
+  max-width: 800px;
+  overflow: hidden; /* 隐藏超出部分 */
 }
 
 .lyric-line {
-  width: 100%;
-  padding: 8px 0;
-  transition: all 0.5s ease;
-  min-height: 1.5em; /* 保证空行也有高度 */
+  margin: 10px 0;
+  transition: all 0.5s ease-in-out; /* 平滑过渡 */
+  min-height: 1.2em; /* 避免空行时塌陷 */
 }
 
-#lyric-current {
-  color: #fff;
-  font-size: 24px;   /* 当前行字体放大 */
-  font-weight: bold;
+#lyricPrev, #lyricNext {
+  font-size: 18px;
+  opacity: 0.6;
+  filter: blur(1px); /* 轻微模糊效果 */
+  transform: scale(0.95);
+}
+
+#lyricCurrent {
+  font-size: 24px;
+  font-weight: 500;
   opacity: 1;
+  filter: blur(0);
+  transform: scale(1);
 }
 
-#lyric-prev, #lyric-next {
-  color: #fff;
-  font-size: 18px;   /* 上下文字体稍小 */
-  opacity: 0.6;      /* 上下文半透明 */
-}
-/* === 结束新增和修改的歌词样式 === */
-
+/* ====================================================== */
 #lyricBtn {
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Cpath fill='%23fff' d='M512 128v320c0 26.5-21.5 48-48 48H48c-26.5 0-48-21.5-48-48V128c0-26.5 21.5-48 48-48h416c26.5 0 48 21.5 48 48zM192 384v-96h-64v96h64zm128-96v192h64V288h-64zm128 0v64h64v-64h-64z'/%3E%3C/svg%3E");
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Cpath fill='%23fff' d='M32 96C32 78.3 46.3 64 64 64H448c17.7 0 32 14.3 32 32s-14.3 32-32 32H64c-17.7 0-32-14.3-32-32zm0 160c0-17.7 14.3-32 32-32H448c17.7 0 32 14.3 32 32s-14.3 32-32 32H64c-17.7 0-32-14.3-32-32zm0 160c0-17.7 14.3-32 32-32H448c17.7 0 32 14.3 32 32s-14.3 32-32 32H64c-17.7 0-32-14.3-32-32z'/%3E%3C/svg%3E");
     width: 35px;
     height: 35px;
     position: absolute;
@@ -290,26 +307,17 @@ body {
 }
 
 @media screen and (max-width: 600px) {
-    #title, #artist { display: none; }
-    #lyric-wrapper { top: 40%; } /* 手机端歌词位置微调 */
-    #lyric-current { font-size: 20px; }
-    #lyric-prev, #lyric-next { font-size: 16px; }
-
-    #playlistBtn, #modeBtn, #postBtn, #lyricBtn, #waveBtn, #volumeBtn {
-        top: auto;
-        bottom: 80px; /* 控制按钮统一上移 */
-        margin: 0;
-    }
-
+    #track{display: none;}
+    #artist{display: none;}
+    #playlistBtn { left: 5%; margin: -80px auto; }
+    #modeBtn { left: calc(5% + 45px); margin: -80px auto; }
+    #postBtn { left: calc(5% + 90px); margin: -80px auto; }
+    #waveBtn { right: calc(5% + 45px); margin: -80px auto; }
+    #volumeBtn { right: 5%; margin: -80px auto; }
+    #lyricBtn { right: calc(5% + 90px); top: calc(50% - 80px);}
     .controlsInner { width: 300px; margin: 0 -150px; }
     #prevBtn { left: 15%; }
     #nextBtn { right: 15%; }
-
-    #playlistBtn { left: 5%; }
-    #modeBtn { left: calc(5% + 40px); }
-    #postBtn { left: calc(5% + 80px); }
-    
-    #volumeBtn { right: 5%; }
-    #waveBtn { right: calc(5% + 40px); }
-    #lyricBtn { right: calc(5% + 80px); }
+    #lyricCurrent { font-size: 20px; }
+    #lyricPrev, #lyricNext { font-size: 16px; }
 }
