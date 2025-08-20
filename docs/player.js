@@ -6,8 +6,8 @@ let media = "https://music.1357924680liu.dpdns.org/media/";
 const BACKGROUND_SLIDESHOW_INTERVAL = 5000;
 // ==========================================================
 
-// Cache references to DOM elements.
-let elms = ['track', 'artist', 'timer', 'duration', 'post', 'playBtn', 'pauseBtn', 'prevBtn', 'nextBtn', 'playlistBtn', 'postBtn', 'waveBtn', 'volumeBtn', 'progress', 'progressBar', 'waveCanvas', 'loading', 'playlist', 'list', 'volume', 'barEmpty', 'barFull', 'sliderBtn', 'lyricBtn', 'lyricContainer'];
+// Cache references to DOM elements
+let elms = ['track', 'artist', 'timer', 'duration', 'post', 'playBtn', 'pauseBtn', 'prevBtn', 'nextBtn', 'playlistBtn', 'postBtn', 'waveBtn', 'volumeBtn', 'progress', 'progressBar', 'waveCanvas', 'loading', 'playlist', 'list', 'volume', 'barEmpty', 'barFull', 'sliderBtn', 'lyricBtn', 'lyricContainer', 'modeBtn']; // 添加 modeBtn
 elms.forEach(function (elm) {
     window[elm] = document.getElementById(elm);
 });
@@ -27,6 +27,19 @@ let backgroundInterval = null;
 let currentBgIndex = 0;
 let activeBgLayer = 1;
 let currentImageCache = [];
+
+// SVG 图标 Data URIs
+const modeIcons = {
+    list: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Cpath fill='%23fff' d='M0 128c0-17.7 14.3-32 32-32H480c17.7 0 32 14.3 32 32s-14.3 32-32 32H32c-17.7 0-32-14.3-32-32zm0 256c0-17.7 14.3-32 32-32H480c17.7 0 32 14.3 32 32s-14.3 32-32 32H32c-17.7 0-32-14.3-32-32zM0 256c0-17.7 14.3-32 32-32H480c17.7 0 32 14.3 32 32s-14.3 32-32 32H32c-17.7 0-32-14.3-32-32z'/%3E%3C/svg%3E",
+    shuffle: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Cpath fill='%23fff' d='M403.8 34.4c12-5 25.7-2.2 34.9 6.9l64 64c6 6 9.4 14.1 9.4 22.6s-3.4 16.6-9.4 22.6l-64 64c-9.2 9.2-22.9 11.9-34.9 6.9s-19.8-16.6-19.8-29.6V160H352c-10.1 0-19.6 4.7-25.6 12.8L182.2 320H224c13.3 0 24 10.7 24 24s-10.7 24-24 24H128c-13.3 0-24-10.7-24-24V320c0-13.3 10.7-24 24-24h45.3L314.7 160H224c-13.3 0-24-10.7-24-24s10.7-24 24-24h160v-32c0-12.9 7.8-24.6 19.8-29.6zM160 352H96v-32c0-12.9 7.8-24.6 19.8-29.6s25.7-2.2 34.9 6.9l64 64c6 6 9.4 14.1 9.4 22.6s-3.4 16.6-9.4 22.6l-64 64c-9.2 9.2-22.9 11.9-34.9 6.9s-19.8-16.6-19.8-29.6V416h64c13.3 0 24-10.7 24-24s-10.7-24-24-24z'/%3E%3C/svg%3E",
+    single: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Cpath fill='%23fff' d='M0 224c0-17.7 14.3-32 32-32s32 14.3 32 32V256c0 44.2 35.8 80 80 80H224c17.7 0 32 14.3 32 32s-14.3 32-32 32H144C64.5 400 0 335.5 0 256V224zM288 96H368c44.2 0 80 35.8 80 80v32c0 17.7 14.3 32 32 32s32-14.3 32-32V176c0-79.5-64.5-144-144-144H288c-17.7 0-32 14.3-32 32s14.3 32 32 32zM208 256a48 48 0 1 0 96 0 48 48 0 1 0 -96 0z'/%3E%3Cpath fill='%23fff' transform='translate(120, 25) scale(0.4)' d='M432,128.2,336,32.2V96h-24A120,120,0,0,0,92.5,215.5a120,120,0,0,0,219,81l48,48A184.2,184.2,0,0,1,311.5,416C191,416,96,321,96,200.5S191,85,311.5,85H336v64Z'/%3E%3Ctext x='240' y='325' font-size='200' font-weight='bold' fill='%23fff' text-anchor='middle' alignment-baseline='middle'%3E1%3C/text%3E%3C/svg%3E"
+};
+
+const modeTitles = {
+    list: '顺序播放',
+    shuffle: '随机播放',
+    single: '单曲循环'
+};
 
 let request = new XMLHttpRequest();
 request.open("GET", requestJson);
@@ -53,7 +66,6 @@ request.onload = function () {
 function isMobile() {
     return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
 }
-
 
 function parseLRC(lrcText) {
     if (!lrcText) return [];
@@ -129,11 +141,11 @@ function getCurrentLyric(time, isSRT = false) {
     }
 }
 
-
 let Player = function (playlist) {
     this.playlist = playlist;
     this.index = playNum;
     this.isSlideshowRunning = false;
+    this.playbackMode = 'list'; // 'list', 'shuffle', 'single'
 
     track.innerHTML = playlist[this.index].title;
     artist.innerHTML = playlist[this.index].artist;
@@ -142,7 +154,7 @@ let Player = function (playlist) {
     const initialPic = Array.isArray(playlist[this.index].pic) ? playlist[this.index].pic[0] : playlist[this.index].pic;
     document.querySelector('meta[property="og:image"]').setAttribute('content', media + encodeURI(initialPic));
     document.querySelector('meta[property="og:title"]').setAttribute('content', playlist[this.index].title);
-    document.title = playlist[this.index].title + " - Gmemp";
+    document.title = `${playlist[this.index].title} - Gmemp`;
     this.loadLyric(playlist[this.index].lyric || null);
     
     playlist.forEach((song, index) => {
@@ -154,13 +166,13 @@ let Player = function (playlist) {
         list.appendChild(div);
     });
     document.querySelector('#list-song-' + playNum).style.backgroundColor = 'rgba(255, 255, 255, 0.1)';
+    this.updateModeButton(); // 初始化按钮状态
 };
 
 Player.prototype = {
     play: function (index) {
         const isNewTrack = (typeof index === 'number' && index !== this.index);
         index = typeof index === 'number' ? index : this.index;
-        
         let data = this.playlist[index];
         let sound;
 
@@ -175,46 +187,24 @@ Player.prototype = {
             sound = data.howl;
         } else {
             sound = data.howl = new Howl({
-                src: [media + data.mp3],
-                html5: isMobile(),
+                src: [media + data.mp3], html5: isMobile(),
                 onplay: () => {
                     duration.innerHTML = this.formatTime(Math.round(sound.duration()));
                     requestAnimationFrame(this.step.bind(this));
-                    progressBar.style.display = 'block';
-                    pauseBtn.style.display = 'block';
-                    playBtn.style.display = 'none';
-                    loading.style.display = 'none';
+                    progressBar.style.display = 'block'; pauseBtn.style.display = 'block'; playBtn.style.display = 'none'; loading.style.display = 'none';
                     const isSRT = data.lyric && /\.srt$/i.test(data.lyric);
                     lyricInterval = setInterval(() => {
                         const pos = sound.seek();
                         if (Math.abs(pos - lastLyricTime) > 0.1) {
-                            lyricContainer.innerHTML = getCurrentLyric(pos, isSRT);
-                            lastLyricTime = pos;
+                            lyricContainer.innerHTML = getCurrentLyric(pos, isSRT); lastLyricTime = pos;
                         }
                     }, 100);
                 },
-                onload: () => {
-                    loading.style.display = 'none';
-                    progressBar.style.display = 'block';
-                },
-                onend: () => { this.skip('next'); },
-                onpause: () => {
-                    if (lyricInterval) clearInterval(lyricInterval);
-                    if (backgroundInterval) clearInterval(backgroundInterval);
-                    progressBar.style.display = 'none';
-                },
-                onstop: () => {
-                    if (lyricInterval) clearInterval(lyricInterval);
-                    if (backgroundInterval) clearInterval(backgroundInterval);
-                    progressBar.style.display = 'none';
-                },
-                onseek: () => {
-                    const pos = sound.seek();
-                    const isSRT = data.lyric && /\.srt$/i.test(data.lyric);
-                    lyricContainer.innerHTML = getCurrentLyric(pos, isSRT);
-                    lastLyricTime = pos;
-                    requestAnimationFrame(this.step.bind(this));
-                }
+                onload: () => { loading.style.display = 'none'; progressBar.style.display = 'block'; },
+                onend: () => { this.playNextTrack(); },
+                onpause: () => { if (lyricInterval) clearInterval(lyricInterval); if (backgroundInterval) clearInterval(backgroundInterval); progressBar.style.display = 'none'; },
+                onstop: () => { if (lyricInterval) clearInterval(lyricInterval); if (backgroundInterval) clearInterval(backgroundInterval); progressBar.style.display = 'none'; },
+                onseek: () => { const pos = sound.seek(); const isSRT = data.lyric && /\.srt$/i.test(data.lyric); lyricContainer.innerHTML = getCurrentLyric(pos, isSRT); lastLyricTime = pos; requestAnimationFrame(this.step.bind(this)); }
             });
         }
         sound.play();
@@ -229,9 +219,7 @@ Player.prototype = {
             const ogImage = Array.isArray(data.pic) ? data.pic[0] : data.pic;
             document.querySelector('meta[property="og:title"]').setAttribute('content', data.title);
             document.querySelector('meta[property="og:image"]').setAttribute('content', media + encodeURI(ogImage));
-            if(document.querySelector('#list-song-' + playNum)) {
-                document.querySelector('#list-song-' + playNum).style.backgroundColor = '';
-            }
+            if(document.querySelector('#list-song-' + playNum)) { document.querySelector('#list-song-' + playNum).style.backgroundColor = ''; }
             document.querySelector('#list-song-' + index).style.backgroundColor = 'rgba(255, 255, 255, 0.1)';
             playNum = index;
             this.loadLyric(data.lyric || null);
@@ -245,36 +233,33 @@ Player.prototype = {
         }
 
         progressBar.style.margin = `-${window.innerHeight * 0.3 / 2}px auto`;
-        
-        if (sound.state() === 'loaded') {
-            loading.style.display = 'none';
-        } else {
-            loading.style.display = 'block';
-            playBtn.style.display = 'none';
-            pauseBtn.style.display = 'none';
-        }
+        if (sound.state() === 'loaded') { loading.style.display = 'none'; } else { loading.style.display = 'block'; playBtn.style.display = 'none'; pauseBtn.style.display = 'none'; }
         this.index = index;
     },
-
+    
+    playNextTrack: function() {
+        if (this.playbackMode === 'single') {
+            this.skipTo(this.index);
+        } else {
+            this.skip('next');
+        }
+    },
+    
     updateMediaSession: function(data) {
         if (!('mediaSession' in navigator)) return;
         const coverPic = Array.isArray(data.pic) ? data.pic[0] : data.pic;
         const metadata = { title: data.title, artist: data.artist };
-        
         const setMetadata = (artwork = []) => {
             navigator.mediaSession.metadata = new MediaMetadata({ ...metadata, artwork });
         };
-
         navigator.mediaSession.setActionHandler('play', () => this.play());
         navigator.mediaSession.setActionHandler('pause', () => this.pause());
         navigator.mediaSession.setActionHandler('previoustrack', () => this.skip('prev'));
         navigator.mediaSession.setActionHandler('nexttrack', () => this.skip('next'));
-
         if (!coverPic) {
             setMetadata();
             return;
         }
-
         const img = new Image();
         img.crossOrigin = 'Anonymous';
         img.onload = () => {
@@ -295,7 +280,6 @@ Player.prototype = {
     setBackground: function(picData, forceReset = false) {
         if (backgroundInterval) clearInterval(backgroundInterval);
         currentImageCache = [];
-
         if (Array.isArray(picData) && picData.length > 1) {
             this.isSlideshowRunning = true;
             const firstImageUrl = `url('${media}${encodeURI(picData[0])}')`;
@@ -303,13 +287,11 @@ Player.prototype = {
             bgLayer1.style.opacity = 1;
             bgLayer2.style.opacity = 0;
             activeBgLayer = 1;
-
             picData.forEach(picName => {
                 const img = new Image();
                 img.src = media + encodeURI(picName);
                 currentImageCache.push(img);
             });
-            
             this.startBackgroundSlideshow(picData, forceReset);
         } else {
             this.isSlideshowRunning = false;
@@ -325,19 +307,16 @@ Player.prototype = {
     startBackgroundSlideshow: function(images, resetIndex = true) {
         if (backgroundInterval) clearInterval(backgroundInterval);
         if (resetIndex) currentBgIndex = 0;
-
         const initialImage = currentImageCache[currentBgIndex];
-        if(initialImage) {
+        if (initialImage) {
             const currentActiveLayer = (activeBgLayer === 1) ? bgLayer1 : bgLayer2;
             currentActiveLayer.style.backgroundImage = `url('${initialImage.src}')`;
             currentActiveLayer.style.opacity = 1;
         }
-
         const changeImage = () => {
             currentBgIndex = (currentBgIndex + 1) % images.length;
             const nextImage = currentImageCache[currentBgIndex];
-
-            if(nextImage) {
+            if (nextImage) {
                 let nextLayer = (activeBgLayer === 1) ? bgLayer2 : bgLayer1;
                 let currentLayer = (activeBgLayer === 1) ? bgLayer1 : bgLayer2;
                 nextLayer.style.backgroundImage = `url('${nextImage.src}')`;
@@ -346,7 +325,6 @@ Player.prototype = {
                 activeBgLayer = (activeBgLayer === 1) ? 2 : 1;
             }
         };
-        
         backgroundInterval = setInterval(changeImage, BACKGROUND_SLIDESHOW_INTERVAL);
     },
 
@@ -360,10 +338,20 @@ Player.prototype = {
 
     skip: function (direction) {
         let index = this.index;
-        if (direction === 'next') {
-            index = (index - 1 + this.playlist.length) % this.playlist.length;
+        if (this.playbackMode === 'shuffle') {
+            if (this.playlist.length > 1) {
+                let newIndex;
+                do {
+                    newIndex = Math.floor(Math.random() * this.playlist.length);
+                } while (newIndex === this.index);
+                index = newIndex;
+            }
         } else {
-            index = (index + 1) % this.playlist.length;
+            if (direction === 'next') {
+                index = (this.index - 1 + this.playlist.length) % this.playlist.length;
+            } else { // 'prev'
+                index = (this.index + 1) % this.playlist.length;
+            }
         }
         this.skipTo(index);
     },
@@ -373,6 +361,20 @@ Player.prototype = {
         if (sound) sound.stop();
         progress.style.width = '0%';
         this.play(index);
+    },
+    
+    toggleMode: function() {
+        if (this.playbackMode === 'list') this.playbackMode = 'shuffle';
+        else if (this.playbackMode === 'shuffle') this.playbackMode = 'single';
+        else this.playbackMode = 'list';
+        this.updateModeButton();
+    },
+    
+    updateModeButton: function() {
+        if (modeBtn) {
+            modeBtn.style.backgroundImage = `url("${modeIcons[this.playbackMode]}")`;
+            modeBtn.title = modeTitles[this.playbackMode];
+        }
     },
 
     volume: function (val) {
@@ -424,11 +426,11 @@ Player.prototype = {
     formatTime: function (secs) { let minutes = Math.floor(secs / 60) || 0; let seconds = (secs - minutes * 60) || 0; return `${minutes}:${(seconds < 10 ? '0' : '')}${seconds}`; }
 };
 
-// **已修复: 确保只有一个事件监听器块**
+// Event Listeners
 playBtn.addEventListener('click', () => player.play());
 pauseBtn.addEventListener('click', () => player.pause());
-prevBtn.addEventListener('click', () => player.skip('next'));
-nextBtn.addEventListener('click', () => player.skip('prev'));
+prevBtn.addEventListener('click', () => player.skip('prev'));
+nextBtn.addEventListener('click', () => player.skip('next'));
 progressBar.addEventListener('click', (event) => player.seek(event.clientX / window.innerWidth));
 playlistBtn.addEventListener('click', () => player.togglePlaylist());
 playlist.addEventListener('click', () => player.togglePlaylist());
@@ -436,17 +438,16 @@ postBtn.addEventListener('click', () => player.togglePost());
 waveBtn.addEventListener('click', () => player.toggleWave());
 volumeBtn.addEventListener('click', () => player.toggleVolume());
 volume.addEventListener('click', () => player.toggleVolume());
+modeBtn.addEventListener('click', () => player.toggleMode());
 
 barEmpty.addEventListener('click', (event) => {
     let per = event.layerX / parseFloat(getComputedStyle(barEmpty, null).width.replace("px", ""));
     player.volume(per);
 });
-
 sliderBtn.addEventListener('mousedown', () => window.sliderDown = true);
 sliderBtn.addEventListener('touchstart', () => window.sliderDown = true, { passive: true });
 volume.addEventListener('mouseup', () => window.sliderDown = false);
 volume.addEventListener('touchend', () => window.sliderDown = false);
-
 const move = (event) => {
     if (window.sliderDown) {
         let x = event.clientX || event.touches[0].clientX;
@@ -454,7 +455,6 @@ const move = (event) => {
         player.volume(per);
     }
 };
-
 volume.addEventListener('mousemove', move);
 volume.addEventListener('touchmove', move, { passive: true });
 
@@ -491,4 +491,4 @@ lyricBtn.addEventListener('click', () => {
     lyricContainer.style.display = (lyricContainer.style.display === 'none' || !lyricContainer.style.display) ? 'block' : 'none';
 });
 
-console.log("\n %c Gmemp v3.5.1 (Stable & Optimized) %c https://github.com/Meekdai/Gmemp \n", "color: #fff; background-image: linear-gradient(90deg, rgb(47, 172, 178) 0%, rgb(45, 190, 96) 100%); padding:5px 1px;", "background-image: linear-gradient(90deg, rgb(45, 190, 96) 0%, rgb(255, 255, 255) 100%); padding:5px 0;");
+console.log("\n %c Gmemp v3.6.1 (Modes Fixed & Complete) %c https://github.com/Meekdai/Gmemp \n", "color: #fff; background-image: linear-gradient(90deg, rgb(47, 172, 178) 0%, rgb(45, 190, 96) 100%); padding:5px 1px;", "background-image: linear-gradient(90deg, rgb(45, 190, 96) 0%, rgb(255, 255, 255) 100%); padding:5px 0;");
