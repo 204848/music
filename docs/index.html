@@ -13,54 +13,51 @@
   <link rel="icon" href="favicon.svg">
   <title>Gmemp</title>
   <link rel="stylesheet" href="player.css">
-  <!-- <link rel="stylesheet" href="./player.css"> -->
 </head>
 <body>
-  <!-- 新增的背景层 -->
+  <!-- 背景层 -->
   <div id="bg-layer1" class="bg-layer"></div>
   <div id="bg-layer2" class="bg-layer"></div>
 
-  <div id="title">
-    <span id="track"></span>
+  <!-- 顶部信息 -->
+  <div id="top-info">
+    <div id="title"></div>
     <div id="artist"></div>
-    <div id="lyricContainer"></div>
-    <div id="timer">0:00</div>
-    <div id="duration">0:00</div>
-    <div id="post" style="display:none;"></div>
   </div>
   
-  <div class="controlsOuter">
-    <div class="controlsInner">
-      <div id="loading"></div>
-      <div class="btn" id="playBtn" title="播放"></div>
-      <div class="btn" id="pauseBtn" title="暂停"></div>
-      <div class="btn" id="nextBtn"></div>
-      <div class="btn" id="prevBtn"></div>
-    </div>
-    <div class="btn" id="lyricBtn" title="歌词开关"></div>
-    <div class="btn" id="playlistBtn" title="歌单"></div>
-    <div class="btn" id="modeBtn" title="顺序播放"></div>
-    <div class="btn" id="postBtn" title="简介/本人的话"></div>
-    <div class="btn" id="waveBtn" title="节奏条开关"></div>
-    <div class="btn" id="volumeBtn" title="音量调节"></div>
+  <!-- 作者的话/文章 -->
+  <div id="post" style="display:none;"></div>
+  
+  <!-- 加载动画 -->
+  <div id="loading"></div>
+
+  <!-- 歌词显示区 -->
+  <div id="lyric-wrapper">
+      <div id="lyric-prev" class="lyric-line"></div>
+      <div id="lyric-current" class="lyric-line"></div>
+      <div id="lyric-next" class="lyric-line"></div>
   </div>
 
-  <div id="progressBar"></div>
-  <div id="progress"></div>
-  <canvas id="waveCanvas"></canvas>
-
-  <div id="playlist">
+  <!-- 歌单面板 -->
+  <div id="playlist-panel">
+    <div class="playlist-header">
+      <h3>播放列表</h3>
+      <span id="close-playlist-btn">&times;</span>
+    </div>
     <div id="list"></div>
   </div>
 
-  <div id="volume" class="fadeout">
-    <div id="barFull" class="bar"></div>
-    <div id="barEmpty" class="bar"></div>
-    <div id="sliderBtn"></div>
-  </div>
+  <!-- 节奏条 Canvas -->
+  <canvas id="waveCanvas"></canvas>
 
-  <script src="howler.min.js"></script>
-  <script src="player.js"></script>
-  <!-- <script src="./player.js"></script> -->
-</body>
-</html>
+  <!-- 底部控制栏 -->
+  <div id="player-controls">
+    <!-- 进度条 -->
+    <div id="progress-container">
+      <span id="timer">0:00</span>
+      <div id="progress-bar">
+        <div id="progress-buffered"></div>
+        <div id="progress-played"></div>
+        <div id="progress-thumb"></div>
+      </div>
+      <span id="duration">0:00</span>
