@@ -67,6 +67,7 @@ function isMobile() {
     return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
 }
 
+
 function parseLRC(lrcText) {
     if (!lrcText) return [];
     const lines = lrcText.split(/\r?\n/);
@@ -224,12 +225,15 @@ Player.prototype = {
             playNum = index;
             this.loadLyric(data.lyric || null);
             if ('mediaSession' in navigator) this.updateMediaSession(data);
+            
+            // ============== 节奏条初始化代码 ==============
             this.analyser = Howler.ctx.createAnalyser();
             this.analyser.fftSize = Math.pow(2, Math.floor(Math.log2((window.innerWidth / 15) * 2)));
             this.bufferLength = this.analyser.frequencyBinCount;
             this.dataArray = new Uint8Array(this.bufferLength);
             Howler.masterGain.connect(this.analyser);
-            draw();
+            draw(); // 首次调用绘制函数，启动requestAnimationFrame循环
+            // ============================================
         }
 
         progressBar.style.margin = `-${window.innerHeight * 0.3 / 2}px auto`;
@@ -371,6 +375,7 @@ Player.prototype = {
     },
     
     updateModeButton: function() {
+        // 确保 modeBtn 元素存在才更新，避免在初始化时还未完全加载 DOM 的情况
         if (modeBtn) {
             modeBtn.style.backgroundImage = `url("${modeIcons[this.playbackMode]}")`;
             modeBtn.title = modeTitles[this.playbackMode];
@@ -421,7 +426,7 @@ Player.prototype = {
 
     togglePlaylist: function () { let display = (playlist.style.display === 'block') ? 'none' : 'block'; setTimeout(() => { playlist.style.display = display; if (display === 'block') { list.scrollTop = document.querySelector('#list-song-' + playNum).offsetTop - list.offsetHeight / 2; } }, (display === 'block') ? 0 : 500); playlist.className = (display === 'block') ? 'fadein' : 'fadeout'; },
     togglePost: function () { post.style.display = (post.style.display == "none") ? "block" : "none"; },
-    toggleWave: function () { waveCanvas.style.display = (waveCanvas.style.display == "none") ? "block" : "none"; },
+    toggleWave: function () { waveCanvas.style.display = (waveCanvas.style.display == "none") ? "block" : "none"; }, // 节奏条开关
     toggleVolume: function () { let display = (volume.style.display === 'block') ? 'none' : 'block'; setTimeout(() => { volume.style.display = display; }, (display === 'block') ? 0 : 500); volume.className = (display === 'block') ? 'fadein' : 'fadeout'; },
     formatTime: function (secs) { let minutes = Math.floor(secs / 60) || 0; let seconds = (secs - minutes * 60) || 0; return `${minutes}:${(seconds < 10 ? '0' : '')}${seconds}`; }
 };
@@ -435,7 +440,7 @@ progressBar.addEventListener('click', (event) => player.seek(event.clientX / win
 playlistBtn.addEventListener('click', () => player.togglePlaylist());
 playlist.addEventListener('click', () => player.togglePlaylist());
 postBtn.addEventListener('click', () => player.togglePost());
-waveBtn.addEventListener('click', () => player.toggleWave());
+waveBtn.addEventListener('click', () => player.toggleWave()); // 节奏条开关按钮事件
 volumeBtn.addEventListener('click', () => player.toggleVolume());
 volume.addEventListener('click', () => player.toggleVolume());
 modeBtn.addEventListener('click', () => player.toggleMode());
@@ -448,6 +453,7 @@ sliderBtn.addEventListener('mousedown', () => window.sliderDown = true);
 sliderBtn.addEventListener('touchstart', () => window.sliderDown = true, { passive: true });
 volume.addEventListener('mouseup', () => window.sliderDown = false);
 volume.addEventListener('touchend', () => window.sliderDown = false);
+// 确保只定义一次 move 函数
 const move = (event) => {
     if (window.sliderDown) {
         let x = event.clientX || event.touches[0].clientX;
@@ -458,7 +464,8 @@ const move = (event) => {
 volume.addEventListener('mousemove', move);
 volume.addEventListener('touchmove', move, { passive: true });
 
-let canvasCtx = waveCanvas.getContext("2d");
+// ============== 节奏条绘制函数 ==============
+let canvasCtx = waveCanvas.getContext("2d"); // 确保 canvasCtx 在这里被定义
 function draw() {
     if (!player || !player.analyser) return;
     let W = window.innerWidth, H = window.innerHeight;
@@ -475,6 +482,7 @@ function draw() {
     }
     requestAnimationFrame(draw);
 }
+// ============================================
 
 document.addEventListener('keyup', e => {
     if (!player) return;
@@ -491,4 +499,4 @@ lyricBtn.addEventListener('click', () => {
     lyricContainer.style.display = (lyricContainer.style.display === 'none' || !lyricContainer.style.display) ? 'block' : 'none';
 });
 
-console.log("\n %c Gmemp v3.6.1 (Modes Fixed & Complete) %c https://github.com/Meekdai/Gmemp \n", "color: #fff; background-image: linear-gradient(90deg, rgb(47, 172, 178) 0%, rgb(45, 190, 96) 100%); padding:5px 1px;", "background-image: linear-gradient(90deg, rgb(45, 190, 96) 0%, rgb(255, 255, 255) 100%); padding:5px 0;");
+console.log("\n %c Gmemp v3.6.2 (Waveform Confirmed & Fixed) %c https://github.com/Meekdai/Gmemp \n", "color: #fff; background-image: linear-gradient(90deg, rgb(47, 172, 178) 0%, rgb(45, 190, 96) 100%); padding:5px 1px;", "background-image: linear-gradient(90deg, rgb(45, 190, 96) 0%, rgb(255, 255, 255) 100%); padding:5px 0;");
