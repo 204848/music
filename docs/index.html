@@ -26,7 +26,24 @@
   </div>
   
   <div class="controlsOuter">
-    <!-- 全新的进度条结构 -->
+    <!-- 主控制按钮 -->
+    <div class="controlsInner">
+      <div id="loading"></div>
+      <div class="btn" id="playBtn" title="播放"></div>
+      <div class="btn" id="pauseBtn" title="暂停"></div>
+      <div class="btn" id="nextBtn" title="下一首"></div>
+      <div class="btn" id="prevBtn" title="上一首"></div>
+
+      <!-- 工具栏按钮（桌面视图）-->
+      <div class="btn tool-btn" id="lyricBtn" title="歌词开关"></div>
+      <div class="btn tool-btn" id="playlistBtn" title="歌单"></div>
+      <div class="btn tool-btn" id="modeBtn" title="顺序播放"></div>
+      <div class="btn tool-btn" id="postBtn" title="简介/本人的话"></div>
+      <div class="btn tool-btn" id="waveBtn" title="节奏条开关"></div>
+      <div class="btn tool-btn" id="volumeBtn" title="音量调节"></div>
+    </div>
+    
+    <!-- 进度条（已移动到按钮下方）-->
     <div id="progress-container">
       <div id="timer">0:00</div>
       <div id="progress-bar">
@@ -37,22 +54,8 @@
       <div id="duration">0:00</div>
     </div>
     
-    <div class="controlsInner">
-      <div id="loading"></div>
-      <div class="btn" id="playBtn" title="播放"></div>
-      <div class="btn" id="pauseBtn" title="暂停"></div>
-      <div class="btn" id="nextBtn" title="下一首"></div>
-      <div class="btn" id="prevBtn" title="上一首"></div>
-    </div>
-    <div class="btn" id="lyricBtn" title="歌词开关"></div>
-    <div class="btn" id="playlistBtn" title="歌单"></div>
-    <div class="btn" id="modeBtn" title="顺序播放"></div>
-    <div class="btn" id="postBtn" title="简介/本人的话"></div>
-    <div class="btn" id="waveBtn" title="节奏条开关"></div>
-    <div class="btn" id="volumeBtn" title="音量调节"></div>
   </div>
 
-  <!-- 旧的进度条元素已移除 -->
   <canvas id="waveCanvas"></canvas>
 
   <div id="playlist">
