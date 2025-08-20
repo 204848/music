@@ -2,18 +2,21 @@ let media = "https://music.1357924680liu.dpdns.org/media/";
 
 // ==========================================================
 // == 配置项 ==
-// 背景图轮播的切换间隔时间（单位：毫秒）。例如：5000 代表 5 秒
 const BACKGROUND_SLIDESHOW_INTERVAL = 5000;
 // ==========================================================
 
 // Cache references to DOM elements
-let elms = ['track', 'artist', 'timer', 'duration', 'post', 'playBtn', 'pauseBtn', 'prevBtn', 'nextBtn', 'playlistBtn', 'postBtn', 'waveBtn', 'volumeBtn', 'progress', 'progressBar', 'waveCanvas', 'loading', 'playlist', 'list', 'volume', 'barEmpty', 'barFull', 'sliderBtn', 'lyricBtn', 'lyricContainer', 'modeBtn'];
+let elms = ['track', 'artist', 'timer', 'duration', 'post', 'playBtn', 'pauseBtn', 'prevBtn', 'nextBtn', 'playlistBtn', 'postBtn', 'waveBtn', 'volumeBtn', 'progress', 'progressBar', 'waveCanvas', 'loading', 'playlist', 'list', 'volume', 'barEmpty', 'barFull', 'sliderBtn', 'lyricBtn', 'lyricContainer', 'modeBtn']; // 添加 modeBtn
 elms.forEach(function (elm) {
     window[elm] = document.getElementById(elm);
 });
 
-const bgLayer1 = document.getElementById('bg-layer1');
-const bgLayer2 = document.getElementById('bg-layer2');
+// 修改背景层获取方式以兼容之前的设计
+// const bgLayer1 = document.getElementById('bg-layer1');
+// const bgLayer2 = document.getElementById('bg-layer2');
+// 为兼容旧版背景，但保留新功能，我们直接操作 body 样式
+let currentBgLayers = [null, null]; // 用于跟踪当前/下一个背景索引
+let bgTransitioning = false; // 跟踪是否正在进行背景切换
 
 let player;
 let playNum = 0;
@@ -156,7 +159,7 @@ let Player = function (playlist) {
     document.querySelector('meta[property="og:title"]').setAttribute('content', playlist[this.index].title);
     document.title = `${playlist[this.index].title} - Gmemp`;
     this.loadLyric(playlist[this.index].lyric || null);
-
+    
     playlist.forEach((song, index) => {
         let div = document.createElement('div');
         div.className = 'list-song';
@@ -200,8 +203,13 @@ Player.prototype = {
                         }
                     }, 100);
 
-                    // 每次播放开始时启动或重启可视化
-                    this.setupVisualization(sound);
+                    // 启动可视化，与您原始代码一致
+                    this.analyser = Howler.ctx.createAnalyser();
+                    this.analyser.fftSize = Math.pow(2, Math.floor(Math.log2((window.innerWidth / 15) * 2)));
+                    this.bufferLength = this.analyser.frequencyBinCount;
+                    this.dataArray = new Uint8Array(this.bufferLength);
+                    Howler.masterGain.connect(this.analyser);
+                    draw(); // 启动绘图循环
                 },
                 onload: () => { loading.style.display = 'none'; progressBar.style.display = 'block'; },
                 onend: () => { this.playNextTrack(); },
@@ -227,58 +235,20 @@ Player.prototype = {
             playNum = index;
             this.loadLyric(data.lyric || null);
             if ('mediaSession' in navigator) this.updateMediaSession(data);
-            this.setupVisualization(sound); // 也为新曲目设置
+            // 为新曲目也设置可视化
+            this.analyser = Howler.ctx.createAnalyser();
+            this.analyser.fftSize = Math.pow(2, Math.floor(Math.log2((window.innerWidth / 15) * 2)));
+            this.bufferLength = this.analyser.frequencyBinCount;
+            this.dataArray = new Uint8Array(this.bufferLength);
+            Howler.masterGain.connect(this.analyser);
+            draw(); // 启动或重启绘图循环
         }
 
         progressBar.style.margin = `-${window.innerHeight * 0.3 / 2}px auto`;
         if (sound.state() === 'loaded') { loading.style.display = 'none'; } else { loading.style.display = 'block'; playBtn.style.display = 'none'; pauseBtn.style.display = 'none'; }
         this.index = index;
     },
-
-    // 这是新增的核心：设置音频可视化
-    setupVisualization: function(sound) {
-        if (this.analyser) {
-            try {
-                this.analyser.disconnect(0); // 断开旧的分析器连接
-            } catch (e) { /* 忽略潜在的断开错误 */ }
-        }
-        this.analyser = Howler.ctx.createAnalyser();
-        this.analyser.fftSize = Math.pow(2, Math.floor(Math.log2((window.innerWidth / 15) * 2)));
-        this.bufferLength = this.analyser.frequencyBinCount;
-        this.dataArray = new Uint8Array(this.bufferLength);
-
-        // 将 Howler 的 masterGain 连接到新的分析器
-        Howler.masterGain.connect(this.analyser);
-        
-        // 启动或重启动画绘图循环
-        if (!this.drawId) {
-            this.drawId = requestAnimationFrame(this.draw.bind(this));
-        }
-    },
     
-    // 音频可视化绘制函数 - 这是新增的核心函数
-    draw: function() {
-        if (!this.analyser) {
-            this.drawId = null;
-            return;
-        }
-        let W = window.innerWidth, H = window.innerHeight;
-        waveCanvas.width = W; waveCanvas.height = H;
-        // 获取频率数据
-        this.analyser.getByteFrequencyData(this.dataArray);
-        const canvasCtx = waveCanvas.getContext("2d");
-        canvasCtx.clearRect(0, 0, W, H);
-        canvasCtx.fillStyle = 'rgba(255,255,255,0.5)';
-        const barW = W / this.bufferLength;
-        let x = 0;
-        for (let i = 0; i < this.bufferLength; i++) {
-            let barH = (this.dataArray[i] / 255) * H * 0.8; // 归一化到屏幕高度
-            canvasCtx.fillRect(x, H - barH, barW, barH);
-            x += barW + 1;
-        }
-        this.drawId = requestAnimationFrame(this.draw.bind(this)); // 递归调用以保持动画
-    },
-
     playNextTrack: function() {
         if (this.playbackMode === 'single') {
             this.skipTo(this.index);
@@ -320,15 +290,14 @@ Player.prototype = {
     },
     
     setBackground: function(picData, forceReset = false) {
+        const bodyStyle = document.body.style;
         if (backgroundInterval) clearInterval(backgroundInterval);
         currentImageCache = [];
         if (Array.isArray(picData) && picData.length > 1) {
             this.isSlideshowRunning = true;
-            const firstImageUrl = `url('${media}${encodeURI(picData[0])}')`;
-            bgLayer1.style.backgroundImage = firstImageUrl;
-            bgLayer1.style.opacity = 1;
-            bgLayer2.style.opacity = 0;
-            activeBgLayer = 1;
+            // 设置初始背景
+            bodyStyle.backgroundImage = `url('${media}${encodeURI(picData[0])}')`;
+            // 预加载所有图片
             picData.forEach(picName => {
                 const img = new Image();
                 img.src = media + encodeURI(picName);
@@ -338,34 +307,18 @@ Player.prototype = {
         } else {
             this.isSlideshowRunning = false;
             const singlePic = Array.isArray(picData) ? picData[0] : picData;
-            const imageUrl = `url('${media}${encodeURI(singlePic)}')`;
-            bgLayer1.style.backgroundImage = imageUrl;
-            bgLayer1.style.opacity = 1;
-            bgLayer2.style.opacity = 0;
-            activeBgLayer = 1;
+            bodyStyle.backgroundImage = `url('${media}${encodeURI(singlePic)}')`; // 保持与旧版一致
         }
     },
     
     startBackgroundSlideshow: function(images, resetIndex = true) {
         if (backgroundInterval) clearInterval(backgroundInterval);
         if (resetIndex) currentBgIndex = 0;
-        const initialImage = currentImageCache[currentBgIndex];
-        if(initialImage) {
-            const currentActiveLayer = (activeBgLayer === 1) ? bgLayer1 : bgLayer2;
-            currentActiveLayer.style.backgroundImage = `url('${initialImage.src}')`;
-            currentActiveLayer.style.opacity = 1;
-        }
+        const bodyStyle = document.body.style;
         const changeImage = () => {
             currentBgIndex = (currentBgIndex + 1) % images.length;
-            const nextImage = currentImageCache[currentBgIndex];
-            if(nextImage) {
-                let nextLayer = (activeBgLayer === 1) ? bgLayer2 : bgLayer1;
-                let currentLayer = (activeBgLayer === 1) ? bgLayer1 : bgLayer2;
-                nextLayer.style.backgroundImage = `url('${nextImage.src}')`;
-                currentLayer.style.opacity = 0;
-                nextLayer.style.opacity = 1;
-                activeBgLayer = (activeBgLayer === 1) ? 2 : 1;
-            }
+            const nextImageUrl = `url('${media}${encodeURI(images[currentBgIndex])}')`;
+            bodyStyle.backgroundImage = nextImageUrl; // 直接设置 body 背景
         };
         backgroundInterval = setInterval(changeImage, BACKGROUND_SLIDESHOW_INTERVAL);
     },
@@ -376,9 +329,6 @@ Player.prototype = {
         if (backgroundInterval) clearInterval(backgroundInterval);
         playBtn.style.display = 'block';
         pauseBtn.style.display = 'none';
-        // 暂停时，不取消动画，这样画面会停止在最后一帧
-        // 如果你想在暂停时也停止可视化动画，可以取消下面的注释：
-        // cancelAnimationFrame(this.drawId); this.drawId = null;
     },
 
     skip: function (direction) {
@@ -466,16 +416,7 @@ Player.prototype = {
 
     togglePlaylist: function () { let display = (playlist.style.display === 'block') ? 'none' : 'block'; setTimeout(() => { playlist.style.display = display; if (display === 'block') { list.scrollTop = document.querySelector('#list-song-' + playNum).offsetTop - list.offsetHeight / 2; } }, (display === 'block') ? 0 : 500); playlist.className = (display === 'block') ? 'fadein' : 'fadeout'; },
     togglePost: function () { post.style.display = (post.style.display == "none") ? "block" : "none"; },
-    toggleWave: function () {
-        waveCanvas.style.display = (waveCanvas.style.display == "none") ? "block" : "none";
-        // 如果波形图被隐藏并且当前正在播放，我们需要确保动画也被暂停以节省资源
-        if (waveCanvas.style.display == "none" && player && player.playlist[player.index].howl && player.playlist[player.index].howl.playing()) {
-             cancelAnimationFrame(player.drawId); player.drawId = null;
-        } else if (waveCanvas.style.display == "block" && player && player.playlist[player.index].howl && player.playlist[player.index].howl.playing()) {
-            // 如果被显示且正在播放，则重启
-            if (!player.drawId) player.drawId = requestAnimationFrame(player.draw.bind(player));
-        }
-    },
+    toggleWave: function () { waveCanvas.style.display = (waveCanvas.style.display == "none") ? "block" : "none"; },
     toggleVolume: function () { let display = (volume.style.display === 'block') ? 'none' : 'block'; setTimeout(() => { volume.style.display = display; }, (display === 'block') ? 0 : 500); volume.className = (display === 'block') ? 'fadein' : 'fadeout'; },
     formatTime: function (secs) { let minutes = Math.floor(secs / 60) || 0; let seconds = (secs - minutes * 60) || 0; return `${minutes}:${(seconds < 10 ? '0' : '')}${seconds}`; }
 };
@@ -512,6 +453,28 @@ const move = (event) => {
 volume.addEventListener('mousemove', move);
 volume.addEventListener('touchmove', move, { passive: true });
 
+// Audio visualization - 使用您提供的原始绘图代码，这是关键修复点
+let canvasCtx = waveCanvas.getContext("2d");
+function draw() {
+    if (!player.analyser) return; // 确保分析器存在
+    let W = window.innerWidth, H = window.innerHeight;
+    waveCanvas.width = W; waveCanvas.height = H;
+    canvasCtx.clearRect(0, 0, W, H);
+    player.analyser.getByteFrequencyData(player.dataArray); // 获取频率数据
+    canvasCtx.fillStyle = 'rgba(255,255,255,0.5)'; // 设置柱状图颜色
+    const barW = W / player.bufferLength; // 计算每个柱的宽度
+    let x = 0;
+    // 遍历数据数组，绘制每个柱状图
+    for (let i = 0; i < player.bufferLength; i++) {
+        // player.dataArray[i] 的值域是 0-255
+        // player.dataArray[i] / 2 是为了让波形高度更平缓、更真实
+        let barH = player.dataArray[i] / 2; 
+        // 从底部向上绘制矩形
+        canvasCtx.fillRect(x, H - barH, barW, barH);
+        x += barW + 1; // 移动到下一个柱的位置，+1 是柱之间的间距
+    }
+    requestAnimationFrame(draw); // 递归调用以保持动画循环
+}
 
 document.addEventListener('keyup', e => {
     if (!player) return;
@@ -528,11 +491,4 @@ lyricBtn.addEventListener('click', () => {
     lyricContainer.style.display = (lyricContainer.style.display === 'none' || !lyricContainer.style.display) ? 'block' : 'none';
 });
 
-// 在页面卸载时清理资源，避免内存泄漏
-window.addEventListener('beforeunload', () => {
-   if (player && player.drawId) {
-       cancelAnimationFrame(player.drawId);
-   }
-});
-
-console.log("\n %c Gmemp v3.6.2 (Modes & Visualization Restored) %c https://github.com/Meekdai/Gmemp \n", "color: #fff; background-image: linear-gradient(90deg, rgb(47, 172, 178) 0%, rgb(45, 190, 96) 100%); padding:5px 1px;", "background-image: linear-gradient(90deg, rgb(45, 190, 96) 0%, rgb(255, 255, 255) 100%); padding:5px 0;");
+console.log("\n %c Gmemp v3.7.0 (Visualization Fixed) %c https://github.com/Meekdai/Gmemp \n", "color: #fff; background-image: linear-gradient(90deg, rgb(47, 172, 178) 0%, rgb(45, 190, 96) 100%); padding:5px 1px;", "background-image: linear-gradient(90deg, rgb(45, 190, 96) 0%, rgb(255, 255, 255) 100%); padding:5px 0;");
