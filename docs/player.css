@@ -58,49 +58,39 @@ body {
   margin:8px,auto;
   z-index: 10;
 }
-/* 新增和更新的歌词容器样式 */
-#lyricContainer {
-    position: absolute;
-    top: 18%; /* 调整位置，往下放 */
-    left: 50%;
-    transform: translateX(-50%);
-    width: 80%; /* 固定宽度，限制歌词换行 */
-    max-width: 600px; /* 最大宽度 */
-    text-align: center;
-    z-index: 20;
-    pointer-events: none; /* 避免干扰点击 */
-}
-
-/* 每一行歌词的通用样式 */
+/* 更新的歌词容器样式 - 放在右边中间 */
 .lyric-line {
-    opacity: 0.5; /* 初始不活跃行透明度 */
-    font-size: 16px; /* 基础字体大小 */
+    opacity: 0.5;
+    font-size: 16px;
     line-height: 1.6;
     color: rgba(255, 255, 255, 0.7);
     text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.8);
-    margin: 6px 0;
-    transition: all 0.3s ease; /* 平滑过渡效果 */
-    /* 可选：添加轻微的模糊滤镜 */
-    /* filter: blur(0.5px); */
+    margin: 8px 0;
+    transition: all 0.3s ease;
+    /* 确保文本不会换行 */
+    white-space: nowrap;
+    /* 超出部分省略号 */
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 /* 当前行的样式 - 突出显示 */
 .lyric-line.active {
     opacity: 1;
-    font-size: 20px; /* 当前行放大 */
+    font-size: 20px;
     font-weight: bold;
     color: #fff;
     text-shadow: 1px 1px 4px rgba(0, 0, 0, 1);
-    /* filter: blur(0px); */
-    margin: 8px 0; /* 增加一些间距 */
+    margin: 10px 0;
 }
 
-/* 上下行的样式 - 稍微增加一点可见度，可选 */
+/* 上下行的样式 */
 .lyric-line.prev, .lyric-line.next {
     opacity: 0.65;
     color: rgba(255, 255, 255, 0.8);
 }
-/* 上上行和下下行的样式 - 更淡 */
+
+/* 上上行和下下行的样式 */
 .lyric-line.prev-prev, .lyric-line.next-next {
     opacity: 0.4;
     font-size: 14px;
@@ -112,7 +102,41 @@ body {
     content: "暂无歌词";
     color: rgba(255, 255, 255, 0.5);
     font-size: 16px;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    white-space: nowrap;
 }
+
+/* 手机端适配 */
+@media screen and (max-width: 600px) {
+    #lyricContainer {
+        top: auto;
+        right: 0;
+        bottom: 100px; /* 放在控制按钮上方 */
+        left: 0;
+        width: auto;
+        max-height: 25%;
+        transform: none;
+        text-align: center;
+    }
+    
+    .lyric-line {
+        font-size: 14px;
+    }
+    
+    .lyric-line.active {
+        font-size: 18px;
+    }
+    
+    #lyricContainer:empty::before {
+       top: auto;
+       bottom: 50%;
+       transform: translate(-50%, 50%);
+    }
+}
+
 /* ... (其余样式保持不变，直到按钮部分) ... */
 
 /* 控制按钮样式 */
