@@ -13,46 +13,54 @@
   <link rel="icon" href="favicon.svg">
   <title>Gmemp</title>
   <link rel="stylesheet" href="player.css">
+  <!-- <link rel="stylesheet" href="./player.css"> -->
 </head>
 <body>
-  <!-- 背景层 (保持不变) -->
+  <!-- 新增的背景层 -->
   <div id="bg-layer1" class="bg-layer"></div>
   <div id="bg-layer2" class="bg-layer"></div>
 
-  <!-- 顶部信息和新歌词容器 -->
-  <div id="top-info-container">
-    <span id="title"></span>
+  <div id="title">
+    <span id="track"></span>
     <div id="artist"></div>
+    <div id="lyricContainer"></div>
+    <div id="timer">0:00</div>
+    <div id="duration">0:00</div>
     <div id="post" style="display:none;"></div>
-
-    <!-- 新的三行歌词容器 -->
-    <div id="lyric-wrapper">
-        <div id="lyric-prev" class="lyric-line"></div>
-        <div id="lyric-current" class="lyric-line"></div>
-        <div id="lyric-next" class="lyric-line"></div>
-    </div>
   </div>
-
-  <!-- 原有的时间显示，会被CSS隐藏，但保留以防JS依赖 -->
-  <div id="timer" style="display: none;">0:00</div>
-  <div id="duration" style="display: none;">0:00</div>
-
-  <!-- 原有的控制按钮，会被CSS隐藏 -->
-  <div class="controlsOuter" style="display: none;">
+  
+  <div class="controlsOuter">
     <div class="controlsInner">
       <div id="loading"></div>
-      <!-- 注：按钮的DOM元素会被JS逻辑找到，但我们会在新布局中重新使用它们，所以这里只是占位 -->
+      <div class="btn" id="playBtn" title="播放"></div>
+      <div class="btn" id="pauseBtn" title="暂停"></div>
+      <div class="btn" id="nextBtn"></div>
+      <div class="btn" id="prevBtn"></div>
     </div>
+    <div class="btn" id="lyricBtn" title="歌词开关"></div>
+    <div class="btn" id="playlistBtn" title="歌单"></div>
+    <div class="btn" id="modeBtn" title="顺序播放"></div>
+    <div class="btn" id="postBtn" title="简介/本人的话"></div>
+    <div class="btn" id="waveBtn" title="节奏条开关"></div>
+    <div class="btn" id="volumeBtn" title="音量调节"></div>
   </div>
 
-  <!-- 原有的进度条和波形图，会被CSS隐藏或重新定位 -->
   <div id="progressBar"></div>
   <div id="progress"></div>
   <canvas id="waveCanvas"></canvas>
 
-  <!-- 原有的歌单和音量调节浮层，会被CSS隐藏 -->
-  <div id="playlist" style="display: none !important;">_</div>
-  <div id="volume" style="display: none !important;">_</div>
+  <div id="playlist">
+    <div id="list"></div>
+  </div>
 
-  <!-- ============================================= -->
-  <!-- =========  全新的底部控制栏 (图四)  ========= -->
+  <div id="volume" class="fadeout">
+    <div id="barFull" class="bar"></div>
+    <div id="barEmpty" class="bar"></div>
+    <div id="sliderBtn"></div>
+  </div>
+
+  <script src="howler.min.js"></script>
+  <script src="player.js"></script>
+  <!-- <script src="./player.js"></script> -->
+</body>
+</html>
