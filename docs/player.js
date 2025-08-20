@@ -1,5 +1,5 @@
 // 媒体文件基础URL (请根据您的实际情况修改)
-let media = "./";
+let media = "https://music.1357924680liu.dpdns.org/media/";
 
 const BACKGROUND_SLIDESHOW_INTERVAL = 5000;
 
