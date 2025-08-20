@@ -184,31 +184,80 @@ body {
   right: 5%;
   margin: -17.5px auto;
 }
-
-#progressBar {
-  width: 100%;
-  height: 30%;
+/* 新的进度条样式 */
+#progress-container {
   position: absolute;
-  left: 0;
-  top: 50%;
-  margin: -15% auto;
-  display: none;
+  width: 80%; /* 或者您希望的任何宽度 */
+  height: 6px; /* 进度条轨道的高度 */
+  background-color: rgba(255, 255, 255, 0.2); /* 未播放部分的背景色 */
+  border-radius: 3px; /* 圆角 */
+  top: 12%; /* 距离顶部的距离 */
+  left: 10%; /* 居中 */
   cursor: pointer;
-  opacity: 0.8;
-  -webkit-user-select: none;
-  user-select: none;
+  /* 添加内阴影以增加立体感 */
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.2);
 }
-#progressBar:hover {
-  opacity: 1;
+
+#progress-total {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(255, 255, 255, 0.2); /* 可以和 container 背景色一样或不同 */
+  border-radius: 3px;
 }
-#progress {
+
+#progress-current {
   position: absolute;
   top: 0;
   left: 0;
   width: 0%;
   height: 100%;
-  background-color: rgba(0, 0, 0, 0.1);
-  z-index: -1;
+  background-color: #1db954; /* 已播放部分的颜色 (Spotify绿) */
+  border-radius: 3px;
+  transition: width 0.1s linear; /* 平滑的进度更新动画 */
+}
+
+#progress-buffered {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 0%;
+  height: 100%;
+  background-color: rgba(255, 255, 255, 0.4); /* 缓冲部分的颜色 */
+  border-radius: 3px;
+  z-index: 1; /* 在 current 之下 */
+}
+
+#progress-scrubber {
+  position: absolute;
+  top: 50%;
+  left: 0%;
+  width: 14px; /* 手柄宽度 */
+  height: 14px; /* 手柄高度 */
+  background-color: #ffffff; /* 手柄颜色 */
+  border: 2px solid #1db954; /* 手柄边框颜色 */
+  border-radius: 50%; /* 圆形手柄 */
+  transform: translate(-50%, -50%); /* 使手柄中心对准进度点 */
+  cursor: pointer;
+  opacity: 0; /* 默认隐藏 */
+  transition: opacity 0.2s, transform 0.2s; /* 悬停时的过渡效果 */
+  z-index: 3; /* 确保在最上层 */
+  box-shadow: 0 2px 4px rgba(0,0,0,0.3); /* 手柄阴影 */
+}
+
+#progress-container:hover #progress-scrubber {
+  opacity: 1; /* 悬停时显示 */
+  transform: translate(-50%, -50%) scale(1.2); /* 悬停时轻微放大 */
+}
+
+/* 防止文本被选中 */
+#progress-container, #progress-scrubber {
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
 }
 #waveCanvas{
   position: absolute;
