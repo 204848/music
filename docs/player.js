@@ -2,21 +2,19 @@ let media = "https://music.1357924680liu.dpdns.org/media/";
 
 // ==========================================================
 // == 配置项 ==
+// 背景图轮播的切换间隔时间（单位：毫秒）。例如：5000 代表 5 秒
 const BACKGROUND_SLIDESHOW_INTERVAL = 5000;
 // ==========================================================
 
 // Cache references to DOM elements
-let elms = ['track', 'artist', 'timer', 'duration', 'post', 'playBtn', 'pauseBtn', 'prevBtn', 'nextBtn', 'playlistBtn', 'postBtn', 'waveBtn', 'volumeBtn', 'progress', 'progressBar', 'waveCanvas', 'loading', 'playlist', 'list', 'volume', 'barEmpty', 'barFull', 'sliderBtn', 'lyricBtn', 'lyricContainer', 'modeBtn']; // 添加 modeBtn
+let elms = ['track', 'artist', 'timer', 'duration', 'post', 'playBtn', 'pauseBtn', 'prevBtn', 'nextBtn', 'playlistBtn', 'postBtn', 'waveBtn', 'volumeBtn', 'progress', 'progressBar', 'waveCanvas', 'loading', 'playlist', 'list', 'volume', 'barEmpty', 'barFull', 'sliderBtn', 'lyricBtn', 'lyricContainer', 'modeBtn'];
 elms.forEach(function (elm) {
     window[elm] = document.getElementById(elm);
 });
 
-// 修改背景层获取方式以兼容之前的设计
-// const bgLayer1 = document.getElementById('bg-layer1');
-// const bgLayer2 = document.getElementById('bg-layer2');
-// 为兼容旧版背景，但保留新功能，我们直接操作 body 样式
-let currentBgLayers = [null, null]; // 用于跟踪当前/下一个背景索引
-let bgTransitioning = false; // 跟踪是否正在进行背景切换
+// **新增：获取背景层元素**
+const bgLayer1 = document.getElementById('bg-layer1');
+const bgLayer2 = document.getElementById('bg-layer2');
 
 let player;
 let playNum = 0;
@@ -31,7 +29,7 @@ let currentBgIndex = 0;
 let activeBgLayer = 1;
 let currentImageCache = [];
 
-// SVG 图标 Data URIs
+// SVG 图标 Data URIs (播放模式)
 const modeIcons = {
     list: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Cpath fill='%23fff' d='M0 128c0-17.7 14.3-32 32-32H480c17.7 0 32 14.3 32 32s-14.3 32-32 32H32c-17.7 0-32-14.3-32-32zm0 256c0-17.7 14.3-32 32-32H480c17.7 0 32 14.3 32 32s-14.3 32-32 32H32c-17.7 0-32-14.3-32-32zM0 256c0-17.7 14.3-32 32-32H480c17.7 0 32 14.3 32 32s-14.3 32-32 32H32c-17.7 0-32-14.3-32-32z'/%3E%3C/svg%3E",
     shuffle: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Cpath fill='%23fff' d='M403.8 34.4c12-5 25.7-2.2 34.9 6.9l64 64c6 6 9.4 14.1 9.4 22.6s-3.4 16.6-9.4 22.6l-64 64c-9.2 9.2-22.9 11.9-34.9 6.9s-19.8-16.6-19.8-29.6V160H352c-10.1 0-19.6 4.7-25.6 12.8L182.2 320H224c13.3 0 24 10.7 24 24s-10.7 24-24 24H128c-13.3 0-24-10.7-24-24V320c0-13.3 10.7-24 24-24h45.3L314.7 160H224c-13.3 0-24-10.7-24-24s10.7-24 24-24h160v-32c0-12.9 7.8-24.6 19.8-29.6zM160 352H96v-32c0-12.9 7.8-24.6 19.8-29.6s25.7-2.2 34.9 6.9l64 64c6 6 9.4 14.1 9.4 22.6s-3.4 16.6-9.4 22.6l-64 64c-9.2 9.2-22.9 11.9-34.9 6.9s-19.8-16.6-19.8-29.6V416h64c13.3 0 24-10.7 24-24s-10.7-24-24-24z'/%3E%3C/svg%3E",
@@ -150,334 +148,469 @@ let Player = function (playlist) {
     this.isSlideshowRunning = false;
     this.playbackMode = 'list'; // 'list', 'shuffle', 'single'
 
+    // Initial display
     track.innerHTML = playlist[this.index].title;
     artist.innerHTML = playlist[this.index].artist;
+    // **修改：使用新方法设置背景**
     this.setBackground(playlist[this.index].pic, true);
-    post.innerHTML = `<p><b>${playlist[this.index].date}</b></p>${playlist[this.index].article}`;
-    const initialPic = Array.isArray(playlist[this.index].pic) ? playlist[this.index].pic[0] : playlist[this.index].pic;
-    document.querySelector('meta[property="og:image"]').setAttribute('content', media + encodeURI(initialPic));
+    post.innerHTML = '<p><b>' + playlist[this.index].date + '</b></p>' + playlist[this.index].article;
+    // **修改：使用第一张图作为OG Image**
+    const ogImage = Array.isArray(playlist[this.index].pic) ? playlist[this.index].pic[0] : playlist[this.index].pic;
+    document.querySelector('meta[property="og:image"]').setAttribute('content', media + encodeURI(ogImage));
     document.querySelector('meta[property="og:title"]').setAttribute('content', playlist[this.index].title);
-    document.title = `${playlist[this.index].title} - Gmemp`;
+    document.title = playlist[this.index].title + " - Gmemp";
+
     this.loadLyric(playlist[this.index].lyric || null);
-    
-    playlist.forEach((song, index) => {
+
+    // Setup playlist
+    playlist.forEach((song, index) => { // 改为带索引的forEach
         let div = document.createElement('div');
         div.className = 'list-song';
-        div.id = 'list-song-' + index;
-        div.innerHTML = `${song.title} - ${song.artist}`;
-        div.onclick = () => { this.skipTo(index); };
+        div.id = 'list-song-' + index; // 使用传入的index
+        div.innerHTML = song.title + ' - ' + song.artist;
+        div.onclick = () => { // 使用箭头函数或bind(this)
+            player.skipTo(index); // 使用传入的index
+        };
         list.appendChild(div);
     });
     document.querySelector('#list-song-' + playNum).style.backgroundColor = 'rgba(255, 255, 255, 0.1)';
-    this.updateModeButton(); // 初始化按钮状态
+    this.updateModeButton(); // 初始化播放模式按钮
 };
 
 Player.prototype = {
     play: function (index) {
-        const isNewTrack = (typeof index === 'number' && index !== this.index);
-        index = typeof index === 'number' ? index : this.index;
-        let data = this.playlist[index];
+        let self = this; // 保持this引用
         let sound;
 
+        const isNewTrack = (typeof index === 'number' && index !== this.index);
+        index = typeof index === 'number' ? index : self.index;
+        let data = self.playlist[index];
+
         if (!isNewTrack && this.isSlideshowRunning) {
-            this.startBackgroundSlideshow(data.pic, false);
+            this.startBackgroundSlideshow(data.pic, false); // 继续轮播但不重置
         }
 
-        if (lyricInterval) clearInterval(lyricInterval);
+        if (lyricInterval) {
+            clearInterval(lyricInterval);
+            lyricInterval = null;
+        }
         lastLyricTime = -1;
 
         if (data.howl) {
             sound = data.howl;
         } else {
             sound = data.howl = new Howl({
-                src: [media + data.mp3], html5: isMobile(),
-                onplay: () => {
-                    duration.innerHTML = this.formatTime(Math.round(sound.duration()));
-                    requestAnimationFrame(this.step.bind(this));
-                    progressBar.style.display = 'block'; pauseBtn.style.display = 'block'; playBtn.style.display = 'none'; loading.style.display = 'none';
+                src: [media + data.mp3],
+                html5: isMobile(),
+                onplay: function () {
+                    duration.innerHTML = self.formatTime(Math.round(sound.duration()));
+                    requestAnimationFrame(self.step.bind(self));
+                    progressBar.style.display = 'block';
+                    pauseBtn.style.display = 'block';
+                    playBtn.style.display = 'none';
+                    loading.style.display = 'none';
+
                     const isSRT = data.lyric && /\.srt$/i.test(data.lyric);
-                    lyricInterval = setInterval(() => {
+                    lyricInterval = setInterval(function () {
                         const pos = sound.seek();
                         if (Math.abs(pos - lastLyricTime) > 0.1) {
-                            lyricContainer.innerHTML = getCurrentLyric(pos, isSRT); lastLyricTime = pos;
+                            lyricContainer.innerHTML = getCurrentLyric(pos, isSRT);
+                            lastLyricTime = pos;
                         }
                     }, 100);
-
-                    // 启动可视化，与您原始代码一致
-                    this.analyser = Howler.ctx.createAnalyser();
-                    this.analyser.fftSize = Math.pow(2, Math.floor(Math.log2((window.innerWidth / 15) * 2)));
-                    this.bufferLength = this.analyser.frequencyBinCount;
-                    this.dataArray = new Uint8Array(this.bufferLength);
-                    Howler.masterGain.connect(this.analyser);
-                    draw(); // 启动绘图循环
                 },
-                onload: () => { loading.style.display = 'none'; progressBar.style.display = 'block'; },
-                onend: () => { this.playNextTrack(); },
-                onpause: () => { if (lyricInterval) clearInterval(lyricInterval); if (backgroundInterval) clearInterval(backgroundInterval); progressBar.style.display = 'none'; },
-                onstop: () => { if (lyricInterval) clearInterval(lyricInterval); if (backgroundInterval) clearInterval(backgroundInterval); progressBar.style.display = 'none'; },
-                onseek: () => { const pos = sound.seek(); const isSRT = data.lyric && /\.srt$/i.test(data.lyric); lyricContainer.innerHTML = getCurrentLyric(pos, isSRT); lastLyricTime = pos; requestAnimationFrame(this.step.bind(this)); }
+                onload: function () {
+                    loading.style.display = 'none';
+                    progressBar.style.display = 'block';
+                },
+                onend: function () {
+                    self.playNextTrack(); // 使用新的播放逻辑
+                },
+                onpause: function () {
+                    if (lyricInterval) {
+                        clearInterval(lyricInterval);
+                        lyricInterval = null;
+                    }
+                    progressBar.style.display = 'none';
+                },
+                onstop: function () {
+                    if (lyricInterval) {
+                        clearInterval(lyricInterval);
+                        lyricInterval = null;
+                    }
+                    progressBar.style.display = 'none';
+                },
+                onseek: function () {
+                    const pos = sound.seek();
+                    const isSRT = data.lyric && /\.srt$/i.test(data.lyric);
+                    lyricContainer.innerHTML = getCurrentLyric(pos, isSRT);
+                    lastLyricTime = pos;
+                    requestAnimationFrame(self.step.bind(self));
+                }
             });
         }
+
         sound.play();
 
+        if ('mediaSession' in navigator) {
+            const applyMediaSession = (artwork) => {
+                navigator.mediaSession.metadata = new MediaMetadata({
+                    title: data.title, artist: data.artist, artwork: artwork ? [artwork] : []
+                });
+                navigator.mediaSession.setActionHandler('play', () => { const s = self.playlist[self.index].howl; s.play(); });
+                navigator.mediaSession.setActionHandler('pause', () => { const s = self.playlist[self.index].howl; s.pause(); });
+                navigator.mediaSession.setActionHandler('previoustrack', () => self.skip('prev'));
+                navigator.mediaSession.setActionHandler('nexttrack', () => self.skip('next'));
+            };
+            applyMediaSession(null);
+            // **修改：使用第一张图进行处理**
+            const coverPic = Array.isArray(data.pic) ? data.pic[0] : data.pic;
+            const img = new Image();
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                const ctx = canvas.getContext('2d');
+                const size = 512;
+                canvas.width = size; canvas.height = size;
+                const srcSize = Math.min(img.width, img.height);
+                const sx = (img.width - srcSize) / 2, sy = (img.height - srcSize) / 2;
+                ctx.drawImage(img, sx, sy, srcSize, srcSize, 0, 0, size, size);
+                const cropped = canvas.toDataURL('image/jpeg', 0.9);
+                applyMediaSession({ src: cropped, sizes: '512x512', type: 'image/jpeg' });
+            };
+            img.onerror = () => { console.warn("图片加载失败"); };
+            img.crossOrigin = 'Anonymous';
+            // **修改：使用第一张图**
+            img.src = media + encodeURI(coverPic);
+        }
+
+        // 更新 UI (仅在切换新歌时)
         if (isNewTrack) {
             track.innerHTML = data.title;
             artist.innerHTML = data.artist;
-            document.title = `${data.title} - Gmemp`;
-            post.innerHTML = `<p><b>${data.date}</b></p>${data.article}`;
-            this.setBackground(data.pic, true);
-            window.location.hash = "#" + index;
-            const ogImage = Array.isArray(data.pic) ? data.pic[0] : data.pic;
+            document.title = data.title + " - Gmemp";
+            post.innerHTML = '<p><b>' + data.date + '</b></p>' + data.article;
+            // **修改：使用新方法设置背景**
+            this.setBackground(data.pic, true); // 强制重置轮播
+            window.location.hash = "#" + (index);
             document.querySelector('meta[property="og:title"]').setAttribute('content', data.title);
+            // **修改：使用第一张图**
+            const ogImage = Array.isArray(data.pic) ? data.pic[0] : data.pic;
             document.querySelector('meta[property="og:image"]').setAttribute('content', media + encodeURI(ogImage));
-            if(document.querySelector('#list-song-' + playNum)) { document.querySelector('#list-song-' + playNum).style.backgroundColor = ''; }
+            progressBar.style.margin = -(window.innerHeight * 0.3 / 2) + 'px auto';
+            if(document.querySelector('#list-song-' + playNum)){
+                 document.querySelector('#list-song-' + playNum).style.backgroundColor = '';
+            }
             document.querySelector('#list-song-' + index).style.backgroundColor = 'rgba(255, 255, 255, 0.1)';
             playNum = index;
-            this.loadLyric(data.lyric || null);
-            if ('mediaSession' in navigator) this.updateMediaSession(data);
-            // 为新曲目也设置可视化
-            this.analyser = Howler.ctx.createAnalyser();
-            this.analyser.fftSize = Math.pow(2, Math.floor(Math.log2((window.innerWidth / 15) * 2)));
-            this.bufferLength = this.analyser.frequencyBinCount;
-            this.dataArray = new Uint8Array(this.bufferLength);
-            Howler.masterGain.connect(this.analyser);
-            draw(); // 启动或重启绘图循环
+
+            // Web Audio & Visualization Setup
+            if (self.analyser) {
+                try { self.analyser.disconnect(0); } catch(e) {}
+            }
+            self.analyser = Howler.ctx.createAnalyser();
+            self.analyser.fftSize = Math.pow(2, Math.floor(Math.log2((window.innerWidth / 15) * 2)));
+            self.bufferLength = self.analyser.frequencyBinCount;
+            self.dataArray = new Uint8Array(self.bufferLength);
+            Howler.masterGain.connect(self.analyser);
+            // 重启可视化绘制循环
+            if (self.drawId) {
+                 cancelAnimationFrame(self.drawId);
+            }
+            self.drawId = requestAnimationFrame(self.draw.bind(self));
+
+            self.loadLyric(data.lyric || null);
         }
 
-        progressBar.style.margin = `-${window.innerHeight * 0.3 / 2}px auto`;
-        if (sound.state() === 'loaded') { loading.style.display = 'none'; } else { loading.style.display = 'block'; playBtn.style.display = 'none'; pauseBtn.style.display = 'none'; }
-        this.index = index;
+        if (sound.state() === 'loaded') {
+            playBtn.style.display = 'none';
+            pauseBtn.style.display = 'block';
+            loading.style.display = 'none';
+        } else {
+            loading.style.display = 'block';
+            playBtn.style.display = 'none';
+            pauseBtn.style.display = 'none';
+        }
+
+        self.index = index;
     },
     
+    // 新增：播放下一首的逻辑，支持播放模式
     playNextTrack: function() {
         if (this.playbackMode === 'single') {
-            this.skipTo(this.index);
+            this.skipTo(this.index); // 单曲循环，重新播放当前曲目
         } else {
-            this.skip('next');
+            this.skip('next'); // 其他模式，调用通用skip方法
         }
     },
-    
-    updateMediaSession: function(data) {
-        if (!('mediaSession' in navigator)) return;
-        const coverPic = Array.isArray(data.pic) ? data.pic[0] : data.pic;
-        const metadata = { title: data.title, artist: data.artist };
-        const setMetadata = (artwork = []) => {
-            navigator.mediaSession.metadata = new MediaMetadata({ ...metadata, artwork });
-        };
-        navigator.mediaSession.setActionHandler('play', () => this.play());
-        navigator.mediaSession.setActionHandler('pause', () => this.pause());
-        navigator.mediaSession.setActionHandler('previoustrack', () => this.skip('prev'));
-        navigator.mediaSession.setActionHandler('nexttrack', () => this.skip('next'));
-        if (!coverPic) {
-            setMetadata();
-            return;
-        }
-        const img = new Image();
-        img.crossOrigin = 'Anonymous';
-        img.onload = () => {
-            const canvas = document.createElement('canvas'); const ctx = canvas.getContext('2d');
-            const size = 512; canvas.width = size; canvas.height = size;
-            const srcSize = Math.min(img.width, img.height);
-            const sx = (img.width - srcSize) / 2, sy = (img.height - srcSize) / 2;
-            ctx.drawImage(img, sx, sy, srcSize, srcSize, 0, 0, size, size);
-            setMetadata([{ src: canvas.toDataURL('image/jpeg', 0.9), sizes: '512x512', type: 'image/jpeg' }]);
-        };
-        img.onerror = () => {
-            console.warn("封面图片加载失败 for mediaSession: " + img.src);
-            setMetadata();
-        };
-        img.src = media + encodeURI(coverPic);
-    },
-    
+
+    // **修改：新的设置背景图方法**
     setBackground: function(picData, forceReset = false) {
-        const bodyStyle = document.body.style;
-        if (backgroundInterval) clearInterval(backgroundInterval);
-        currentImageCache = [];
+        if (backgroundInterval) {
+            clearInterval(backgroundInterval);
+            backgroundInterval = null;
+        }
+        currentImageCache = []; // 清空旧缓存
+
         if (Array.isArray(picData) && picData.length > 1) {
             this.isSlideshowRunning = true;
-            // 设置初始背景
-            bodyStyle.backgroundImage = `url('${media}${encodeURI(picData[0])}')`;
-            // 预加载所有图片
+            
+            // **优化：立即显示第一张图**
+            const firstImageUrl = `url('${media}${encodeURI(picData[0])}')`;
+            bgLayer1.style.backgroundImage = firstImageUrl;
+            bgLayer1.style.opacity = 1;
+            bgLayer2.style.opacity = 0;
+            activeBgLayer = 1; // 记录当前活跃层
+
+            // 后台预加载所有图片到浏览器缓存
             picData.forEach(picName => {
                 const img = new Image();
                 img.src = media + encodeURI(picName);
-                currentImageCache.push(img);
+                currentImageCache.push(img); // 保持引用以便稍后使用
             });
+            
+            // 启动轮播
             this.startBackgroundSlideshow(picData, forceReset);
         } else {
             this.isSlideshowRunning = false;
             const singlePic = Array.isArray(picData) ? picData[0] : picData;
-            bodyStyle.backgroundImage = `url('${media}${encodeURI(singlePic)}')`; // 保持与旧版一致
+            const imageUrl = `url('${media}${encodeURI(singlePic)}')`;
+            // 对于单张图片，我们只设置一个层并确保它可见
+            bgLayer1.style.backgroundImage = imageUrl;
+            bgLayer1.style.opacity = 1;
+            bgLayer2.style.opacity = 0;
+            activeBgLayer = 1; // 重置活跃层索引
         }
     },
-    
+
+    // **修改：新的开始背景图轮播方法**
     startBackgroundSlideshow: function(images, resetIndex = true) {
-        if (backgroundInterval) clearInterval(backgroundInterval);
-        if (resetIndex) currentBgIndex = 0;
-        const bodyStyle = document.body.style;
+        if (backgroundInterval) {
+            clearInterval(backgroundInterval);
+        }
+        
+        if (resetIndex) {
+            currentBgIndex = 0;
+        }
+
         const changeImage = () => {
             currentBgIndex = (currentBgIndex + 1) % images.length;
-            const nextImageUrl = `url('${media}${encodeURI(images[currentBgIndex])}')`;
-            bodyStyle.backgroundImage = nextImageUrl; // 直接设置 body 背景
+            
+            // 为了平滑过渡，我们先在不可见的层上加载新图片
+            let nextLayer = (activeBgLayer === 1) ? bgLayer2 : bgLayer1;
+            let currentLayer = (activeBgLayer === 1) ? bgLayer1 : bgLayer2;
+
+            // 从缓存中获取图片对象，设置背景 (使用缓存的src)
+            const nextImage = currentImageCache[currentBgIndex];
+            if (nextImage) {
+                nextLayer.style.backgroundImage = `url('${nextImage.src}')`;
+                // 执行淡入淡出动画
+                currentLayer.style.opacity = 0;
+                nextLayer.style.opacity = 1;
+                // 切换活跃层
+                activeBgLayer = (activeBgLayer === 1) ? 2 : 1;
+            }
         };
+
+        // 每 BACKGROUND_SLIDESHOW_INTERVAL 秒切换一次图片
         backgroundInterval = setInterval(changeImage, BACKGROUND_SLIDESHOW_INTERVAL);
     },
 
     pause: function () {
-        const sound = this.playlist[this.index].howl;
-        if (sound) sound.pause();
-        if (backgroundInterval) clearInterval(backgroundInterval);
+        let self = this;
+        if (self.playlist[self.index].howl) {
+            self.playlist[self.index].howl.pause();
+        }
         playBtn.style.display = 'block';
         pauseBtn.style.display = 'none';
     },
 
+    // **修改：重写的 skip 方法以支持播放模式**
     skip: function (direction) {
-        let index = this.index;
-        if (this.playbackMode === 'shuffle') {
-            if (this.playlist.length > 1) {
+        let self = this;
+        let index = 0;
+        
+        if (self.playbackMode === 'shuffle') {
+            // 随机播放逻辑
+            if (self.playlist.length <= 1) {
+                index = 0; // 如果只有一首歌，就播放它自己
+            } else {
+                // 确保随机到的不是当前歌曲
                 let newIndex;
                 do {
-                    newIndex = Math.floor(Math.random() * this.playlist.length);
-                } while (newIndex === this.index);
+                    newIndex = Math.floor(Math.random() * self.playlist.length);
+                } while (newIndex === self.index && self.playlist.length > 1);
                 index = newIndex;
             }
         } else {
+            // 顺序/单曲播放逻辑 (也适用于 prev/next 按钮)
             if (direction === 'next') {
-                index = (this.index - 1 + this.playlist.length) % this.playlist.length;
+                index = self.index - 1;
+                if (index < 0) index = self.playlist.length - 1;
             } else { // 'prev'
-                index = (this.index + 1) % this.playlist.length;
+                index = self.index + 1;
+                if (index >= self.playlist.length) index = 0;
             }
         }
-        this.skipTo(index);
+        self.skipTo(index);
     },
 
     skipTo: function (index) {
-        const sound = this.playlist[this.index].howl;
-        if (sound) sound.stop();
-        progress.style.width = '0%';
-        this.play(index);
-    },
-    
-    toggleMode: function() {
-        if (this.playbackMode === 'list') this.playbackMode = 'shuffle';
-        else if (this.playbackMode === 'shuffle') this.playbackMode = 'single';
-        else this.playbackMode = 'list';
-        this.updateModeButton();
-    },
-    
-    updateModeButton: function() {
-        if (modeBtn) {
-            modeBtn.style.backgroundImage = `url("${modeIcons[this.playbackMode]}")`;
-            modeBtn.title = modeTitles[this.playbackMode];
+        let self = this;
+        if (self.playlist[self.index].howl) {
+            self.playlist[self.index].howl.stop();
         }
+        progress.style.width = '0%';
+        self.play(index);
     },
 
     volume: function (val) {
+        let self = this;
         Howler.volume(val);
         let barWidth = (val * 90) / 100;
-        barFull.style.width = `${barWidth * 100}%`;
-        sliderBtn.style.left = `${window.innerWidth * barWidth + window.innerWidth * 0.05 - 25}px`;
+        barFull.style.width = (barWidth * 100) + '%';
+        sliderBtn.style.left = (window.innerWidth * barWidth + window.innerWidth * 0.05 - 25) + 'px';
     },
 
     seek: function (per) {
-        const sound = this.playlist[this.index].howl;
-        if (sound && sound.playing()) {
-            sound.seek(sound.duration() * per);
+        let self = this;
+        let sound = self.playlist[self.index].howl;
+        if (sound.playing()) {
+            const pos = sound.duration() * per;
+            sound.seek(pos);
+            const isSRT = self.playlist[self.index].lyric && /\.srt$/i.test(self.playlist[self.index].lyric);
+            lyricContainer.innerHTML = getCurrentLyric(pos, isSRT);
+            lastLyricTime = pos;
         }
     },
 
     step: function () {
-        const sound = this.playlist[this.index].howl;
+        let self = this;
+        let sound = self.playlist[self.index].howl;
         if (!sound) return;
         let seek = sound.seek() || 0;
         let durationVal = sound.duration();
-        timer.innerHTML = this.formatTime(Math.round(seek));
-        progress.style.width = `${((seek / durationVal) * 100) || 0}%`;
+        timer.innerHTML = self.formatTime(Math.round(seek));
+        progress.style.width = (((seek / durationVal) * 100) || 0) + '%';
         if (sound.playing()) {
-            requestAnimationFrame(this.step.bind(this));
+            requestAnimationFrame(self.step.bind(self));
         }
     },
 
     loadLyric: function (filename) {
         if (!filename) {
-            currentLyrics = []; lyricContainer.innerHTML = ''; return;
+            currentLyrics = [];
+            lyricContainer.innerHTML = '';
+            return;
         }
         const ext = filename.toLowerCase().split('.').pop();
-        fetch(media + encodeURI(filename)).then(r => r.text()).then(text => {
-            currentLyrics = (ext === 'srt') ? parseSRT(text) : (ext === 'lrc') ? parseLRC(text) : [];
-            const sound = this.playlist[this.index].howl;
-            const pos = sound ? sound.seek() : 0;
-            lyricContainer.innerHTML = getCurrentLyric(pos, ext === 'srt');
-            lastLyricTime = pos;
-        }).catch(() => {
-            currentLyrics = []; lyricContainer.innerHTML = '';
-        });
+        fetch(media + encodeURI(filename))
+            .then(r => r.text())
+            .then(text => {
+                if (ext === 'srt') {
+                    currentLyrics = parseSRT(text);
+                } else if (ext === 'lrc') {
+                    currentLyrics = parseLRC(text);
+                } else {
+                    currentLyrics = [];
+                }
+                if (currentLyrics.length > 0) {
+                    const sound = this.playlist[this.index].howl;
+                    const pos = sound ? sound.seek() : 0;
+                    const isSRT = ext === 'srt';
+                    lyricContainer.innerHTML = getCurrentLyric(pos, isSRT);
+                    lastLyricTime = pos;
+                } else {
+                    lyricContainer.innerHTML = '';
+                }
+            })
+            .catch(() => {
+                currentLyrics = [];
+                lyricContainer.innerHTML = '';
+            });
     },
 
-    togglePlaylist: function () { let display = (playlist.style.display === 'block') ? 'none' : 'block'; setTimeout(() => { playlist.style.display = display; if (display === 'block') { list.scrollTop = document.querySelector('#list-song-' + playNum).offsetTop - list.offsetHeight / 2; } }, (display === 'block') ? 0 : 500); playlist.className = (display === 'block') ? 'fadein' : 'fadeout'; },
+    // **新增：切换播放模式**
+    toggleMode: function() {
+        if (this.playbackMode === 'list') {
+            this.playbackMode = 'shuffle';
+        } else if (this.playbackMode === 'shuffle') {
+            this.playbackMode = 'single';
+        } else {
+            this.playbackMode = 'list';
+        }
+        this.updateModeButton();
+    },
+    
+    // **新增：更新模式按钮图标和提示**
+    updateModeButton: function() {
+        if (window.modeBtn) { // 确保DOM元素存在
+            modeBtn.style.backgroundImage = `url("${modeIcons[this.playbackMode]}")`;
+            modeBtn.title = modeTitles[this.playbackMode];
+        }
+    },
+
+    togglePlaylist: function () { let self = this; let display = (playlist.style.display === 'block') ? 'none' : 'block'; setTimeout(function () { playlist.style.display = display; if (playlist.style.display == 'block') { list.scrollTop = document.querySelector('#list-song-' + playNum).offsetTop - list.offsetHeight / 2; } }, (display === 'block') ? 0 : 500); playlist.className = (display === 'block') ? 'fadein' : 'fadeout'; },
     togglePost: function () { post.style.display = (post.style.display == "none") ? "block" : "none"; },
-    toggleWave: function () { waveCanvas.style.display = (waveCanvas.style.display == "none") ? "block" : "none"; },
-    toggleVolume: function () { let display = (volume.style.display === 'block') ? 'none' : 'block'; setTimeout(() => { volume.style.display = display; }, (display === 'block') ? 0 : 500); volume.className = (display === 'block') ? 'fadein' : 'fadeout'; },
-    formatTime: function (secs) { let minutes = Math.floor(secs / 60) || 0; let seconds = (secs - minutes * 60) || 0; return `${minutes}:${(seconds < 10 ? '0' : '')}${seconds}`; }
-};
-
-// Event Listeners
-playBtn.addEventListener('click', () => player.play());
-pauseBtn.addEventListener('click', () => player.pause());
-prevBtn.addEventListener('click', () => player.skip('prev'));
-nextBtn.addEventListener('click', () => player.skip('next'));
-progressBar.addEventListener('click', (event) => player.seek(event.clientX / window.innerWidth));
-playlistBtn.addEventListener('click', () => player.togglePlaylist());
-playlist.addEventListener('click', () => player.togglePlaylist());
-postBtn.addEventListener('click', () => player.togglePost());
-waveBtn.addEventListener('click', () => player.toggleWave());
-volumeBtn.addEventListener('click', () => player.toggleVolume());
-volume.addEventListener('click', () => player.toggleVolume());
-modeBtn.addEventListener('click', () => player.toggleMode());
-
-barEmpty.addEventListener('click', (event) => {
-    let per = event.layerX / parseFloat(getComputedStyle(barEmpty, null).width.replace("px", ""));
-    player.volume(per);
-});
-sliderBtn.addEventListener('mousedown', () => window.sliderDown = true);
-sliderBtn.addEventListener('touchstart', () => window.sliderDown = true, { passive: true });
-volume.addEventListener('mouseup', () => window.sliderDown = false);
-volume.addEventListener('touchend', () => window.sliderDown = false);
-const move = (event) => {
-    if (window.sliderDown) {
-        let x = event.clientX || event.touches[0].clientX;
-        let per = Math.min(1, Math.max(0, (x - barEmpty.getBoundingClientRect().left) / barEmpty.clientWidth));
-        player.volume(per);
+    toggleWave: function () {
+        waveCanvas.style.display = (waveCanvas.style.display == "none") ? "block" : "none";
+        // 优化：当波形图隐藏时暂停动画以节省资源
+        if (waveCanvas.style.display == "none" && this.drawId) {
+             cancelAnimationFrame(this.drawId);
+             this.drawId = null;
+        } else if (waveCanvas.style.display == "block" && this.playlist[this.index].howl && this.playlist[this.index].howl.playing()) {
+            // 如果被显示且正在播放，则重启
+            if (!this.drawId) this.drawId = requestAnimationFrame(this.draw.bind(this));
+        }
+    },
+    toggleVolume: function () { let self = this; let display = (volume.style.display === 'block') ? 'none' : 'block'; setTimeout(function () { volume.style.display = display; }, (display === 'block') ? 0 : 500); volume.className = (display === 'block') ? 'fadein' : 'fadeout'; },
+    formatTime: function (secs) { let minutes = Math.floor(secs / 60) || 0; let seconds = (secs - minutes * 60) || 0; return minutes + ':' + (seconds < 10 ? '0' : '') + seconds; },
+    
+    // **修改：恢复为原始版本的 draw 函数**
+    draw: function () {
+        let self = this;
+        if (!self.analyser) return;
+        let W = window.innerWidth, H = window.innerHeight;
+        waveCanvas.width = W; waveCanvas.height = H;
+        let canvasCtx = waveCanvas.getContext("2d");
+        canvasCtx.clearRect(0, 0, W, H);
+        self.analyser.getByteFrequencyData(self.dataArray);
+        canvasCtx.fillStyle = 'rgba(255,255,255,0.5)';
+        const barW = W / self.bufferLength;
+        let x = 0;
+        // **关键修改：恢复原始的 barH 计算方式**
+        for (let i = 0; i < self.bufferLength; i++) {
+            let barH = self.dataArray[i] / 2; // <-- 这就是您提供的原始代码
+            canvasCtx.fillRect(x, H - barH, barW, barH);
+            x += barW + 1;
+        }
+        self.drawId = requestAnimationFrame(self.draw.bind(self));
     }
 };
-volume.addEventListener('mousemove', move);
-volume.addEventListener('touchmove', move, { passive: true });
 
-// Audio visualization - 使用您提供的原始绘图代码，这是关键修复点
-let canvasCtx = waveCanvas.getContext("2d");
-function draw() {
-    if (!player.analyser) return; // 确保分析器存在
-    let W = window.innerWidth, H = window.innerHeight;
-    waveCanvas.width = W; waveCanvas.height = H;
-    canvasCtx.clearRect(0, 0, W, H);
-    player.analyser.getByteFrequencyData(player.dataArray); // 获取频率数据
-    canvasCtx.fillStyle = 'rgba(255,255,255,0.5)'; // 设置柱状图颜色
-    const barW = W / player.bufferLength; // 计算每个柱的宽度
-    let x = 0;
-    // 遍历数据数组，绘制每个柱状图
-    for (let i = 0; i < player.bufferLength; i++) {
-        // player.dataArray[i] 的值域是 0-255
-        // player.dataArray[i] / 2 是为了让波形高度更平缓、更真实
-        let barH = player.dataArray[i] / 2; 
-        // 从底部向上绘制矩形
-        canvasCtx.fillRect(x, H - barH, barW, barH);
-        x += barW + 1; // 移动到下一个柱的位置，+1 是柱之间的间距
-    }
-    requestAnimationFrame(draw); // 递归调用以保持动画循环
-}
+// Controls (保持不变，除了新增 modeBtn 监听器)
+playBtn.addEventListener('click', function () { player.play(); });
+pauseBtn.addEventListener('click', function () { player.pause(); });
+prevBtn.addEventListener('click', function () { player.skip('prev'); });
+nextBtn.addEventListener('click', function () { player.skip('next'); });
+progressBar.addEventListener('click', function (event) { player.seek(event.clientX / window.innerWidth); });
+playlistBtn.addEventListener('click', function () { player.togglePlaylist(); });
+playlist.addEventListener('click', function () { player.togglePlaylist(); });
+postBtn.addEventListener('click', function () { player.togglePost(); });
+waveBtn.addEventListener('click', function () { player.toggleWave(); });
+volumeBtn.addEventListener('click', function () { player.toggleVolume(); });
+volume.addEventListener('click', function () { player.toggleVolume(); });
+// **新增：播放模式按钮监听器**
+modeBtn.addEventListener('click', function () { player.toggleMode(); });
 
+// Volume (保持不变)
+barEmpty.addEventListener('click', function (event) { let per = event.layerX / parseFloat(getComputedStyle(barEmpty, null).width.replace("px", "")); player.volume(per); });
+['mousedown', 'touchstart'].forEach(e => sliderBtn.addEventListener(e, () => window.sliderDown = true));
+['mouseup', 'touchend'].forEach(e => volume.addEventListener(e, () => window.sliderDown = false));
+volume.addEventListener('mousemove', e => { if (window.sliderDown) { let x = e.clientX || e.touches[0].clientX; let per = Math.min(1, Math.max(0, (x - window.innerWidth * 0.05) / (window.innerWidth * 0.9))); player.volume(per); } });
+volume.addEventListener('touchmove', e => { if (window.sliderDown) { let x = e.touches[0].clientX; let per = Math.min(1, Math.max(0, (x - window.innerWidth * 0.05) / (window.innerWidth * 0.9))); player.volume(per); } });
+
+// Keyboard (保持不变，除了新增 'm' 键)
 document.addEventListener('keyup', e => {
-    if (!player) return;
     if (e.key === ' ' || e.key === "MediaPlayPause") { pauseBtn.style.display === 'block' ? player.pause() : player.play(); }
     else if (e.key === "MediaTrackNext") { player.skip('next'); }
     else if (e.key === "MediaTrackPrevious") { player.skip('prev'); }
@@ -485,10 +618,26 @@ document.addEventListener('keyup', e => {
     else if (e.key === "p" || e.key === "P") { player.togglePost(); }
     else if (e.key === "w" || e.key === "W") { player.toggleWave(); }
     else if (e.key === "v" || e.key === "V") { player.toggleVolume(); }
+    // **新增：'m' 键切换播放模式**
+    else if (e.key === "m" || e.key === "M") { player.toggleMode(); }
 });
 
-lyricBtn.addEventListener('click', () => {
+// 歌词开关 (保持不变)
+lyricBtn.addEventListener('click', function () {
     lyricContainer.style.display = (lyricContainer.style.display === 'none' || !lyricContainer.style.display) ? 'block' : 'none';
 });
 
-console.log("\n %c Gmemp v3.7.0 (Visualization Fixed) %c https://github.com/Meekdai/Gmemp \n", "color: #fff; background-image: linear-gradient(90deg, rgb(47, 172, 178) 0%, rgb(45, 190, 96) 100%); padding:5px 1px;", "background-image: linear-gradient(90deg, rgb(45, 190, 96) 0%, rgb(255, 255, 255) 100%); padding:5px 0;");
+// 页面卸载时清理资源 (保持不变)
+window.addEventListener('beforeunload', () => {
+   if (player && player.drawId) {
+       cancelAnimationFrame(player.drawId);
+   }
+   if (backgroundInterval) {
+       clearInterval(backgroundInterval);
+   }
+   if (lyricInterval) {
+       clearInterval(lyricInterval);
+   }
+});
+
+console.log("\n %c Gmemp v3.7.0 (Modes, Cache & Correct Visualization) %c https://github.com/Meekdai/Gmemp \n", "color: #fff; background-image: linear-gradient(90deg, rgb(47, 172, 178) 0%, rgb(45, 190, 96) 100%); padding:5px 1px;", "background-image: linear-gradient(90deg, rgb(45, 190, 96) 0%, rgb(255, 255, 255) 100%); padding:5px 0;");
