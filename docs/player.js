@@ -7,10 +7,14 @@ const BACKGROUND_SLIDESHOW_INTERVAL = 5000;
 // ==========================================================
 
 // Cache references to DOM elements
-let elms = ['track', 'artist', 'timer', 'duration', 'post', 'playBtn', 'pauseBtn', 'prevBtn', 'nextBtn', 'playlistBtn', 'postBtn', 'waveBtn', 'volumeBtn', 'progress', 'progressBar', 'waveCanvas', 'loading', 'playlist', 'list', 'volume', 'barEmpty', 'barFull', 'sliderBtn', 'lyricBtn', 'lyricContainer', 'modeBtn'];
+// 注意：elms数组里没有包含 modeBtn，因为我们将在Player构造函数中手动获取它
+let elms = ['track', 'artist', 'timer', 'duration', 'post', 'playBtn', 'pauseBtn', 'prevBtn', 'nextBtn', 'playlistBtn', 'postBtn', 'waveBtn', 'volumeBtn', 'progress', 'progressBar', 'waveCanvas', 'loading', 'playlist', 'list', 'volume', 'barEmpty', 'barFull', 'sliderBtn', 'lyricBtn', 'lyricContainer'];
 elms.forEach(function (elm) {
     window[elm] = document.getElementById(elm);
 });
+
+// 手动获取 modeBtn
+const modeBtn = document.getElementById('modeBtn');
 
 const bgLayer1 = document.getElementById('bg-layer1');
 const bgLayer2 = document.getElementById('bg-layer2');
@@ -200,8 +204,8 @@ Player.prototype = {
                         }
                     }, 100);
 
-                    // 每次播放开始时启动或重启可视化
-                    this.setupVisualization(sound);
+                    // *** 关键：播放时设置并启动可视化 ***
+                    this.setupVisualization();
                 },
                 onload: () => { loading.style.display = 'none'; progressBar.style.display = 'block'; },
                 onend: () => { this.playNextTrack(); },
@@ -227,7 +231,8 @@ Player.prototype = {
             playNum = index;
             this.loadLyric(data.lyric || null);
             if ('mediaSession' in navigator) this.updateMediaSession(data);
-            this.setupVisualization(sound); // 也为新曲目设置
+            // *** 关键：为新曲目也设置可视化 ***
+            this.setupVisualization();
         }
 
         progressBar.style.margin = `-${window.innerHeight * 0.3 / 2}px auto`;
@@ -235,51 +240,44 @@ Player.prototype = {
         this.index = index;
     },
 
-    // 设置音频可视化
-    setupVisualization: function(sound) {
+    // *** 关键：设置音频可视化 (与新功能集成) ***
+    setupVisualization: function() {
         if (this.analyser) {
             try {
-                this.analyser.disconnect(0); // 断开旧的分析器连接
-            } catch (e) { /* 忽略潜在的断开错误 */ }
+                this.analyser.disconnect(0);
+            } catch (e) { /* 忽略错误 */ }
         }
         this.analyser = Howler.ctx.createAnalyser();
         this.analyser.fftSize = Math.pow(2, Math.floor(Math.log2((window.innerWidth / 15) * 2)));
         this.bufferLength = this.analyser.frequencyBinCount;
         this.dataArray = new Uint8Array(this.bufferLength);
-
-        // 将 Howler 的 masterGain 连接到新的分析器
         Howler.masterGain.connect(this.analyser);
         
-        // 启动或重启动画绘图循环
         if (!this.drawId) {
             this.drawId = requestAnimationFrame(this.draw.bind(this));
         }
     },
     
-    // 音频可视化绘制函数 - *已调整波动幅度*
+    // *** 关键：恢复您原始的 draw 函数逻辑 ***
     draw: function() {
+        // *** 与之前版本完全一致的绘图逻辑 ***
         if (!this.analyser) {
             this.drawId = null;
             return;
         }
         let W = window.innerWidth, H = window.innerHeight;
         waveCanvas.width = W; waveCanvas.height = H;
-        // 获取频率数据
-        this.analyser.getByteFrequencyData(this.dataArray);
-        const canvasCtx = waveCanvas.getContext("2d");
         canvasCtx.clearRect(0, 0, W, H);
-        canvasCtx.fillStyle = 'rgba(255,255,255,0.6)'; // 调整不透明度使背景图更可见
+        this.analyser.getByteFrequencyData(this.dataArray);
+        canvasCtx.fillStyle = 'rgba(255,255,255,0.5)'; // *** 恢复原始透明度 ***
         const barW = W / this.bufferLength;
         let x = 0;
         for (let i = 0; i < this.bufferLength; i++) {
-            // *更改幅度计算方式，使其更加平缓*
-            // 旧: let barH = (this.dataArray[i] / 255) * H * 0.8;
-            // 新: 对数据取平方根，降低高音量时的增幅，然后整体缩放
-            let barH = Math.sqrt(this.dataArray[i] / 255) * H * 0.3; // *使用平方根和较小的缩放因子*
+            let barH = this.dataArray[i] / 2; // *** 恢复原始高度计算 ***
             canvasCtx.fillRect(x, H - barH, barW, barH);
             x += barW + 1;
         }
-        this.drawId = requestAnimationFrame(this.draw.bind(this)); // 递归调用以保持动画
+        this.drawId = requestAnimationFrame(this.draw.bind(this)); // 保持动画循环
     },
 
     playNextTrack: function() {
@@ -379,6 +377,8 @@ Player.prototype = {
         if (backgroundInterval) clearInterval(backgroundInterval);
         playBtn.style.display = 'block';
         pauseBtn.style.display = 'none';
+        // *** 可选：暂停时也暂停可视化动画以节省性能 ***
+        // if (this.drawId) { cancelAnimationFrame(this.drawId); this.drawId = null; }
     },
 
     skip: function (direction) {
@@ -468,11 +468,11 @@ Player.prototype = {
     togglePost: function () { post.style.display = (post.style.display == "none") ? "block" : "none"; },
     toggleWave: function () {
         waveCanvas.style.display = (waveCanvas.style.display == "none") ? "block" : "none";
-        // 控制可视化动画的启停
-        if (waveCanvas.style.display == "none" && player && player.playlist[player.index].howl && player.playlist[player.index].howl.playing()) {
-             cancelAnimationFrame(player.drawId); player.drawId = null;
-        } else if (waveCanvas.style.display == "block" && player && player.playlist[player.index].howl && player.playlist[player.index].howl.playing()) {
-            if (!player.drawId) player.drawId = requestAnimationFrame(player.draw.bind(player));
+        // 当隐藏/显示波形图时，控制动画的启停
+        if (waveCanvas.style.display == "none" && this.playlist[this.index].howl && this.playlist[this.index].howl.playing()) {
+             if (this.drawId) { cancelAnimationFrame(this.drawId); this.drawId = null; }
+        } else if (waveCanvas.style.display == "block" && this.playlist[this.index].howl && this.playlist[this.index].howl.playing()) {
+            if (!this.drawId) this.drawId = requestAnimationFrame(this.draw.bind(this));
         }
     },
     toggleVolume: function () { let display = (volume.style.display === 'block') ? 'none' : 'block'; setTimeout(() => { volume.style.display = display; }, (display === 'block') ? 0 : 500); volume.className = (display === 'block') ? 'fadein' : 'fadeout'; },
@@ -480,6 +480,7 @@ Player.prototype = {
 };
 
 // Event Listeners
+// *** 注意：这里使用了全局的 player 变量 ***
 playBtn.addEventListener('click', () => player.play());
 pauseBtn.addEventListener('click', () => player.pause());
 prevBtn.addEventListener('click', () => player.skip('prev'));
@@ -491,7 +492,7 @@ postBtn.addEventListener('click', () => player.togglePost());
 waveBtn.addEventListener('click', () => player.toggleWave());
 volumeBtn.addEventListener('click', () => player.toggleVolume());
 volume.addEventListener('click', () => player.toggleVolume());
-modeBtn.addEventListener('click', () => player.toggleMode());
+modeBtn.addEventListener('click', () => player.toggleMode()); // *** 新增的模式切换监听器 ***
 
 barEmpty.addEventListener('click', (event) => {
     let per = event.layerX / parseFloat(getComputedStyle(barEmpty, null).width.replace("px", ""));
@@ -511,6 +512,9 @@ const move = (event) => {
 volume.addEventListener('mousemove', move);
 volume.addEventListener('touchmove', move, { passive: true });
 
+// *** 修复：获取 canvas context 的引用 ***
+let canvasCtx = waveCanvas.getContext("2d");
+// *** 修复：draw 函数在 Player 类中，所以这里不需要再定义全局 draw 函数 ***
 
 document.addEventListener('keyup', e => {
     if (!player) return;
@@ -527,11 +531,11 @@ lyricBtn.addEventListener('click', () => {
     lyricContainer.style.display = (lyricContainer.style.display === 'none' || !lyricContainer.style.display) ? 'block' : 'none';
 });
 
-// 在页面卸载时清理资源，避免内存泄漏
+// 在页面卸载时清理资源
 window.addEventListener('beforeunload', () => {
    if (player && player.drawId) {
        cancelAnimationFrame(player.drawId);
    }
 });
 
-console.log("\n %c Gmemp v3.6.3 (Visualization Scaled Back) %c https://github.com/Meekdai/Gmemp \n", "color: #fff; background-image: linear-gradient(90deg, rgb(47, 172, 178) 0%, rgb(45, 190, 96) 100%); padding:5px 1px;", "background-image: linear-gradient(90deg, rgb(45, 190, 96) 0%, rgb(255, 255, 255) 100%); padding:5px 0;");
+console.log("\n %c Gmemp v3.6.4 (Visualization Fully Restored) %c https://github.com/Meekdai/Gmemp \n", "color: #fff; background-image: linear-gradient(90deg, rgb(47, 172, 178) 0%, rgb(45, 190, 96) 100%); padding:5px 1px;", "background-image: linear-gradient(90deg, rgb(45, 190, 96) 0%, rgb(255, 255, 255) 100%); padding:5px 0;");
