@@ -21,6 +21,21 @@
 - [howler.js](https://github.com/goldfire/howler.js)
 - [Web Audio API](https://developer.mozilla.org/en-US/docs/Web/API/Web_Audio_API/Visualizations_with_Web_Audio_API)
 
+### 一些变化
+1.加了个歌词显示
+
+2.增加了背景图片允许轮询轮番展示
+
+3.改了一下节奏条，个人感觉还不错
+
+4.加了个播放逻辑设置允许设置顺序/随机/单曲播放
+
+~5.更屎山了~
+
+
+### todo
+1.界面还是有点简单，感觉要大改啊，比如额，比较奇怪的进度调节方式o(￣┰￣*)ゞ
+
 
 ### License
 
