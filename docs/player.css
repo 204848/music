@@ -13,7 +13,7 @@ body {
   padding: 0;
   margin: 0;
   overflow: hidden;
-  font-family: "Helvetica Neue", "Futura", "Trebuchet MS", Arial, sans-serif; /* 添加 sans-serif 作为后备 */
+  font-family: "Helvetica Neue", "Futura", "Trebuchet MS", Arial;
   -webkit-user-select: none;
   user-select: none;
   -webkit-tap-highlight-color: rgba(255, 255, 255, 0);
@@ -37,35 +37,31 @@ body {
   opacity: 0;
 }
 
-/* Top Info */
 #title {
   position: absolute;
   width: 100%;
-  top: 3%; /* 稍微下调一点 */
-  line-height: 1.2em; /* 使用 em 单位更灵活 */
-  height: auto; /* 高度自适应 */
+  top: 3%;
+  line-height: 34px;
+  height: 34px;
   text-align: center;
-  font-size: 3.5vmax; /* 使用视口单位，移动端适配更好 */
-  opacity: 0.95; /* 稍微提高不透明度 */
+  font-size: 34px;
+  opacity: 0.9;
   font-weight: 300;
   color: #fff;
-  text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.5); /* 强化阴影 */
-  padding: 0 10%; /* 给左右留点边距，避免贴边 */
-  box-sizing: border-box; /* 包含 padding 在 width 内 */
+  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.33);
 }
 #artist{
   color: #fff;
-  font-size: 1.8vmax; /* 响应式字体大小 */
+  font-size: 18px;
   text-align:center;
-  margin: 0.5em auto; /* 使用 em 单位 */
-  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
+  margin:8px,auto;
 }
 #timer {
   position: absolute;
   top: 0;
   left: 3%;
   text-align: left;
-  font-size: 2.2vmax;
+  font-size: 26px;
   opacity: 0.9;
   font-weight: 300;
   color: #fff;
@@ -76,8 +72,8 @@ body {
   top: 0;
   right: 3%;
   text-align: right;
-  font-size: 2.2vmax;
-  opacity: 0.7; /* 调低一点对比度 */
+  font-size: 26px;
+  opacity: 0.5;
   font-weight: 300;
   color: #fff;
   text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.33);
@@ -87,14 +83,8 @@ body {
   padding:20px;
   font-size: 18px;
   color: #fff;
-  background-color: rgba(0, 0, 0, 0.6); /* 稍微加深背景 */
-  max-height: 70%; /* 限制最大高度 */
-  overflow-y: auto; /* 超出时可滚动 */
-  border-radius: 8px; /* 添加圆角 */
-  margin: 20px; /* 与边缘保持距离 */
-  box-shadow: 0 4px 8px rgba(0,0,0,0.2); /* 添加阴影 */
+  background-color: rgba(0, 0, 0, 0.5);
 }
-/* Controls */
 .controlsOuter {
   position: absolute;
   width: 100%;
@@ -116,12 +106,9 @@ body {
   filter: drop-shadow(1px 1px 2px rgba(0, 0, 0, 0.33));
   -webkit-user-select: none;
   user-select: none;
-  transition: opacity 0.2s ease; /* 添加平滑过渡 */
 }
 .btn:hover {
   opacity: 1;
-  -webkit-filter: drop-shadow(1px 1px 3px rgba(0, 0, 0, 0.5)); /* 悬停时增强阴影 */
-  filter: drop-shadow(1px 1px 3px rgba(0, 0, 0, 0.5));
 }
 #playBtn {
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Cpath fill='%23fff' d='M0 256a256 256 0 1 1 512 0A256 256 0 1 1 0 256zM188.3 147.1c-7.6 4.2-12.3 12.3-12.3 20.9V344c0 8.7 4.7 16.7 12.3 20.9s16.8 4.1 24.3-.5l144-88c7.1-4.4 11.5-12.1 11.5-20.5s-4.4-16.1-11.5-20.5l-144-88c-7.4-4.5-16.7-4.7-24.3-.5z'/%3E%3C/svg%3E");
@@ -162,22 +149,25 @@ body {
   left: 5%;
   margin: -17.5px auto;
 }
-#modeBtn { /* 播放模式按钮 */
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Cpath fill='%23fff' d='M0 128c0-17.7 14.3-32 32-32H480c17.7 0 32 14.3 32 32s-14.3 32-32 32H32c-17.7 0-32-14.3-32-32zm0 256c0-17.7 14.3-32 32-32H480c17.7 0 32 14.3 32 32s-14.3 32-32 32H32c-17.7 0-32-14.3-32-32zM0 256c0-17.7 14.3-32 32-32H480c17.7 0 32 14.3 32 32s-14.3 32-32 32H32c-17.7 0-32-14.3-32-32z'/%3E%3C/svg%3E"); /* 顺序播放 (三条线) */
+/* 新增按钮样式和位置调整 */
+#modeBtn {
+  /* 默认图标：顺序播放 */
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Cpath fill='%23fff' d='M0 128c0-17.7 14.3-32 32-32H480c17.7 0 32 14.3 32 32s-14.3 32-32 32H32c-17.7 0-32-14.3-32-32zM0 256c0-17.7 14.3-32 32-32H480c17.7 0 32 14.3 32 32s-14.3 32-32 32H32c-17.7 0-32-14.3-32-32zM480 352c17.7 0 32 14.3 32 32s-14.3 32-32 32H32c-17.7 0-32-14.3-32-32s14.3-32 32-32H480z'/%3E%3C/svg%3E");
   width: 35px;
   height: 35px;
   top: 50%;
   left: calc(5% + 45px); /* 放在 playlistBtn 右侧 */
   margin: -17.5px auto;
 }
+
 #postBtn {
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Cpath fill='%23fff' d='M96 0C43 0 0 43 0 96V416c0 53 43 96 96 96H384h32c17.7 0 32-14.3 32-32s-14.3-32-32-32V384c17.7 0 32-14.3 32-32V32c0-17.7-14.3-32-32-32H384 96zm0 384H352v64H96c-17.7 0-32-14.3-32-32s14.3-32 32-32zm32-240c0-8.8 7.2-16 16-16H336c8.8 0 16 7.2 16 16s-7.2 16-16 16H144c-8.8 0-16-7.2-16-16zm16 48H336c8.8 0 16 7.2 16 16s-7.2 16-16 16H144c-8.8 0-16-7.2-16-16s7.2-16 16-16z'/%3E%3C/svg%3E");
-  width: 35px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Cpath fill='%23fff' d='M96 0C43 0 0 43 0 96V416c0 53 43 96 96 96H384h32c17.7 0 32-14.3 32-32s-14.3-32-32-32V384c17.7 0 32-14.3 32-32V32c0-17.7-14.3-32-32-32H384 96zm0 384H352v64H96c-17.7 0-32-14.3-32-32s14.3-32 32-32zm32-240c0-8.8 7.2-16 16-16H336c8.8 0 16 7.2 16 16s-7.2 16-16 16H144c-8.8 0-16-7.2-16-16zm16 48H336c8.8 0 16 7.2 16 16s-7.2 16-16 16H144c-8.8 0-16-7.2-16-16s7.2-16 16-16z'/%3E%3C/svg%3E");  width: 35px;
   height: 35px;
   top: 50%;
   left: calc(5% + 90px); /* 为 modeBtn 留出空间 */
   margin: -17.5px auto;
 }
+/* ... 其余样式保持不变 ... */
 #waveBtn {
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 640 512'%3E%3Cpath fill='%23fff' d='M128 64c0-17.7 14.3-32 32-32H320c17.7 0 32 14.3 32 32V416h96V256c0-17.7 14.3-32 32-32H608c17.7 0 32 14.3 32 32s-14.3 32-32 32H512V448c0 17.7-14.3 32-32 32H320c-17.7 0-32-14.3-32-32V96H192V256c0 17.7-14.3 32-32 32H32c-17.7 0-32-14.3-32-32s14.3-32 32-32h96V64z'/%3E%3C/svg%3E");
   width: 44px;
@@ -194,37 +184,7 @@ body {
   right: 5%;
   margin: -17.5px auto;
 }
-#lyricBtn {
-    /* 我们将使用内容来显示图标，而不是背景图片 */
-    /* background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Cpath fill='%23fff' d='M512 128v320c0 26.5-21.5 48-48 48H48c-26.5 0-48-21.5-48-48V128c0-26.5 21.5-48 48-48h416c26.5 0 48 21.5 48 48zM192 384v-96h-64v96h64zm128-96v192h64V288h-64zm128 0v64h64v-64h-64z'/%3E%3C/svg%3E"); */
-    /* 隐藏默认内容溢出 */
-    overflow: hidden;
-    text-align: center;
-    line-height: 35px; /* 垂直居中 */
-    font-weight: bold;
-    font-size: 24px;
-    color: white;
 
-    width: 35px;
-    height: 35px;
-    position: absolute;
-    top: 50%;
-    right: calc(5% + 150px);
-    margin: -17.5px auto;
-    opacity: 0.9;
-    cursor: pointer;
-    z-index: 20;
-}
-/* 根据播放模式动态改变歌词按钮内容 */
-#lyricBtn::after {
-    content: "詞"; /* 默认显示歌词图标 "詞" */
-}
-body[data-mode="list"] #lyricBtn::after { content: "詞"; }
-body[data-mode="shuffle"] #lyricBtn::after { content: "辭"; } /* 可以用一个不同的字或符号 */
-body[data-mode="single"] #lyricBtn::after { content: "詞"; } /* 或者用相同的 */
-
-
-/* Progress */
 #progressBar {
   width: 100%;
   height: 30%;
@@ -257,7 +217,6 @@ body[data-mode="single"] #lyricBtn::after { content: "詞"; } /* 或者用相同
   z-index: -1;
 }
 
-/* Loading */
 #loading {
   position: absolute;
   left: 50%;
@@ -289,16 +248,14 @@ body[data-mode="single"] #lyricBtn::after { content: "詞"; } /* 或者用相同
   }
 }
 
-/* Plylist */
 #playlist {
   width: 100%;
   height: 100%;
   position: absolute;
   top: 0;
   left: 0;
-  background-color: rgba(0, 0, 0, 0.6); /* 加深一点 */
+  background-color: rgba(0, 0, 0, 0.5);
   display: none;
-  z-index: 100; /* 提高 z-index */
 }
 #list {
   width: 100%;
@@ -318,14 +275,12 @@ body[data-mode="single"] #lyricBtn::after { content: "詞"; } /* 或者用相同
   color: #fff;
   text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.33);
   white-space:nowrap;
-  transition: background-color 0.2s ease; /* 添加过渡效果 */
 }
 .list-song:hover {
-  background-color: rgba(255, 255, 255, 0.15); /* 悬停时加深颜色 */
+  background-color: rgba(255, 255, 255, 0.1);
   cursor: pointer;
 }
 
-/* Volume */
 #volume {
   width: 100%;
   height: 100%;
@@ -337,7 +292,6 @@ body[data-mode="single"] #lyricBtn::after { content: "詞"; } /* 或者用相同
   -webkit-user-select: none;
   -webkit-tap-highlight-color: rgba(0, 0, 0, 0);
   display: none;
-  z-index: 99; /* 提高 z-index */
 }
 .bar {
   position: absolute;
@@ -369,8 +323,7 @@ body[data-mode="single"] #lyricBtn::after { content: "詞"; } /* 或者用相同
   border-radius: 25px;
   cursor: pointer;
 }
-
-/* Fade-In */
+/* 省略其他CSS... */
 .fadeout {
   webkit-animation: fadeout 0.5s;
   -ms-animation: fadeout 0.5s;
@@ -405,116 +358,62 @@ body[data-mode="single"] #lyricBtn::after { content: "詞"; } /* 或者用相同
   from { opacity: 1; }
   to   { opacity: 0; }
 }
+@media screen and (max-width: 600px) {
+#track{display: none;}
+#artist{display: none;}
+#postBtn {
+  /* 调整手机端位置 */
+  left: calc(5% + 90px);
+  margin: -80px auto;
+}
+#modeBtn{
+  left: calc(5% + 45px);
+  margin: -80px auto;
+}
+#waveBtn{right:5%;margin: -80px auto;}
+}
 
-/* 新增：歌词容器样式 */
 #lyricContainer {
+    color: rgba(255,255,255,0.9);
+    font-size: 18px;
+    line-height: 1.4;
+    text-align: center;
+    text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.6);
+    max-height: 120px;
+    overflow: hidden;
+    padding: 8px 0;
+    transition: opacity 0.3s;
+    position: relative;
+    z-index: 10;
+}
+
+#lyricBtn {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Cpath fill='%23fff' d='M512 128v320c0 26.5-21.5 48-48 48H48c-26.5 0-48-21.5-48-48V128c0-26.5 21.5-48 48-48h416c26.5 0 48 21.5 48 48zM192 384v-96h-64v96h64zm128-96v192h64V288h-64zm128 0v64h64v-64h-64z'/%3E%3C/svg%3E");
+    width: 35px;
+    height: 35px;
     position: absolute;
     top: 50%;
-    right: 5%; /* 偏右放置 */
-    transform: translateY(-50%); /* 垂直居中 */
-    width: 35%; /* 设置宽度 */
-    max-height: 40vh; /* 最大高度，例如视口高度的40% */
-    overflow: hidden;
-    text-align: left; /* 左对齐文本 */
-    font-size: 1.8vmax; /* 响应式字体大小 */
-    line-height: 1.6;
-    color: rgba(255, 255, 255, 0.9);
-    text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.6);
-    padding: 15px;
-    box-sizing: border-box;
-    z-index: 10; /* 确保在背景层之上 */
-    transition: opacity 0.5s ease; /* 淡入淡出效果 */
-    /* 添加背景略微模糊效果 */
-    background: rgba(0, 0, 0, 0.2); /* 半透明黑色背景 */
-    border-radius: 8px; /* 圆角边框 */
-    backdrop-filter: blur(5px); /* 背景模糊 (注意兼容性) */
-    -webkit-backdrop-filter: blur(5px); /* Safari 前缀 */
+    right: calc(5% + 150px);
+    margin: -17.5px auto;
+    opacity: 0.9;
+    cursor: pointer;
+    z-index: 20;
 }
-
-/* 关键：歌词行的样式 */
-.lyric-line {
-    opacity: 0.6; /* 默认较暗淡 */
-    font-size: 0.9em; /* 稍小 */
-    filter: blur(1px); /* 轻微模糊 */
-    transition: all 0.5s ease; /* 平滑过渡 */
-    margin: 0.3em 0; /* 行距 */
-    /* 如果文本过长自动换行 */
-    white-space: normal;
-    word-wrap: break-word;
-}
-
-/* 当前播放歌词行的样式 */
-.lyric-line.active {
-    opacity: 1.0; /* 完全不透明 */
-    font-size: 1.2em; /* 稍大以突出 */
-    font-weight: bold; /* 粗体 */
-    filter: blur(0px); /* 无模糊 */
-    /* 可选：添加一点颜色高亮 */
-    /* color: #ffeb3b; */ 
-}
-
-/* 手机端适配 */
 @media screen and (max-width: 600px) {
-    #track {
-        font-size: 28px;
-        top: 5%; /* 比中大屏幕更高一点 */
-    }
-    #artist {
-        font-size: 18px;
-        margin: 5px auto;
-    }
-    #title {
-        top: 5%;
-        font-size: 28px;
-        padding: 0 5%;
-    }
-    #timer, #duration {
-        font-size: 20px;
-    }
-    #postBtn {
-        left: 5%;
-        margin: -80px auto;
-    }
-    #modeBtn {
-        left: calc(5% + 50px); /* 调整位置 */
-        margin: -80px auto;
-    }
-    #waveBtn {
-        right: 5%;
-        margin: -80px auto;
-    }
-    /* 调整按钮位置避免重叠 */
-    .controlsInner {
-        width: 300px;
-        margin: 0 -150px;
-    }
-    #prevBtn {
-        left: 15%;
-    }
-    #nextBtn {
-        right: 15%;
-    }
-    #playlistBtn {
-        left: 5%;
-    }
-    .list-song {
-        font-size: 24px;
-        height: 50px;
-        line-height: 50px;
-    }
-    /* 手机端歌词容器 */
-    #lyricContainer {
-        width: 90%; /* 在手机上更宽 */
-        right: 5%;
-        font-size: 16px; /* 字体 */
-        max-height: 30vh; /* 最大高度 */
-        bottom: 15%; /* 放在底部以上 */
-        top: auto;
-        transform: none; /* 取消垂直居中 */
-    }
     #lyricBtn {
         right: calc(5% + 120px);
         top: calc(50% - 80px);
     }
-    #post { font-size: 16px; padding: 15px; margin: 15px; }
+    .controlsInner { width: 300px; margin: 0 -150px; }
+    #prevBtn { left: 15%; }
+    #nextBtn { right: 15%; }
+    #playlistBtn { left: 5%; }
+    /* 重新调整手机端左侧按钮组的位置 */
+    #modeBtn { left: calc(5% + 40px); }
+    #postBtn { left: calc(5% + 80px); }
+    #waveBtn { right: calc(5% + 50px); }
+    #volumeBtn { right: 5%; }
+    #lyricContainer { font-size: 16px; max-height: 80px; padding: 5px 0; margin-top: 10px; }
+    #track { font-size: 28px; }
+    #artist { font-size: 16px; }
 }
