@@ -224,7 +224,9 @@ Player.prototype = {
                 },
                 onload: () => { 
                     loading.style.display = 'none'; 
-                    this.updateDurationDisplays(sound.duration());
+                    if (sound.duration()) {
+                      duration.innerHTML = this.formatTime(Math.round(sound.duration()));  // 添加这行
+                      this.updateDurationDisplays(sound.duration());
                 },
                 onend: () => { this.playNextTrack(); },
                 onpause: () => { if (lyricInterval) clearInterval(lyricInterval); if (backgroundInterval) clearInterval(backgroundInterval); },
@@ -287,12 +289,13 @@ Player.prototype = {
     },
 
     updateDurationDisplays: function(duration) {
-        if (duration && !isNaN(duration)) {
-            const formattedDuration = this.formatTime(Math.round(duration));
-            duration.innerHTML = formattedDuration;
-            durationDisplay.innerHTML = formattedDuration;
-        }
-    },
+    if (duration && !isNaN(duration)) {
+        const formattedDuration = this.formatTime(Math.round(duration));
+        // 确保这两行都执行
+        if (duration) window.duration.innerHTML = formattedDuration;  // 右上角总时间
+        if (durationDisplay) durationDisplay.innerHTML = formattedDuration;  // 进度条右侧时间
+    }
+},
 
     setupVisualization: function(sound) {
         if (this.analyser) {
