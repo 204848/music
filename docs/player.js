@@ -47,8 +47,8 @@ let currentImageCache = [];
 // SVG 图标 Data URIs
 const modeIcons = {
     list: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Cpath fill='%23fff' d='M0 128c0-17.7 14.3-32 32-32H480c17.7 0 32 14.3 32 32s-14.3 32-32 32H32c-17.7 0-32-14.3-32-32zm0 256c0-17.7 14.3-32 32-32H480c17.7 0 32 14.3 32 32s-14.3 32-32 32H32c-17.7 0-32-14.3-32-32zM0 256c0-17.7 14.3-32 32-32H480c17.7 0 32 14.3 32 32s-14.3 32-32 32H32c-17.7 0-32-14.3-32-32z'/%3E%3C/svg%3E",
-    shuffle: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Cpath fill='%23fff' d='M403.8 34.4c12-5 25.7-2.2 34.9 6.9l64 64c6 6 9.4 14.1 9.4 22.6s-3.4 16.6-9.4 22.6l-64 64c-9.2 9.2-22.9 11.9-34.9 6.9s-19.8-16.6-19.8-29.6V160H352c-10.1 0-19.6 4.7-25.6 12.8L284 229.3 244 176l31.2-41.6C293.3 110.2 321.8 96 352 96h32V64c0-12.9 7.8-24.6 19.8-29.6zM164 282.7L204 336l-31.2 41.6C154.7 401.8 126.2 416 96 416H32c-17.7 0-32-14.3-32-32s14.3-32 32-32H96c10.1 0 19.6-4.7 25.6-12.8L164 282.7zm274.6 188c-9.2 9.2-22.9 11.9-34.9 6.9s-19.8-16.6-19.8-29.6V416H352c-30.2 0-58.7-14.2-76.8-38.4L121.6 172.8c-6-8.1-15.5-12.8-25.6-12.8H32c-17.7 0-32-14.3-32-32s14.3-32 32-32H96c30.2 0 58.7 14.2 76.8 38.4l153.6 204.8c6 8.1 15.5 12.8 25.6 12.8h32V320c0-12.9 7.8-24.6 19.8-29.6s25.7-2.2 34.9 6.9l64 64c6 6 9.4 14.1 9.4 22.6s-3.4 16.6-9.4 22.6l-64 64z'/%3E%3C/svg%3E",
-    single: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Cpath fill='%23fff' d='M0 224c0 17.7 14.3 32 32 32s32-14.3 32-32c0-53 43-96 96-96H320v32c0 12.9 7.8 24.6 19.8 29.6s25.7 2.2 34.9-6.9l64-64c6-6 9.4-14.1 9.4-22.6s-3.4-16.6-9.4-22.6l-64-64c-9.2-9.2-22.9-11.9-34.9-6.9S320 19.1 320 32V64H160C71.6 64 0 135.6 0 224zm512 64c0-17.7-14.3-32-32-32s-32 14.3-32 32c0 53-43 96-96 96H192V352c0-12.9-7.8-24.6-19.8-29.6s-25.7-2.2-34.9 6.9l-64 64c-6 6-9.4 14.1-9.4 22.6s3.4 16.6 9.4 22.6l64 64c9.2 9.2 22.9 11.9 34.9 6.9s19.8-16.6 19.8-29.6V448H352c88.4 0 160-71.6 160-160z'/%3E%3C/svg%3E"
+    shuffle: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Cpath fill='%23fff' d='M403.8 34.4c12-5 25.7-2.2 34.9 6.9l64 64c6 6 9.4 14.1 9.4 22.6s-3.4 16.6-9.4 22.6l-64 64c-9.2 9.2-22.9 11.9-34.9 6.9s-19.8-16.6-19.8-29.6V160H352c-10.1 0-19.6 4.7-25.6 12.8L182.2 320H224c13.3 0 24 10.7 24 24s-10.7 24-24 24H128c-13.3 0-24-10.7-24-24V320c0-13.3 10.7-24 24-24h45.3L314.7 160H224c-13.3 0-24-10.7-24-24s10.7-24 24-24h160v-32c0-12.9 7.8-24.6 19.8-29.6zM160 352H96v-32c0-12.9 7.8-24.6 19.8-29.6s25.7-2.2 34.9 6.9l64 64c6 6 9.4 14.1 9.4 22.6s-3.4 16.6-9.4 22.6l-64 64c-9.2 9.2-22.9 11.9-34.9 6.9s-19.8-16.6-19.8-29.6V416h64c13.3 0 24-10.7 24-24s-10.7-24-24-24z'/%3E%3C/svg%3E",
+    single: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Cpath fill='%23fff' d='M0 224c0-17.7 14.3-32 32-32s32 14.3 32 32V256c0 44.2 35.8 80 80 80H224c17.7 0 32 14.3 32 32s-14.3 32-32 32H144C64.5 400 0 335.5 0 256V224zM288 96H368c44.2 0 80 35.8 80 80v32c0 17.7 14.3 32 32 32s32-14.3 32-32V176c0-79.5-64.5-144-144-144H288c-17.7 0-32 14.3-32 32s14.3 32 32 32zM208 256a48 48 0 1 0 96 0 48 48 0 1 0 -96 0z'/%3E%3Cpath fill='%23fff' transform='translate(120, 25) scale(0.4)' d='M432,128.2,336,32.2V96h-24A120,120,0,0,0,92.5,215.5a120,120,0,0,0,219,81l48,48A184.2,184.2,0,0,1,311.5,416C191,416,96,321,96,200.5S191,85,311.5,85H336v64Z'/%3E%3Ctext x='240' y='325' font-size='200' font-weight='bold' fill='%23fff' text-anchor='middle' alignment-baseline='middle'%3E1%3C/text%3E%3C/svg%3E"
 };
 
 const modeTitles = {
@@ -205,7 +205,7 @@ Player.prototype = {
             sound = data.howl = new Howl({
                 src: [media + data.mp3], html5: isMobile(),
                 onplay: () => {
-                    durationDisplay.innerHTML = this.formatTime(Math.round(sound.duration()));
+                    this.updateDurationDisplays(sound.duration());
                     requestAnimationFrame(this.step.bind(this));
                     pauseBtn.style.display = 'block'; playBtn.style.display = 'none'; loading.style.display = 'none';
                     const isSRT = data.lyric && /\.srt$/i.test(data.lyric);
@@ -218,7 +218,10 @@ Player.prototype = {
 
                     this.setupVisualization(sound);
                 },
-                onload: () => { loading.style.display = 'none'; },
+                onload: () => { 
+                    loading.style.display = 'none'; 
+                    this.updateDurationDisplays(sound.duration());
+                },
                 onend: () => { this.playNextTrack(); },
                 onpause: () => { if (lyricInterval) clearInterval(lyricInterval); if (backgroundInterval) clearInterval(backgroundInterval); },
                 onstop: () => { if (lyricInterval) clearInterval(lyricInterval); if (backgroundInterval) clearInterval(backgroundInterval); },
@@ -245,8 +248,15 @@ Player.prototype = {
             this.setupVisualization(sound); 
         }
 
+        this.updateDurationDisplays(sound.duration());
         if (sound.state() === 'loaded') { loading.style.display = 'none'; } else { loading.style.display = 'block'; playBtn.style.display = 'none'; pauseBtn.style.display = 'none'; }
         this.index = index;
+    },
+
+    updateDurationDisplays: function(duration) {
+        const durationStr = this.formatTime(Math.round(duration));
+        duration.innerHTML = durationStr;
+        durationDisplay.innerHTML = durationStr;
     },
 
     setupVisualization: function(sound) {
@@ -454,7 +464,9 @@ Player.prototype = {
     setPositionUI: function(seek, duration) {
         timer.innerHTML = this.formatTime(Math.floor(seek));
         currentTimeDisplay.innerHTML = this.formatTime(Math.floor(seek));
-        durationDisplay.innerHTML = this.formatTime(Math.floor(duration));
+        const durationStr = this.formatTime(Math.floor(duration));
+        duration.innerHTML = durationStr;
+        durationDisplay.innerHTML = durationStr;
         const percent = (seek / duration) * 100;
         progressFilled.style.width = percent + '%';
         progressSlider.style.left = percent + '%';
@@ -510,12 +522,13 @@ nextBtn.addEventListener('click', () => player.skip('next'));
 // 新的进度条事件处理
 const startSeek = (e) => {
     isSeeking = true;
-    progressSlider.classList.add('active');
     document.body.style.cursor = 'grabbing';
+    progressSlider.style.transform = 'translate(-50%, -50%) scale(1.2)';
     window.addEventListener('mousemove', onSeek);
     window.addEventListener('mouseup', endSeek);
     window.addEventListener('touchmove', onSeek, { passive: false });
     window.addEventListener('touchend', endSeek);
+    onSeek(e); // 立即更新位置
     e.preventDefault();
 };
 
@@ -527,13 +540,21 @@ const onSeek = (e) => {
     percent = Math.max(0, Math.min(1, percent));
     progressFilled.style.width = (percent * 100) + '%';
     progressSlider.style.left = (percent * 100) + '%';
+    
+    // 实时更新时间显示
+    const sound = player.playlist[player.index].howl;
+    if (sound) {
+        const duration = sound.duration();
+        const currentTime = duration * percent;
+        currentTimeDisplay.innerHTML = player.formatTime(Math.floor(currentTime));
+    }
 };
 
 const endSeek = () => {
     if (!isSeeking) return;
     isSeeking = false;
-    progressSlider.classList.remove('active');
     document.body.style.cursor = '';
+    progressSlider.style.transform = 'translate(-50%, -50%)';
     window.removeEventListener('mousemove', onSeek);
     window.removeEventListener('mouseup', endSeek);
     window.removeEventListener('touchmove', onSeek);
