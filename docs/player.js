@@ -1,17 +1,20 @@
 let media = "https://music.1357924680liu.dpdns.org/media/";
 
-// ================== CONFIG ==================
+// ==========================================================
+// == 可配置项 ==
+// 背景图轮播的切换间隔时间（单位：毫秒）。例如：5000 代表 5 秒
 const BACKGROUND_SLIDESHOW_INTERVAL = 5000;
-const VISUALIZATION_SENSITIVITY = 0.5;
-const VISUALIZATION_OPACITY = 0.5;
-// ================== CONFIG ==================
 
-let elms = [
-    'track', 'artist', 'timer', 'duration', 'post', 'playBtn', 'pauseBtn', 
-    'prevBtn', 'nextBtn', 'playlistBtn', 'postBtn', 'waveBtn', 'volumeBtn', 
-    'waveCanvas', 'loading', 'playlist', 'list', 'volume', 'barEmpty', 'barFull', 
-    'sliderBtn', 'lyricBtn', 'lyricContainer', 'modeBtn'
-];
+// 音频可视化灵敏度 (0.0 - 1.0, 值越小越不敏感/平缓, 值越大越敏感/激烈)
+// * 建议值范围: 0.3 (非常平缓) 到 0.8 (比较激烈)
+const VISUALIZATION_SENSITIVITY = 0.5; 
+
+// 音频可视化透明度 (0.0 - 1.0)
+const VISUALIZATION_OPACITY = 0.5; 
+// ==========================================================
+
+// Cache references to DOM elements
+let elms = ['track', 'artist', 'timer', 'duration', 'post', 'playBtn', 'pauseBtn', 'prevBtn', 'nextBtn', 'playlistBtn', 'postBtn', 'waveBtn', 'volumeBtn', 'waveCanvas', 'loading', 'playlist', 'list', 'volume', 'barEmpty', 'barFull', 'sliderBtn', 'lyricBtn', 'lyricContainer', 'modeBtn'];
 elms.forEach(function (elm) {
     window[elm] = document.getElementById(elm);
 });
@@ -35,12 +38,13 @@ let lyricInterval = null;
 let lastLyricTime = -1;
 let isSeeking = false;
 
-// 背景相关
+// 背景轮询与缓存相关变量
 let backgroundInterval = null;
 let currentBgIndex = 0;
 let activeBgLayer = 1;
 let currentImageCache = [];
 
+// SVG 图标 Data URIs
 const modeIcons = {
     list: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Cpath fill='%23fff' d='M0 128c0-17.7 14.3-32 32-32H480c17.7 0 32 14.3 32 32s-14.3 32-32 32H32c-17.7 0-32-14.3-32-32zm0 256c0-17.7 14.3-32 32-32H480c17.7 0 32 14.3 32 32s-14.3 32-32 32H32c-17.7 0-32-14.3-32-32zM0 256c0-17.7 14.3-32 32-32H480c17.7 0 32 14.3 32 32s-14.3 32-32 32H32c-17.7 0-32-14.3-32-32z'/%3E%3C/svg%3E",
     shuffle: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Cpath fill='%23fff' d='M403.8 34.4c12-5 25.7-2.2 34.9 6.9l64 64c6 6 9.4 14.1 9.4 22.6s-3.4 16.6-9.4 22.6l-64 64c-9.2 9.2-22.9 11.9-34.9 6.9s-19.8-16.6-19.8-29.6V160H352c-10.1 0-19.6 4.7-25.6 12.8L182.2 320H224c13.3 0 24 10.7 24 24s-10.7 24-24 24H128c-13.3 0-24-10.7-24-24V320c0-13.3 10.7-24 24-24h45.3L314.7 160H224c-13.3 0-24-10.7-24-24s10.7-24 24-24h160v-32c0-12.9 7.8-24.6 19.8-29.6zM160 352H96v-32c0-12.9 7.8-24.6 19.8-29.6s25.7-2.2 34.9 6.9l64 64c6 6 9.4 14.1 9.4 22.6s-3.4 16.6-9.4 22.6l-64 64c-9.2 9.2-22.9 11.9-34.9 6.9s-19.8-16.6-19.8-29.6V416h64c13.3 0 24-10.7 24-24s-10.7-24-24-24z'/%3E%3C/svg%3E",
@@ -157,7 +161,7 @@ let Player = function (playlist) {
     this.playlist = playlist;
     this.index = playNum;
     this.isSlideshowRunning = false;
-    this.playbackMode = 'list';
+    this.playbackMode = 'list'; 
 
     track.innerHTML = playlist[this.index].title;
     artist.innerHTML = playlist[this.index].artist;
@@ -178,7 +182,7 @@ let Player = function (playlist) {
         list.appendChild(div);
     });
     document.querySelector('#list-song-' + playNum).style.backgroundColor = 'rgba(255, 255, 255, 0.1)';
-    this.updateModeButton();
+    this.updateModeButton(); 
 };
 
 Player.prototype = {
@@ -211,6 +215,7 @@ Player.prototype = {
                             lyricContainer.innerHTML = getCurrentLyric(pos, isSRT); lastLyricTime = pos;
                         }
                     }, 100);
+
                     this.setupVisualization(sound);
                 },
                 onload: () => { loading.style.display = 'none'; },
@@ -237,7 +242,7 @@ Player.prototype = {
             playNum = index;
             this.loadLyric(data.lyric || null);
             if ('mediaSession' in navigator) this.updateMediaSession(data);
-            this.setupVisualization(sound);
+            this.setupVisualization(sound); 
         }
 
         if (sound.state() === 'loaded') { loading.style.display = 'none'; } else { loading.style.display = 'block'; playBtn.style.display = 'none'; pauseBtn.style.display = 'none'; }
@@ -248,18 +253,22 @@ Player.prototype = {
         if (this.analyser) {
             try {
                 this.analyser.disconnect(0);
-            } catch (e) { }
+            } catch (e) {  }
         }
         this.analyser = Howler.ctx.createAnalyser();
-        this.analyser.fftSize = 2048;
+        // *恢复更标准的 fftSize*
+        this.analyser.fftSize = 2048; // 通常比动态计算更稳定
         this.bufferLength = this.analyser.frequencyBinCount;
         this.dataArray = new Uint8Array(this.bufferLength);
+
         Howler.masterGain.connect(this.analyser);
+        
         if (!this.drawId) {
             this.drawId = requestAnimationFrame(this.draw.bind(this));
         }
     },
-
+    
+    // *修改后的 draw 函数，更贴近原始风格*
     draw: function() {
         if (!this.analyser) {
             this.drawId = null;
@@ -267,17 +276,24 @@ Player.prototype = {
         }
         let W = window.innerWidth, H = window.innerHeight;
         waveCanvas.width = W; waveCanvas.height = H;
+        
         this.analyser.getByteFrequencyData(this.dataArray);
         const canvasCtx = waveCanvas.getContext("2d");
         canvasCtx.clearRect(0, 0, W, H);
+        
+        // *应用可配置的透明度*
         canvasCtx.fillStyle = `rgba(255,255,255,${VISUALIZATION_OPACITY})`;
-        const barWidth = (W / this.bufferLength) * 2.5;
+        
+        // *应用可配置的灵敏度和恢复原始计算方式*
+        const barWidth = (W / this.bufferLength) * 2.5; // *调整条形宽度以填充屏幕*
         let barHeight;
         let x = 0;
         for(let i = 0; i < this.bufferLength; i++) {
+            // *核心修改: 简单线性映射 + 灵敏度控制*
             barHeight = (this.dataArray[i] / 255.0) * H * VISUALIZATION_SENSITIVITY;
+            
             canvasCtx.fillRect(x, H - barHeight, barWidth, barHeight);
-            x += barWidth + 1;
+            x += barWidth + 1; // 1px 间隔
         }
         this.drawId = requestAnimationFrame(this.draw.bind(this));
     },
@@ -289,7 +305,7 @@ Player.prototype = {
             this.skip('next');
         }
     },
-
+    
     updateMediaSession: function(data) {
         if (!('mediaSession' in navigator)) return;
         const coverPic = Array.isArray(data.pic) ? data.pic[0] : data.pic;
@@ -308,10 +324,8 @@ Player.prototype = {
         const img = new Image();
         img.crossOrigin = 'Anonymous';
         img.onload = () => {
-            const canvas = document.createElement('canvas');
-            const ctx = canvas.getContext('2d');
-            const size = 512;
-            canvas.width = size; canvas.height = size;
+            const canvas = document.createElement('canvas'); const ctx = canvas.getContext('2d');
+            const size = 512; canvas.width = size; canvas.height = size;
             const srcSize = Math.min(img.width, img.height);
             const sx = (img.width - srcSize) / 2, sy = (img.height - srcSize) / 2;
             ctx.drawImage(img, sx, sy, srcSize, srcSize, 0, 0, size, size);
@@ -323,7 +337,7 @@ Player.prototype = {
         };
         img.src = media + encodeURI(coverPic);
     },
-
+    
     setBackground: function(picData, forceReset = false) {
         if (backgroundInterval) clearInterval(backgroundInterval);
         currentImageCache = [];
@@ -350,7 +364,7 @@ Player.prototype = {
             activeBgLayer = 1;
         }
     },
-
+    
     startBackgroundSlideshow: function(images, resetIndex = true) {
         if (backgroundInterval) clearInterval(backgroundInterval);
         if (resetIndex) currentBgIndex = 0;
@@ -396,7 +410,7 @@ Player.prototype = {
         } else {
             if (direction === 'next') {
                 index = (this.index + 1) % this.playlist.length;
-            } else {
+            } else { 
                 index = (this.index - 1 + this.playlist.length) % this.playlist.length;
             }
         }
@@ -408,14 +422,14 @@ Player.prototype = {
         if (sound) sound.stop();
         this.play(index);
     },
-
+    
     toggleMode: function() {
         if (this.playbackMode === 'list') this.playbackMode = 'shuffle';
         else if (this.playbackMode === 'shuffle') this.playbackMode = 'single';
         else this.playbackMode = 'list';
         this.updateModeButton();
     },
-
+    
     updateModeButton: function() {
         if (modeBtn) {
             modeBtn.style.backgroundImage = `url("${modeIcons[this.playbackMode]}")`;
@@ -473,11 +487,7 @@ Player.prototype = {
         });
     },
 
-    togglePlaylist: function () {
-        let display = (playlist.style.display === 'block') ? 'none' : 'block';
-        setTimeout(() => { playlist.style.display = display; if (display === 'block') { list.scrollTop = document.querySelector('#list-song-' + playNum).offsetTop - list.offsetHeight / 2; } }, (display === 'block') ? 0 : 500);
-        playlist.className = (display === 'block') ? 'fadein' : 'fadeout';
-    },
+    togglePlaylist: function () { let display = (playlist.style.display === 'block') ? 'none' : 'block'; setTimeout(() => { playlist.style.display = display; if (display === 'block') { list.scrollTop = document.querySelector('#list-song-' + playNum).offsetTop - list.offsetHeight / 2; } }, (display === 'block') ? 0 : 500); playlist.className = (display === 'block') ? 'fadein' : 'fadeout'; },
     togglePost: function () { post.style.display = (post.style.display == "none") ? "block" : "none"; },
     toggleWave: function () {
         waveCanvas.style.display = (waveCanvas.style.display == "none") ? "block" : "none";
@@ -487,45 +497,26 @@ Player.prototype = {
             if (!player.drawId) player.drawId = requestAnimationFrame(player.draw.bind(player));
         }
     },
-    toggleVolume: function () {
-        let display = (volume.style.display === 'block') ? 'none' : 'block';
-        setTimeout(() => { volume.style.display = display; }, (display === 'block') ? 0 : 500);
-        volume.className = (display === 'block') ? 'fadein' : 'fadeout';
-    },
-    formatTime: function (secs) {
-        let minutes = Math.floor(secs / 60) || 0;
-        let seconds = (secs - minutes * 60) || 0;
-        return `${minutes}:${(seconds < 10 ? '0' : '')}${seconds}`;
-    }
+    toggleVolume: function () { let display = (volume.style.display === 'block') ? 'none' : 'block'; setTimeout(() => { volume.style.display = display; }, (display === 'block') ? 0 : 500); volume.className = (display === 'block') ? 'fadein' : 'fadeout'; },
+    formatTime: function (secs) { let minutes = Math.floor(secs / 60) || 0; let seconds = (secs - minutes * 60) || 0; return `${minutes}:${(seconds < 10 ? '0' : '')}${seconds}`; }
 };
 
-// === 事件绑定 ===
+// Event Listeners
 playBtn.addEventListener('click', () => player.play());
 pauseBtn.addEventListener('click', () => player.pause());
 prevBtn.addEventListener('click', () => player.skip('prev'));
 nextBtn.addEventListener('click', () => player.skip('next'));
-playlistBtn.addEventListener('click', () => player.togglePlaylist());
-playlist.addEventListener('click', () => player.togglePlaylist());
-postBtn.addEventListener('click', () => player.togglePost());
-waveBtn.addEventListener('click', () => player.toggleWave());
-volumeBtn.addEventListener('click', () => player.toggleVolume());
-volume.addEventListener('click', () => player.toggleVolume());
-modeBtn.addEventListener('click', () => {
-    if (player) player.toggleMode();
-});
 
-progressBar.addEventListener('click', (e) => {
-    const rect = progressBar.getBoundingClientRect();
-    const percent = (e.clientX - rect.left) / rect.width;
-    player.seek(percent);
-});
-
+// 新的进度条事件处理
 const startSeek = (e) => {
     isSeeking = true;
+    progressSlider.classList.add('active');
+    document.body.style.cursor = 'grabbing';
     window.addEventListener('mousemove', onSeek);
     window.addEventListener('mouseup', endSeek);
     window.addEventListener('touchmove', onSeek, { passive: false });
     window.addEventListener('touchend', endSeek);
+    e.preventDefault();
 };
 
 const onSeek = (e) => {
@@ -541,14 +532,37 @@ const onSeek = (e) => {
 const endSeek = () => {
     if (!isSeeking) return;
     isSeeking = false;
+    progressSlider.classList.remove('active');
+    document.body.style.cursor = '';
     window.removeEventListener('mousemove', onSeek);
     window.removeEventListener('mouseup', endSeek);
     window.removeEventListener('touchmove', onSeek);
     window.removeEventListener('touchend', endSeek);
+    
+    // 执行实际的seek操作
+    const rect = progressBar.getBoundingClientRect();
+    const percent = (event.clientX - rect.left) / rect.width;
+    player.seek(Math.max(0, Math.min(1, percent)));
 };
 
 progressSlider.addEventListener('mousedown', startSeek);
 progressSlider.addEventListener('touchstart', startSeek, { passive: false });
+
+progressBar.addEventListener('click', (e) => {
+    if (!isSeeking) {
+        const rect = progressBar.getBoundingClientRect();
+        const percent = (e.clientX - rect.left) / rect.width;
+        player.seek(Math.max(0, Math.min(1, percent)));
+    }
+});
+
+playlistBtn.addEventListener('click', () => player.togglePlaylist());
+playlist.addEventListener('click', () => player.togglePlaylist());
+postBtn.addEventListener('click', () => player.togglePost());
+waveBtn.addEventListener('click', () => player.toggleWave());
+volumeBtn.addEventListener('click', () => player.toggleVolume());
+volume.addEventListener('click', () => player.toggleVolume());
+modeBtn.addEventListener('click', () => player.toggleMode());
 
 barEmpty.addEventListener('click', (event) => {
     let per = event.layerX / parseFloat(getComputedStyle(barEmpty, null).width.replace("px", ""));
@@ -568,6 +582,7 @@ const move = (event) => {
 volume.addEventListener('mousemove', move);
 volume.addEventListener('touchmove', move, { passive: true });
 
+
 document.addEventListener('keyup', e => {
     if (!player) return;
     if (e.key === ' ' || e.key === "MediaPlayPause") { pauseBtn.style.display === 'block' ? player.pause() : player.play(); }
@@ -584,9 +599,9 @@ lyricBtn.addEventListener('click', () => {
 });
 
 window.addEventListener('beforeunload', () => {
-    if (player && player.drawId) {
-        cancelAnimationFrame(player.drawId);
-    }
+   if (player && player.drawId) {
+       cancelAnimationFrame(player.drawId);
+   }
 });
 
 console.log("\n %c Gmemp v3.6.4 (Visualization Tuned) %c https://github.com/Meekdai/Gmemp \n", "color: #fff; background-image: linear-gradient(90deg, rgb(47, 172, 178) 0%, rgb(45, 190, 96) 100%); padding:5px 1px;", "background-image: linear-gradient(90deg, rgb(45, 190, 96) 0%, rgb(255, 255, 255) 100%); padding:5px 0;");
