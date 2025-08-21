@@ -37,7 +37,7 @@ let currentLyrics = [];
 let lyricInterval = null;
 let lastLyricTime = -1;
 let isSeeking = false;
-let pendingSeekPosition = null; // 用于存储暂停时的拖动位置
+let pendingSeekPercent = null; // 用于存储等待播放时的seek位置
 
 // 背景轮询与缓存相关变量
 let backgroundInterval = null;
@@ -222,11 +222,11 @@ Player.prototype = {
 
                     this.setupVisualization(sound);
                     
-                    // 如果有待处理的seek位置，在播放时跳转到该位置
-                    if (pendingSeekPosition !== null) {
-                        sound.seek(pendingSeekPosition);
-                        this.setPositionUI(pendingSeekPosition, sound.duration());
-                        pendingSeekPosition = null;
+                    // 处理等待的seek操作
+                    if (pendingSeekPercent !== null) {
+                        sound.seek(sound.duration() * pendingSeekPercent);
+                        this.setPositionUI(sound.duration() * pendingSeekPercent, sound.duration());
+                        pendingSeekPercent = null;
                     }
                 },
                 onload: () => { 
@@ -257,9 +257,6 @@ Player.prototype = {
             this.loadLyric(data.lyric || null);
             if ('mediaSession' in navigator) this.updateMediaSession(data);
             this.setupVisualization(sound); 
-            
-            // 重置pendingSeekPosition
-            pendingSeekPosition = null;
         }
 
         if (sound.state() === 'loaded') { 
@@ -272,9 +269,13 @@ Player.prototype = {
     },
 
     preloadDuration: function(data) {
-        if (data.howl && data.howl.duration()) {
-            // 如果已经创建过sound对象且有时长，直接使用
-            this.updateDurationDisplays(data.howl.duration());
+        if (data.howl && data.howl.state() === 'loaded') {
+            // 如果已经创建过sound对象且已加载，直接使用
+            setTimeout(() => {
+                if (data.howl.duration()) {
+                    this.updateDurationDisplays(data.howl.duration());
+                }
+            }, 100);
         } else if (!data.howl) {
             // 创建临时sound对象来获取时长
             const tempSound = new Howl({
@@ -289,17 +290,20 @@ Player.prototype = {
                 }
             });
         } else {
-            // 已有sound对象但时长未加载完成，稍后重试
-            setTimeout(() => {
-                if (data.howl && data.howl.duration()) {
+            // 已有sound对象但未加载，等待加载完成
+            const checkDuration = () => {
+                if (data.howl.state() === 'loaded' && data.howl.duration()) {
                     this.updateDurationDisplays(data.howl.duration());
+                } else {
+                    setTimeout(checkDuration, 100);
                 }
-            }, 500);
+            };
+            checkDuration();
         }
     },
 
     updateDurationDisplays: function(duration) {
-        if (duration && !isNaN(duration) && duration !== Infinity) {
+        if (duration && !isNaN(duration) && isFinite(duration)) {
             const formattedDuration = this.formatTime(Math.round(duration));
             duration.innerHTML = formattedDuration;
             durationDisplay.innerHTML = formattedDuration;
@@ -471,7 +475,6 @@ Player.prototype = {
     skipTo: function (index) {
         const sound = this.playlist[this.index].howl;
         if (sound) sound.stop();
-        pendingSeekPosition = null; // 跳转到新歌曲时重置pending位置
         this.play(index);
     },
     
@@ -499,25 +502,30 @@ Player.prototype = {
     seek: function (per) {
         const sound = this.playlist[this.index].howl;
         if (sound) {
-            const duration = sound.duration();
-            const seekPosition = duration * per;
             if (sound.playing()) {
-                // 如果正在播放，直接seek
-                sound.seek(seekPosition);
-                this.setPositionUI(seekPosition, duration);
+                sound.seek(sound.duration() * per);
+                // 立即更新UI
+                const seek = sound.duration() * per;
+                this.setPositionUI(seek, sound.duration());
             } else {
-                // 如果暂停，保存seek位置，等待播放时使用
-                pendingSeekPosition = seekPosition;
-                this.setPositionUI(seekPosition, duration);
+                // 如果没有播放，保存seek位置等待播放时使用
+                pendingSeekPercent = per;
+                // 立即更新UI显示
+                const duration = sound.duration();
+                if (duration && !isNaN(duration)) {
+                    const seek = duration * per;
+                    this.setPositionUI(seek, duration);
+                }
             }
         } else {
-            // 没有sound对象时，只更新UI
+            // 如果还没有创建sound对象，保存seek位置
+            pendingSeekPercent = per;
+            // 更新UI显示（如果有预加载的时长信息）
             const data = this.playlist[this.index];
             if (data.howl && data.howl.duration()) {
                 const duration = data.howl.duration();
-                const seekPosition = duration * per;
-                pendingSeekPosition = seekPosition;
-                this.setPositionUI(seekPosition, duration);
+                const seek = duration * per;
+                this.setPositionUI(seek, duration);
             }
         }
     },
@@ -525,7 +533,7 @@ Player.prototype = {
     setPositionUI: function(seek, duration) {
         timer.innerHTML = this.formatTime(Math.floor(seek));
         currentTimeDisplay.innerHTML = this.formatTime(Math.floor(seek));
-        if (duration && !isNaN(duration) && duration !== Infinity) {
+        if (duration && !isNaN(duration) && isFinite(duration)) {
             const formattedDuration = this.formatTime(Math.floor(duration));
             duration.innerHTML = formattedDuration;
             durationDisplay.innerHTML = formattedDuration;
@@ -610,16 +618,16 @@ const onSeek = (e) => {
     progressSlider.style.left = (percent * 100) + '%';
     
     // 实时更新时间显示
-    const data = player.playlist[player.index];
-    if (data.howl && data.howl.duration()) {
-        const duration = data.howl.duration();
-        const seek = duration * percent;
+    const sound = player.playlist[player.index].howl;
+    if (sound && sound.duration()) {
+        const seek = sound.duration() * percent;
         currentTimeDisplay.innerHTML = player.formatTime(Math.floor(seek));
         timer.innerHTML = player.formatTime(Math.floor(seek));
-    } else if (data.howl) {
-        // 如果有sound对象但时长还未加载，尝试获取
-        const duration = data.howl.duration();
-        if (duration && !isNaN(duration) && duration !== Infinity) {
+    } else {
+        // 如果没有音频对象，使用预加载的时长
+        const data = player.playlist[player.index];
+        if (data.howl && data.howl.duration()) {
+            const duration = data.howl.duration();
             const seek = duration * percent;
             currentTimeDisplay.innerHTML = player.formatTime(Math.floor(seek));
             timer.innerHTML = player.formatTime(Math.floor(seek));
