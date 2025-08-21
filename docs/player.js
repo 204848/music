@@ -2,20 +2,25 @@ let media = "https://music.1357924680liu.dpdns.org/media/";
 
 // ==========================================================
 // == 可配置项 ==
+// 背景图轮播的切换间隔时间（单位：毫秒）。例如：5000 代表 5 秒
 const BACKGROUND_SLIDESHOW_INTERVAL = 5000;
+
+// 音频可视化灵敏度 (0.0 - 1.0, 值越小越不敏感/平缓, 值越大越敏感/激烈)
 const VISUALIZATION_SENSITIVITY = 0.5; 
+
+// 音频可视化透明度 (0.0 - 1.0)
 const VISUALIZATION_OPACITY = 0.5; 
 // ==========================================================
 
-// Cache references to new and existing DOM elements
+// Cache references to ALL DOM elements, including the new ones for the progress bar
 let elms = [
-    'track', 'artist', 'timer', 'duration', 'post', 'playBtn', 'pauseBtn', 
-    'prevBtn', 'nextBtn', 'playlistBtn', 'postBtn', 'waveBtn', 'volumeBtn', 
-    'waveCanvas', 'loading', 'playlist', 'list', 'volume', 'barEmpty', 
-    'barFull', 'sliderBtn', 'lyricBtn', 'lyricContainer', 'modeBtn',
-    // 新增的进度条元素
-    'progress-bar', 'progress-filled', 'progress-slider', 
+    'track', 'artist', 'timer', 'duration', 'post', 'playBtn', 'pauseBtn', 'prevBtn', 'nextBtn', 
+    'playlistBtn', 'postBtn', 'waveBtn', 'volumeBtn', 'loading', 'playlist', 'list', 'volume', 
+    'barEmpty', 'barFull', 'sliderBtn', 'lyricBtn', 'lyricContainer', 'modeBtn',
+    // --- 新增的进度条相关元素 ---
+    'progress-container', 'progress-bar', 'progress-filled', 'progress-slider', 
     'progress-current-time', 'progress-duration'
+    // --- 新增结束 ---
 ];
 elms.forEach(function (elm) {
     window[elm] = document.getElementById(elm);
@@ -23,6 +28,8 @@ elms.forEach(function (elm) {
 
 const bgLayer1 = document.getElementById('bg-layer1');
 const bgLayer2 = document.getElementById('bg-layer2');
+// --- 获取新的 Canvas 元素 ---
+const waveCanvas = document.getElementById('waveCanvas'); 
 
 let player;
 let playNum = 0;
@@ -43,14 +50,12 @@ const modeIcons = {
     shuffle: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Cpath fill='%23fff' d='M403.8 34.4c12-5 25.7-2.2 34.9 6.9l64 64c6 6 9.4 14.1 9.4 22.6s-3.4 16.6-9.4 22.6l-64 64c-9.2 9.2-22.9 11.9-34.9 6.9s-19.8-16.6-19.8-29.6V160H352c-10.1 0-19.6 4.7-25.6 12.8L182.2 320H224c13.3 0 24 10.7 24 24s-10.7 24-24 24H128c-13.3 0-24-10.7-24-24V320c0-13.3 10.7-24 24-24h45.3L314.7 160H224c-13.3 0-24-10.7-24-24s10.7-24 24-24h160v-32c0-12.9 7.8-24.6 19.8-29.6zM160 352H96v-32c0-12.9 7.8-24.6 19.8-29.6s25.7-2.2 34.9 6.9l64 64c6 6 9.4 14.1 9.4 22.6s-3.4 16.6-9.4 22.6l-64 64c-9.2 9.2-22.9 11.9-34.9 6.9s-19.8-16.6-19.8-29.6V416h64c13.3 0 24-10.7 24-24s-10.7-24-24-24z'/%3E%3C/svg%3E",
     single: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Cpath fill='%23fff' d='M0 224c0-17.7 14.3-32 32-32s32 14.3 32 32V256c0 44.2 35.8 80 80 80H224c17.7 0 32 14.3 32 32s-14.3 32-32 32H144C64.5 400 0 335.5 0 256V224zM288 96H368c44.2 0 80 35.8 80 80v32c0 17.7 14.3 32 32 32s32-14.3 32-32V176c0-79.5-64.5-144-144-144H288c-17.7 0-32 14.3-32 32s14.3 32 32 32zM208 256a48 48 0 1 0 96 0 48 48 0 1 0 -96 0z'/%3E%3Cpath fill='%23fff' transform='translate(120, 25) scale(0.4)' d='M432,128.2,336,32.2V96h-24A120,120,0,0,0,92.5,215.5a120,120,0,0,0,219,81l48,48A184.2,184.2,0,0,1,311.5,416C191,416,96,321,96,200.5S191,85,311.5,85H336v64Z'/%3E%3Ctext x='240' y='325' font-size='200' font-weight='bold' fill='%23fff' text-anchor='middle' alignment-baseline='middle'%3E1%3C/text%3E%3C/svg%3E"
 };
+
 const modeTitles = {
     list: '顺序播放',
     shuffle: '随机播放',
     single: '单曲循环'
 };
-
-// --- 进度条逻辑变量 ---
-let isDragging = false;
 
 let request = new XMLHttpRequest();
 request.open("GET", requestJson);
@@ -72,9 +77,6 @@ request.onload = function () {
     }
 
     player = new Player(jsonData);
-    
-    // --- 进度条事件监听器 (在player初始化后绑定) ---
-    setupProgressBarEvents();
 };
 
 function isMobile() {
@@ -155,6 +157,25 @@ function getCurrentLyric(time, isSRT = false) {
     }
 }
 
+function formatTime(secs) {
+    let minutes = Math.floor(secs / 60) || 0;
+    let seconds = (secs - minutes * 60) || 0;
+    return `${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
+}
+
+// --- 新增：进度条辅助函数 ---
+function updateProgressUI(percent, currentTime, duration) {
+    if (progress_filled && progress_slider) {
+        progress_filled.style.width = `${percent * 100}%`;
+        progress_slider.style.left = `${percent * 100}%`;
+    }
+    if (timer) timer.innerHTML = formatTime(Math.round(currentTime)); // 顶部时间
+    if (progress_current_time) progress_current_time.textContent = formatTime(Math.round(currentTime)); // 进度条旁时间
+    if (duration_element) duration_element.innerHTML = formatTime(Math.round(duration)); // 顶部总时长
+    if (progress_duration) progress_duration.textContent = formatTime(Math.round(duration)); // 进度条旁总时长
+}
+// --- 新增结束 ---
+
 let Player = function (playlist) {
     this.playlist = playlist;
     this.index = playNum;
@@ -203,49 +224,42 @@ Player.prototype = {
             sound = data.howl = new Howl({
                 src: [media + data.mp3], html5: isMobile(),
                 onplay: () => {
-                    const durationVal = Math.round(sound.duration());
-                    // 更新顶部和底部的总时长
-                    duration.innerHTML = this.formatTime(durationVal);
-                    progress-duration.innerHTML = this.formatTime(durationVal);
-                    
+                    // duration.innerHTML = this.formatTime(Math.round(sound.duration())); // 已移至 updateProgressUI
                     requestAnimationFrame(this.step.bind(this));
-                    progressBar.style.display = 'block'; 
-                    pauseBtn.style.display = 'block'; 
-                    playBtn.style.display = 'none'; 
+                    pauseBtn.style.display = 'block';
+                    playBtn.style.display = 'none';
                     loading.style.display = 'none';
-                    
                     const isSRT = data.lyric && /\.srt$/i.test(data.lyric);
                     lyricInterval = setInterval(() => {
                         const pos = sound.seek();
                         if (Math.abs(pos - lastLyricTime) > 0.1) {
-                            lyricContainer.innerHTML = getCurrentLyric(pos, isSRT); 
+                            lyricContainer.innerHTML = getCurrentLyric(pos, isSRT);
                             lastLyricTime = pos;
                         }
                     }, 100);
-
                     this.setupVisualization(sound);
                 },
-                onload: () => { 
-                    loading.style.display = 'none'; 
-                    progressBar.style.display = 'block'; 
+                onload: () => {
+                    loading.style.display = 'none';
+                    // progressBar.style.display = 'block'; // 已移除旧进度条
                 },
                 onend: () => { this.playNextTrack(); },
-                onpause: () => { 
-                    if (lyricInterval) clearInterval(lyricInterval); 
-                    if (backgroundInterval) clearInterval(backgroundInterval); 
-                    progressBar.style.display = 'none'; 
+                onpause: () => {
+                    if (lyricInterval) clearInterval(lyricInterval);
+                    if (backgroundInterval) clearInterval(backgroundInterval);
+                    // progressBar.style.display = 'none'; // 已移除旧进度条
                 },
-                onstop: () => { 
-                    if (lyricInterval) clearInterval(lyricInterval); 
-                    if (backgroundInterval) clearInterval(backgroundInterval); 
-                    progressBar.style.display = 'none'; 
+                onstop: () => {
+                    if (lyricInterval) clearInterval(lyricInterval);
+                    if (backgroundInterval) clearInterval(backgroundInterval);
+                    // progressBar.style.display = 'none'; // 已移除旧进度条
                 },
-                onseek: () => { 
+                onseek: () => {
                     const pos = sound.seek();
-                    const isSRT = data.lyric && /\.srt$/i.test(data.lyric); 
-                    lyricContainer.innerHTML = getCurrentLyric(pos, isSRT); 
-                    lastLyricTime = pos; 
-                    requestAnimationFrame(this.step.bind(this)); 
+                    const isSRT = data.lyric && /\.srt$/i.test(data.lyric);
+                    lyricContainer.innerHTML = getCurrentLyric(pos, isSRT);
+                    lastLyricTime = pos;
+                    requestAnimationFrame(this.step.bind(this));
                 }
             });
         }
@@ -261,8 +275,8 @@ Player.prototype = {
             const ogImage = Array.isArray(data.pic) ? data.pic[0] : data.pic;
             document.querySelector('meta[property="og:title"]').setAttribute('content', data.title);
             document.querySelector('meta[property="og:image"]').setAttribute('content', media + encodeURI(ogImage));
-            if(document.querySelector('#list-song-' + playNum)) { 
-                document.querySelector('#list-song-' + playNum).style.backgroundColor = ''; 
+            if(document.querySelector('#list-song-' + playNum)) {
+                document.querySelector('#list-song-' + playNum).style.backgroundColor = '';
             }
             document.querySelector('#list-song-' + index).style.backgroundColor = 'rgba(255, 255, 255, 0.1)';
             playNum = index;
@@ -271,13 +285,13 @@ Player.prototype = {
             this.setupVisualization(sound); 
         }
 
-        progressBar.style.margin = `-${window.innerHeight * 0.3 / 2}px auto`;
-        if (sound.state() === 'loaded') { 
-            loading.style.display = 'none'; 
-        } else { 
-            loading.style.display = 'block'; 
-            playBtn.style.display = 'none'; 
-            pauseBtn.style.display = 'none'; 
+        // progressBar.style.margin = `-${window.innerHeight * 0.3 / 2}px auto`; // 已移除旧进度条
+        if (sound.state() === 'loaded') {
+            loading.style.display = 'none';
+        } else {
+            loading.style.display = 'block';
+            playBtn.style.display = 'none';
+            pauseBtn.style.display = 'none';
         }
         this.index = index;
     },
@@ -289,7 +303,7 @@ Player.prototype = {
             } catch (e) {  }
         }
         this.analyser = Howler.ctx.createAnalyser();
-        this.analyser.fftSize = 2048; 
+        this.analyser.fftSize = 2048;
         this.bufferLength = this.analyser.frequencyBinCount;
         this.dataArray = new Uint8Array(this.bufferLength);
 
@@ -301,7 +315,7 @@ Player.prototype = {
     },
     
     draw: function() {
-        if (!this.analyser) {
+        if (!this.analyser || !waveCanvas) {
             this.drawId = null;
             return;
         }
@@ -311,6 +325,7 @@ Player.prototype = {
         this.analyser.getByteFrequencyData(this.dataArray);
         const canvasCtx = waveCanvas.getContext("2d");
         canvasCtx.clearRect(0, 0, W, H);
+        
         canvasCtx.fillStyle = `rgba(255,255,255,${VISUALIZATION_OPACITY})`;
         
         const barWidth = (W / this.bufferLength) * 2.5;
@@ -446,67 +461,31 @@ Player.prototype = {
     skipTo: function (index) {
         const sound = this.playlist[this.index].howl;
         if (sound) sound.stop();
-        // 重置进度条
-        progress-filled.style.width = '0%';
-        progress-slider.style.left = '0%';
-        progress-current-time.innerHTML = '0:00';
-        timer.innerHTML = '0:00';
-        
+        // progress.style.width = '0%'; // 已移除旧进度条
         this.play(index);
     },
     
-    toggleMode: function() {
-        if (this.playbackMode === 'list') this.playbackMode = 'shuffle';
-        else if (this.playbackMode === 'shuffle') this.playbackMode = 'single';
-        else this.playbackMode = 'list';
-        this.updateModeButton();
-    },
-    
-    updateModeButton: function() {
-        if (modeBtn) {
-            modeBtn.style.backgroundImage = `url("${modeIcons[this.playbackMode]}")`;
-            modeBtn.title = modeTitles[this.playbackMode];
-        }
-    },
-
-    volume: function (val) {
-        Howler.volume(val);
-        let barWidth = (val * 90) / 100;
-        barFull.style.width = `${barWidth * 100}%`;
-        sliderBtn.style.left = `${window.innerWidth * barWidth + window.innerWidth * 0.05 - 25}px`;
-    },
-
-    // --- 新的 seek 方法，用于底部进度条 ---
-    seek: function (per) {
-        const sound = this.playlist[this.index].howl;
+    // --- 新增：通过百分比进行跳转 ---
+    seek: function (percent) {
+        let sound = this.playlist[this.index].howl;
         if (sound && sound.playing()) {
-            const pos = sound.duration() * per;
+            const pos = sound.duration() * percent;
             sound.seek(pos);
-            
             const isSRT = this.playlist[this.index].lyric && /\.srt$/i.test(this.playlist[this.index].lyric);
             lyricContainer.innerHTML = getCurrentLyric(pos, isSRT);
             lastLyricTime = pos;
         }
     },
+    // --- 新增结束 ---
 
-    // --- 更新的 step 方法，同步新旧两个进度显示 ---
     step: function () {
-        const sound = this.playlist[this.index].howl;
+        let sound = this.playlist[this.index].howl;
         if (!sound) return;
         let seek = sound.seek() || 0;
         let durationVal = sound.duration();
-        
-        const seekRounded = Math.round(seek);
-        // 更新顶部时间
-        timer.innerHTML = this.formatTime(seekRounded);
-        // 更新底部进度条和时间
-        if (!isDragging) { // 只有在未拖动时才更新，避免冲突
-            const percent = (seek / durationVal) || 0;
-            progress-filled.style.width = `${percent * 100}%`;
-            progress-slider.style.left = `${percent * 100}%`;
-            progress-current-time.innerHTML = this.formatTime(seekRounded);
-        }
-        
+        // 更新新的进度条UI
+        updateProgressUI(seek / durationVal, seek, durationVal);
+
         if (sound.playing()) {
             requestAnimationFrame(this.step.bind(this));
         }
@@ -539,72 +518,86 @@ Player.prototype = {
         }
     },
     toggleVolume: function () { let display = (volume.style.display === 'block') ? 'none' : 'block'; setTimeout(() => { volume.style.display = display; }, (display === 'block') ? 0 : 500); volume.className = (display === 'block') ? 'fadein' : 'fadeout'; },
-    formatTime: function (secs) { 
-        let minutes = Math.floor(secs / 60) || 0; 
-        let seconds = (secs - minutes * 60) || 0; 
-        return `${minutes}:${(seconds < 10 ? '0' : '')}${seconds}`; 
+    
+    // --- 修改：使用新的 formatTime 函数 ---
+    formatTime: function (secs) {
+        return formatTime(secs);
+    },
+    // --- 修改结束 ---
+
+    toggleMode: function() {
+        if (this.playbackMode === 'list') this.playbackMode = 'shuffle';
+        else if (this.playbackMode === 'shuffle') this.playbackMode = 'single';
+        else this.playbackMode = 'list';
+        this.updateModeButton();
+    },
+    
+    updateModeButton: function() {
+        if (modeBtn) {
+            modeBtn.style.backgroundImage = `url("${modeIcons[this.playbackMode]}")`;
+            modeBtn.title = modeTitles[this.playbackMode];
+        }
+    },
+
+    volume: function (val) {
+        Howler.volume(val);
+        let barWidth = (val * 90) / 100;
+        barFull.style.width = `${barWidth * 100}%`;
+        sliderBtn.style.left = `${window.innerWidth * barWidth + window.innerWidth * 0.05 - 25}px`;
     }
 };
 
-// --- 为新进度条设置事件监听器的函数 ---
-function setupProgressBarEvents() {
-    const progressBar = document.getElementById('progress-bar');
-    const progressSlider = document.getElementById('progress-slider');
+// --- Event Listeners ---
+playBtn.addEventListener('click', function () { if(player) player.play(); });
+pauseBtn.addEventListener('click', function () { if(player) player.pause(); });
+prevBtn.addEventListener('click', function () { if(player) player.skip('prev'); });
+nextBtn.addEventListener('click', function () { if(player) player.skip('next'); });
 
-    const updateProgress = (clientX) => {
-        const rect = progressBar.getBoundingClientRect();
-        const pos = ((clientX - rect.left) / rect.width);
-        const clampedPos = Math.min(1, Math.max(0, pos)); // 限制在 0-1 之间
-        if (player) {
-            player.seek(clampedPos);
-        }
+// --- 新增：为新的进度条添加事件监听器 ---
+let isSeeking = false;
+
+if (progress_bar) {
+    const onProgressBarClick = function(event) {
+        if (!player || !player.playlist[player.index].howl) return;
+        const rect = progress_bar.getBoundingClientRect();
+        const pos = (event.clientX - rect.left) / rect.width;
+        player.seek(Math.max(0, Math.min(1, pos))); // 限制在 0-1 之间
     };
-
-    const startDrag = (e) => {
-        isDragging = true;
-        // 防止文本选择等干扰
-        e.preventDefault();
-        updateProgress(e.clientX || e.touches[0].clientX);
-    };
-
-    const onDrag = (e) => {
-        if (isDragging) {
-            updateProgress(e.clientX || e.touches[0].clientX);
-        }
-    };
-
-    const stopDrag = () => {
-        isDragging = false;
-    };
-
-    // 鼠标事件
-    progressBar.addEventListener('mousedown', startDrag);
-    progressSlider.addEventListener('mousedown', startDrag);
-    document.addEventListener('mousemove', onDrag);
-    document.addEventListener('mouseup', stopDrag);
-
-    // 触摸事件
-    progressBar.addEventListener('touchstart', startDrag, { passive: false });
-    progressSlider.addEventListener('touchstart', startDrag, { passive: false });
-    document.addEventListener('touchmove', onDrag, { passive: false });
-    document.addEventListener('touchend', stopDrag);
+    progress_bar.addEventListener('click', onProgressBarClick);
 }
 
-// --- 原有事件监听器保持不变 ---
-playBtn.addEventListener('click', () => player.play());
-pauseBtn.addEventListener('click', () => player.pause());
-prevBtn.addEventListener('click', () => player.skip('prev'));
-nextBtn.addEventListener('click', () => player.skip('next'));
-// 注意：移除了对旧 #progressBar 的点击监听
-playlistBtn.addEventListener('click', () => player.togglePlaylist());
-playlist.addEventListener('click', () => player.togglePlaylist());
-postBtn.addEventListener('click', () => player.togglePost());
-waveBtn.addEventListener('click', () => player.toggleWave());
-volumeBtn.addEventListener('click', () => player.toggleVolume());
-volume.addEventListener('click', () => player.toggleVolume());
-modeBtn.addEventListener('click', () => player.toggleMode());
+if (progress_slider) {
+    const onSliderMouseDown = function() { isSeeking = true; };
+    const onSliderTouchStart = function(e) { isSeeking = true; e.preventDefault(); }; // preventDefault for touch
 
-barEmpty.addEventListener('click', (event) => {
+    progress_slider.addEventListener('mousedown', onSliderMouseDown);
+    progress_slider.addEventListener('touchstart', onSliderTouchStart, { passive: false });
+
+    const onDocumentMouseMove = function(event) {
+        if (isSeeking && player && player.playlist[player.index].howl) {
+            const rect = progress_bar.getBoundingClientRect();
+            const pos = (event.clientX || (event.touches && event.touches[0].clientX) || 0 - rect.left) / rect.width;
+            player.seek(Math.max(0, Math.min(1, pos)));
+        }
+    };
+    const onDocumentMouseUp = function() { isSeeking = false; };
+
+    document.addEventListener('mousemove', onDocumentMouseMove);
+    document.addEventListener('mouseup', onDocumentMouseUp);
+    document.addEventListener('touchmove', onDocumentMouseMove, { passive: false });
+    document.addEventListener('touchend', onDocumentMouseUp);
+}
+// --- 新增结束 ---
+
+playlistBtn.addEventListener('click', function () { if(player) player.togglePlaylist(); });
+playlist.addEventListener('click', function () { if(player) player.togglePlaylist(); });
+postBtn.addEventListener('click', function () { if(player) player.togglePost(); });
+waveBtn.addEventListener('click', function () { if(player) player.toggleWave(); });
+volumeBtn.addEventListener('click', function () { if(player) player.toggleVolume(); });
+volume.addEventListener('click', function () { if(player) player.toggleVolume(); });
+
+barEmpty.addEventListener('click', function (event) {
+    if (!player) return;
     let per = event.layerX / parseFloat(getComputedStyle(barEmpty, null).width.replace("px", ""));
     player.volume(per);
 });
@@ -613,7 +606,7 @@ sliderBtn.addEventListener('touchstart', () => window.sliderDown = true, { passi
 volume.addEventListener('mouseup', () => window.sliderDown = false);
 volume.addEventListener('touchend', () => window.sliderDown = false);
 const move = (event) => {
-    if (window.sliderDown) {
+    if (window.sliderDown && player) {
         let x = event.clientX || event.touches[0].clientX;
         let per = Math.min(1, Math.max(0, (x - barEmpty.getBoundingClientRect().left) / barEmpty.clientWidth));
         player.volume(per);
@@ -622,11 +615,14 @@ const move = (event) => {
 volume.addEventListener('mousemove', move);
 volume.addEventListener('touchmove', move, { passive: true });
 
-// 键盘控制保持不变
 document.addEventListener('keyup', e => {
     if (!player) return;
-    if (e.key === ' ' || e.key === "MediaPlayPause") { 
-        pauseBtn.style.display === 'block' ? player.pause() : player.play(); 
+    if (e.key === ' ' || e.key === "MediaPlayPause") {
+        if (pauseBtn.style.display === 'block') {
+            player.pause();
+        } else {
+            player.play();
+        }
     }
     else if (e.key === "MediaTrackNext") { player.skip('next'); }
     else if (e.key === "MediaTrackPrevious") { player.skip('prev'); }
@@ -636,8 +632,12 @@ document.addEventListener('keyup', e => {
     else if (e.key === "v" || e.key === "V") { player.toggleVolume(); }
 });
 
-lyricBtn.addEventListener('click', () => {
+lyricBtn.addEventListener('click', function () {
     lyricContainer.style.display = (lyricContainer.style.display === 'none' || !lyricContainer.style.display) ? 'block' : 'none';
+});
+
+modeBtn.addEventListener('click', function () {
+    if (player) player.toggleMode();
 });
 
 window.addEventListener('beforeunload', () => {
