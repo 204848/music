@@ -38,6 +38,7 @@ let lyricInterval = null;
 let lastLyricTime = -1;
 let isSeeking = false;
 let pendingSeekPercent = null; // 用于存储等待播放时的seek位置
+let preloadedDurations = {}; // 缓存预加载的时长
 
 // 背景轮询与缓存相关变量
 let backgroundInterval = null;
@@ -174,8 +175,8 @@ let Player = function (playlist) {
     document.title = `${playlist[this.index].title} - Gmemp`;
     this.loadLyric(playlist[this.index].lyric || null);
 
-    // 预加载当前歌曲时长
-    this.preloadDuration(playlist[this.index]);
+    // 预加载所有歌曲时长
+    this.preloadAllDurations();
 
     playlist.forEach((song, index) => {
         let div = document.createElement('div');
@@ -232,6 +233,8 @@ Player.prototype = {
                 onload: () => { 
                     loading.style.display = 'none'; 
                     this.updateDurationDisplays(sound.duration());
+                    // 缓存时长
+                    preloadedDurations[index] = sound.duration();
                 },
                 onend: () => { this.playNextTrack(); },
                 onpause: () => { if (lyricInterval) clearInterval(lyricInterval); if (backgroundInterval) clearInterval(backgroundInterval); },
@@ -262,18 +265,39 @@ Player.prototype = {
         if (sound.state() === 'loaded') { 
             loading.style.display = 'none'; 
             this.updateDurationDisplays(sound.duration());
+            preloadedDurations[index] = sound.duration();
         } else { 
             loading.style.display = 'block'; playBtn.style.display = 'none'; pauseBtn.style.display = 'none'; 
         }
         this.index = index;
     },
 
-    preloadDuration: function(data) {
+    preloadAllDurations: function() {
+        // 预加载当前歌曲时长
+        this.preloadDuration(this.playlist[this.index], this.index);
+        
+        // 预加载前几首歌曲时长
+        for (let i = 0; i < Math.min(5, this.playlist.length); i++) {
+            if (i !== this.index) {
+                this.preloadDuration(this.playlist[i], i);
+            }
+        }
+    },
+
+    preloadDuration: function(data, index) {
+        if (preloadedDurations[index]) {
+            // 已经缓存了时长，直接更新显示
+            this.updateDurationDisplays(preloadedDurations[index]);
+            return;
+        }
+
         if (data.howl && data.howl.state() === 'loaded') {
             // 如果已经创建过sound对象且已加载，直接使用
             setTimeout(() => {
                 if (data.howl.duration()) {
-                    this.updateDurationDisplays(data.howl.duration());
+                    const duration = data.howl.duration();
+                    preloadedDurations[index] = duration;
+                    this.updateDurationDisplays(duration);
                 }
             }, 100);
         } else if (!data.howl) {
@@ -282,18 +306,22 @@ Player.prototype = {
                 src: [media + data.mp3],
                 html5: isMobile(),
                 onload: () => {
-                    this.updateDurationDisplays(tempSound.duration());
+                    const duration = tempSound.duration();
+                    preloadedDurations[index] = duration;
+                    this.updateDurationDisplays(duration);
                     tempSound.unload(); // 卸载临时对象
                 },
                 onloaderror: () => {
-                    console.log("预加载时长失败");
+                    console.log("预加载时长失败: " + data.title);
                 }
             });
         } else {
             // 已有sound对象但未加载，等待加载完成
             const checkDuration = () => {
                 if (data.howl.state() === 'loaded' && data.howl.duration()) {
-                    this.updateDurationDisplays(data.howl.duration());
+                    const duration = data.howl.duration();
+                    preloadedDurations[index] = duration;
+                    this.updateDurationDisplays(duration);
                 } else {
                     setTimeout(checkDuration, 100);
                 }
@@ -305,8 +333,12 @@ Player.prototype = {
     updateDurationDisplays: function(duration) {
         if (duration && !isNaN(duration) && isFinite(duration)) {
             const formattedDuration = this.formatTime(Math.round(duration));
-            duration.innerHTML = formattedDuration;
-            durationDisplay.innerHTML = formattedDuration;
+            if (duration.innerHTML !== formattedDuration) {
+                duration.innerHTML = formattedDuration;
+            }
+            if (durationDisplay.innerHTML !== formattedDuration) {
+                durationDisplay.innerHTML = formattedDuration;
+            }
         }
     },
 
@@ -501,18 +533,22 @@ Player.prototype = {
 
     seek: function (per) {
         const sound = this.playlist[this.index].howl;
+        const currentIndex = this.index;
+        const cachedDuration = preloadedDurations[currentIndex];
+        
         if (sound) {
             if (sound.playing()) {
-                sound.seek(sound.duration() * per);
+                const duration = sound.duration();
+                sound.seek(duration * per);
                 // 立即更新UI
-                const seek = sound.duration() * per;
-                this.setPositionUI(seek, sound.duration());
+                const seek = duration * per;
+                this.setPositionUI(seek, duration);
             } else {
                 // 如果没有播放，保存seek位置等待播放时使用
                 pendingSeekPercent = per;
                 // 立即更新UI显示
-                const duration = sound.duration();
-                if (duration && !isNaN(duration)) {
+                const duration = sound.duration() || cachedDuration;
+                if (duration && !isNaN(duration) && isFinite(duration)) {
                     const seek = duration * per;
                     this.setPositionUI(seek, duration);
                 }
@@ -520,23 +556,39 @@ Player.prototype = {
         } else {
             // 如果还没有创建sound对象，保存seek位置
             pendingSeekPercent = per;
-            // 更新UI显示（如果有预加载的时长信息）
-            const data = this.playlist[this.index];
-            if (data.howl && data.howl.duration()) {
-                const duration = data.howl.duration();
-                const seek = duration * per;
-                this.setPositionUI(seek, duration);
+            // 更新UI显示（使用缓存的时长信息）
+            if (cachedDuration && !isNaN(cachedDuration) && isFinite(cachedDuration)) {
+                const seek = cachedDuration * per;
+                this.setPositionUI(seek, cachedDuration);
             }
         }
     },
 
     setPositionUI: function(seek, duration) {
-        timer.innerHTML = this.formatTime(Math.floor(seek));
-        currentTimeDisplay.innerHTML = this.formatTime(Math.floor(seek));
-        if (duration && !isNaN(duration) && isFinite(duration)) {
-            const formattedDuration = this.formatTime(Math.floor(duration));
-            duration.innerHTML = formattedDuration;
-            durationDisplay.innerHTML = formattedDuration;
+        const formattedSeek = this.formatTime(Math.floor(seek));
+        const formattedDuration = duration && isFinite(duration) ? this.formatTime(Math.floor(duration)) : '0:00';
+        
+        // 更新左侧当前时间
+        if (timer.innerHTML !== formattedSeek) {
+            timer.innerHTML = formattedSeek;
+        }
+        if (currentTimeDisplay.innerHTML !== formattedSeek) {
+            currentTimeDisplay.innerHTML = formattedSeek;
+        }
+        
+        // 更新右侧总时间
+        if (duration && isFinite(duration)) {
+            const formattedTotal = this.formatTime(Math.floor(duration));
+            if (duration.innerHTML !== formattedTotal) {
+                duration.innerHTML = formattedTotal;
+            }
+            if (durationDisplay.innerHTML !== formattedTotal) {
+                durationDisplay.innerHTML = formattedTotal;
+            }
+        }
+        
+        // 更新进度条
+        if (duration && isFinite(duration) && duration > 0) {
             const percent = (seek / duration) * 100;
             progressFilled.style.width = percent + '%';
             progressSlider.style.left = percent + '%';
@@ -617,20 +669,26 @@ const onSeek = (e) => {
     progressFilled.style.width = (percent * 100) + '%';
     progressSlider.style.left = (percent * 100) + '%';
     
-    // 实时更新时间显示
-    const sound = player.playlist[player.index].howl;
+    // 实时更新时间显示（无论是否播放）
+    const currentIndex = player.index;
+    const sound = player.playlist[currentIndex].howl;
+    const cachedDuration = preloadedDurations[currentIndex];
+    
+    let duration = null;
     if (sound && sound.duration()) {
-        const seek = sound.duration() * percent;
-        currentTimeDisplay.innerHTML = player.formatTime(Math.floor(seek));
-        timer.innerHTML = player.formatTime(Math.floor(seek));
-    } else {
-        // 如果没有音频对象，使用预加载的时长
-        const data = player.playlist[player.index];
-        if (data.howl && data.howl.duration()) {
-            const duration = data.howl.duration();
-            const seek = duration * percent;
-            currentTimeDisplay.innerHTML = player.formatTime(Math.floor(seek));
-            timer.innerHTML = player.formatTime(Math.floor(seek));
+        duration = sound.duration();
+    } else if (cachedDuration) {
+        duration = cachedDuration;
+    }
+    
+    if (duration && !isNaN(duration) && isFinite(duration)) {
+        const seek = duration * percent;
+        const formattedSeek = player.formatTime(Math.floor(seek));
+        if (timer.innerHTML !== formattedSeek) {
+            timer.innerHTML = formattedSeek;
+        }
+        if (currentTimeDisplay.innerHTML !== formattedSeek) {
+            currentTimeDisplay.innerHTML = formattedSeek;
         }
     }
 };
