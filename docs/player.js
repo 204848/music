@@ -39,6 +39,7 @@ let lastLyricTime = -1;
 let isSeeking = false;
 let pendingSeekPercent = null; // 用于存储等待播放时的seek位置
 let preloadedDurations = {}; // 缓存预加载的时长
+let preloadedLyrics = {}; // 缓存预加载的歌词
 
 // 背景轮询与缓存相关变量
 let backgroundInterval = null;
@@ -149,12 +150,15 @@ function parseSRT(srtText) {
     return result;
 }
 
-function getCurrentLyric(time, isSRT = false) {
+function getCurrentLyric(time, isSRT = false, lyricsArray = null) {
+    const lyrics = lyricsArray || currentLyrics;
+    if (lyrics.length === 0) return '';
+    
     if (isSRT) {
-        const active = currentLyrics.find(l => time >= l.start && time < l.end);
+        const active = lyrics.find(l => time >= l.start && time < l.end);
         return active ? active.text : '';
     } else {
-        const active = currentLyrics.find(l => time >= l.time && time < l.end);
+        const active = lyrics.find(l => time >= l.time && time < l.end);
         return active ? active.text : '';
     }
 }
@@ -175,8 +179,8 @@ let Player = function (playlist) {
     document.title = `${playlist[this.index].title} - Gmemp`;
     this.loadLyric(playlist[this.index].lyric || null);
 
-    // 预加载所有歌曲时长
-    this.preloadAllDurations();
+    // 预加载所有歌曲时长和歌词
+    this.preloadAllDurationsAndLyrics();
 
     playlist.forEach((song, index) => {
         let div = document.createElement('div');
@@ -214,10 +218,20 @@ Player.prototype = {
                     requestAnimationFrame(this.step.bind(this));
                     pauseBtn.style.display = 'block'; playBtn.style.display = 'none'; loading.style.display = 'none';
                     const isSRT = data.lyric && /\.srt$/i.test(data.lyric);
+                    
+                    // 设置当前歌词
+                    if (preloadedLyrics[index]) {
+                        currentLyrics = preloadedLyrics[index];
+                        const pos = sound.seek();
+                        lyricContainer.innerHTML = getCurrentLyric(pos, isSRT, currentLyrics);
+                        lastLyricTime = pos;
+                    }
+                    
                     lyricInterval = setInterval(() => {
                         const pos = sound.seek();
                         if (Math.abs(pos - lastLyricTime) > 0.1) {
-                            lyricContainer.innerHTML = getCurrentLyric(pos, isSRT); lastLyricTime = pos;
+                            lyricContainer.innerHTML = getCurrentLyric(pos, isSRT, currentLyrics); 
+                            lastLyricTime = pos;
                         }
                     }, 100);
 
@@ -239,7 +253,13 @@ Player.prototype = {
                 onend: () => { this.playNextTrack(); },
                 onpause: () => { if (lyricInterval) clearInterval(lyricInterval); if (backgroundInterval) clearInterval(backgroundInterval); },
                 onstop: () => { if (lyricInterval) clearInterval(lyricInterval); if (backgroundInterval) clearInterval(backgroundInterval); },
-                onseek: () => { const pos = sound.seek(); const isSRT = data.lyric && /\.srt$/i.test(data.lyric); lyricContainer.innerHTML = getCurrentLyric(pos, isSRT); lastLyricTime = pos; requestAnimationFrame(this.step.bind(this)); }
+                onseek: () => { 
+                    const pos = sound.seek(); 
+                    const isSRT = data.lyric && /\.srt$/i.test(data.lyric); 
+                    lyricContainer.innerHTML = getCurrentLyric(pos, isSRT, currentLyrics); 
+                    lastLyricTime = pos; 
+                    requestAnimationFrame(this.step.bind(this)); 
+                }
             });
         }
         sound.play();
@@ -257,7 +277,18 @@ Player.prototype = {
             if(document.querySelector('#list-song-' + playNum)) { document.querySelector('#list-song-' + playNum).style.backgroundColor = ''; }
             document.querySelector('#list-song-' + index).style.backgroundColor = 'rgba(255, 255, 255, 0.1)';
             playNum = index;
-            this.loadLyric(data.lyric || null);
+            
+            // 加载歌词
+            if (preloadedLyrics[index]) {
+                currentLyrics = preloadedLyrics[index];
+                const isSRT = data.lyric && /\.srt$/i.test(data.lyric);
+                const pos = sound ? sound.seek() : 0;
+                lyricContainer.innerHTML = getCurrentLyric(pos, isSRT, currentLyrics);
+                lastLyricTime = pos;
+            } else {
+                this.loadLyric(data.lyric || null);
+            }
+            
             if ('mediaSession' in navigator) this.updateMediaSession(data);
             this.setupVisualization(sound); 
         }
@@ -272,15 +303,25 @@ Player.prototype = {
         this.index = index;
     },
 
-    preloadAllDurations: function() {
-        // 预加载当前歌曲时长
-        this.preloadDuration(this.playlist[this.index], this.index);
+    preloadAllDurationsAndLyrics: function() {
+        // 预加载当前歌曲时长和歌词
+        this.preloadDurationAndLyric(this.playlist[this.index], this.index);
         
-        // 预加载前几首歌曲时长
-        for (let i = 0; i < Math.min(5, this.playlist.length); i++) {
+        // 预加载前几首歌曲时长和歌词
+        for (let i = 0; i < Math.min(10, this.playlist.length); i++) {
             if (i !== this.index) {
-                this.preloadDuration(this.playlist[i], i);
+                this.preloadDurationAndLyric(this.playlist[i], i);
             }
+        }
+    },
+
+    preloadDurationAndLyric: function(data, index) {
+        // 预加载时长
+        this.preloadDuration(data, index);
+        
+        // 预加载歌词
+        if (data.lyric && !preloadedLyrics[index]) {
+            this.preloadLyric(data.lyric, index);
         }
     },
 
@@ -328,6 +369,21 @@ Player.prototype = {
             };
             checkDuration();
         }
+    },
+
+    preloadLyric: function(filename, index) {
+        if (!filename || preloadedLyrics[index]) return;
+        
+        const ext = filename.toLowerCase().split('.').pop();
+        fetch(media + encodeURI(filename))
+            .then(r => r.text())
+            .then(text => {
+                const parsedLyrics = (ext === 'srt') ? parseSRT(text) : (ext === 'lrc') ? parseLRC(text) : [];
+                preloadedLyrics[index] = parsedLyrics;
+            })
+            .catch(() => {
+                preloadedLyrics[index] = [];
+            });
     },
 
     updateDurationDisplays: function(duration) {
@@ -435,16 +491,42 @@ Player.prototype = {
             bgLayer1.style.opacity = 1;
             bgLayer2.style.opacity = 0;
             activeBgLayer = 1;
-            picData.forEach(picName => {
-                const img = new Image();
-                img.src = media + encodeURI(picName);
-                currentImageCache.push(img);
-            });
+            
+            // 提高背景图片加载优先级
+            const loadImagesWithPriority = () => {
+                // 先加载第一张图片
+                const firstImg = new Image();
+                firstImg.onload = () => {
+                    bgLayer1.style.backgroundImage = `url('${firstImg.src}')`;
+                    // 然后加载其他图片
+                    picData.forEach((picName, idx) => {
+                        if (idx === 0) return; // 第一张已经加载
+                        const img = new Image();
+                        img.src = media + encodeURI(picName);
+                        currentImageCache.push(img);
+                    });
+                };
+                firstImg.src = media + encodeURI(picData[0]);
+                currentImageCache.push(firstImg);
+            };
+            
+            loadImagesWithPriority();
             this.startBackgroundSlideshow(picData, forceReset);
         } else {
             this.isSlideshowRunning = false;
             const singlePic = Array.isArray(picData) ? picData[0] : picData;
             const imageUrl = `url('${media}${encodeURI(singlePic)}')`;
+            
+            // 提高单张背景图加载优先级
+            const img = new Image();
+            img.onload = () => {
+                bgLayer1.style.backgroundImage = `url('${img.src}')`;
+                bgLayer1.style.opacity = 1;
+                bgLayer2.style.opacity = 0;
+                activeBgLayer = 1;
+            };
+            img.src = media + encodeURI(singlePic);
+            
             bgLayer1.style.backgroundImage = imageUrl;
             bgLayer1.style.opacity = 1;
             bgLayer2.style.opacity = 0;
@@ -535,31 +617,47 @@ Player.prototype = {
         const sound = this.playlist[this.index].howl;
         const currentIndex = this.index;
         const cachedDuration = preloadedDurations[currentIndex];
+        const cachedLyrics = preloadedLyrics[currentIndex];
         
         if (sound) {
             if (sound.playing()) {
                 const duration = sound.duration();
                 sound.seek(duration * per);
-                // 立即更新UI
+                // 立即更新UI和歌词
                 const seek = duration * per;
                 this.setPositionUI(seek, duration);
+                this.updateLyricAtTime(seek, currentIndex);
             } else {
                 // 如果没有播放，保存seek位置等待播放时使用
                 pendingSeekPercent = per;
-                // 立即更新UI显示
+                // 立即更新UI显示和歌词
                 const duration = sound.duration() || cachedDuration;
                 if (duration && !isNaN(duration) && isFinite(duration)) {
                     const seek = duration * per;
                     this.setPositionUI(seek, duration);
+                    this.updateLyricAtTime(seek, currentIndex);
                 }
             }
         } else {
             // 如果还没有创建sound对象，保存seek位置
             pendingSeekPercent = per;
-            // 更新UI显示（使用缓存的时长信息）
+            // 更新UI显示和歌词（使用缓存的时长信息）
             if (cachedDuration && !isNaN(cachedDuration) && isFinite(cachedDuration)) {
                 const seek = cachedDuration * per;
                 this.setPositionUI(seek, cachedDuration);
+                this.updateLyricAtTime(seek, currentIndex);
+            }
+        }
+    },
+
+    updateLyricAtTime: function(time, index) {
+        const lyrics = preloadedLyrics[index] || currentLyrics;
+        if (lyrics && lyrics.length > 0) {
+            const data = this.playlist[index];
+            const isSRT = data.lyric && /\.srt$/i.test(data.lyric);
+            const lyricText = getCurrentLyric(time, isSRT, lyrics);
+            if (lyricContainer.innerHTML !== lyricText) {
+                lyricContainer.innerHTML = lyricText;
             }
         }
     },
@@ -618,10 +716,13 @@ Player.prototype = {
             currentLyrics = (ext === 'srt') ? parseSRT(text) : (ext === 'lrc') ? parseLRC(text) : [];
             const sound = this.playlist[this.index].howl;
             const pos = sound ? sound.seek() : 0;
-            lyricContainer.innerHTML = getCurrentLyric(pos, ext === 'srt');
+            lyricContainer.innerHTML = getCurrentLyric(pos, ext === 'srt', currentLyrics);
             lastLyricTime = pos;
+            // 缓存歌词
+            preloadedLyrics[this.index] = currentLyrics;
         }).catch(() => {
             currentLyrics = []; lyricContainer.innerHTML = '';
+            preloadedLyrics[this.index] = [];
         });
     },
 
@@ -669,10 +770,11 @@ const onSeek = (e) => {
     progressFilled.style.width = (percent * 100) + '%';
     progressSlider.style.left = (percent * 100) + '%';
     
-    // 实时更新时间显示（无论是否播放）
+    // 实时更新时间显示和歌词（无论是否播放）
     const currentIndex = player.index;
     const sound = player.playlist[currentIndex].howl;
     const cachedDuration = preloadedDurations[currentIndex];
+    const cachedLyrics = preloadedLyrics[currentIndex];
     
     let duration = null;
     if (sound && sound.duration()) {
@@ -689,6 +791,16 @@ const onSeek = (e) => {
         }
         if (currentTimeDisplay.innerHTML !== formattedSeek) {
             currentTimeDisplay.innerHTML = formattedSeek;
+        }
+        
+        // 实时更新歌词
+        if (cachedLyrics && cachedLyrics.length > 0) {
+            const data = player.playlist[currentIndex];
+            const isSRT = data.lyric && /\.srt$/i.test(data.lyric);
+            const lyricText = getCurrentLyric(seek, isSRT, cachedLyrics);
+            if (lyricContainer.innerHTML !== lyricText) {
+                lyricContainer.innerHTML = lyricText;
+            }
         }
     }
 };
