@@ -2,14 +2,19 @@ let media = "https://music.1357924680liu.dpdns.org/media/";
 
 // ==========================================================
 // == 可配置项 ==
+// 背景图轮播的切换间隔时间（单位：毫秒）。例如：5000 代表 5 秒
 const BACKGROUND_SLIDESHOW_INTERVAL = 5000;
+
+// 音频可视化灵敏度 (0.0 - 1.0, 值越小越不敏感/平缓, 值越大越敏感/激烈)
+// * 建议值范围: 0.3 (非常平缓) 到 0.8 (比较激烈)
 const VISUALIZATION_SENSITIVITY = 0.5; 
+
+// 音频可视化透明度 (0.0 - 1.0)
 const VISUALIZATION_OPACITY = 0.5; 
 // ==========================================================
 
 // Cache references to DOM elements
-// *重要: 添加对新进度条元素的引用*
-let elms = ['track', 'artist', 'timer', 'duration', 'post', 'playBtn', 'pauseBtn', 'prevBtn', 'nextBtn', 'playlistBtn', 'postBtn', 'waveBtn', 'volumeBtn', 'loading', 'playlist', 'list', 'volume', 'barEmpty', 'barFull', 'sliderBtn', 'lyricBtn', 'lyricContainer', 'modeBtn', 'scrubTrack', 'scrubFill', 'scrubSlider'];
+let elms = ['track', 'artist', 'timer', 'duration', 'post', 'playBtn', 'pauseBtn', 'prevBtn', 'nextBtn', 'playlistBtn', 'postBtn', 'waveBtn', 'volumeBtn', 'progress', 'progressBar', 'waveCanvas', 'loading', 'playlist', 'list', 'volume', 'barEmpty', 'barFull', 'sliderBtn', 'lyricBtn', 'lyricContainer', 'modeBtn'];
 elms.forEach(function (elm) {
     window[elm] = document.getElementById(elm);
 });
@@ -24,15 +29,17 @@ let currentLyrics = [];
 let lyricInterval = null;
 let lastLyricTime = -1;
 
+// 背景轮询与缓存相关变量
 let backgroundInterval = null;
 let currentBgIndex = 0;
 let activeBgLayer = 1;
 let currentImageCache = [];
 
+// SVG 图标 Data URIs
 const modeIcons = {
     list: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Cpath fill='%23fff' d='M0 128c0-17.7 14.3-32 32-32H480c17.7 0 32 14.3 32 32s-14.3 32-32 32H32c-17.7 0-32-14.3-32-32zm0 256c0-17.7 14.3-32 32-32H480c17.7 0 32 14.3 32 32s-14.3 32-32 32H32c-17.7 0-32-14.3-32-32zM0 256c0-17.7 14.3-32 32-32H480c17.7 0 32 14.3 32 32s-14.3 32-32 32H32c-17.7 0-32-14.3-32-32z'/%3E%3C/svg%3E",
     shuffle: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Cpath fill='%23fff' d='M403.8 34.4c12-5 25.7-2.2 34.9 6.9l64 64c6 6 9.4 14.1 9.4 22.6s-3.4 16.6-9.4 22.6l-64 64c-9.2 9.2-22.9 11.9-34.9 6.9s-19.8-16.6-19.8-29.6V160H352c-10.1 0-19.6 4.7-25.6 12.8L182.2 320H224c13.3 0 24 10.7 24 24s-10.7 24-24 24H128c-13.3 0-24-10.7-24-24V320c0-13.3 10.7-24 24-24h45.3L314.7 160H224c-13.3 0-24-10.7-24-24s10.7-24 24-24h160v-32c0-12.9 7.8-24.6 19.8-29.6zM160 352H96v-32c0-12.9 7.8-24.6 19.8-29.6s25.7-2.2 34.9 6.9l64 64c6 6 9.4 14.1 9.4 22.6s-3.4 16.6-9.4 22.6l-64 64c-9.2 9.2-22.9 11.9-34.9 6.9s-19.8-16.6-19.8-29.6V416h64c13.3 0 24-10.7 24-24s-10.7-24-24-24z'/%3E%3C/svg%3E",
-    single: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Cpath fill='%23fff' d='M0 224c0-17.7 14.3-32 32-32s32 14.3 32 32V256c0 44.2 35.8 80 80 80H224c17.7 0 32 14.3 32 32s-14.3 32-32 32H144C64.5 400 0 335.5 0 256V224zM288 96H368c44.2 0 80 35.8 80 80v32c0 17.7 14.3 32 32 32s32-14.3 32-32V176c0-79.5-64.5-144-144-144H288c-17.7 0-32 14.3-32 32s14.3 32 32 32zM208 256a48 48 0 1 0 96 0 48 48 0 1 0 -96 0z'/%3E%3Cpath fill='%23fff' transform='translate(120, 25) scale(0.4)' d='M432,128.2,336,32.2V96h-24A120,120,0 0,0,92.5,215.5a120,120,0 0,0,219,81l48,48A184.2,184.2,0 0,1,311.5,416C191,416,96,321,96,200.5S191,85,311.5,85H336v64Z'/%3E%3Ctext x='240' y='325' font-size='200' font-weight='bold' fill='%23fff' text-anchor='middle' alignment-baseline='middle'%3E1%3C/text%3E%3C/svg%3E"
+    single: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Cpath fill='%23fff' d='M0 224c0-17.7 14.3-32 32-32s32 14.3 32 32V256c0 44.2 35.8 80 80 80H224c17.7 0 32 14.3 32 32s-14.3 32-32 32H144C64.5 400 0 335.5 0 256V224zM288 96H368c44.2 0 80 35.8 80 80v32c0 17.7 14.3 32 32 32s32-14.3 32-32V176c0-79.5-64.5-144-144-144H288c-17.7 0-32 14.3-32 32s14.3 32 32 32zM208 256a48 48 0 1 0 96 0 48 48 0 1 0 -96 0z'/%3E%3Cpath fill='%23fff' transform='translate(120, 25) scale(0.4)' d='M432,128.2,336,32.2V96h-24A120,120,0,0,0,92.5,215.5a120,120,0,0,0,219,81l48,48A184.2,184.2,0,0,1,311.5,416C191,416,96,321,96,200.5S191,85,311.5,85H336v64Z'/%3E%3Ctext x='240' y='325' font-size='200' font-weight='bold' fill='%23fff' text-anchor='middle' alignment-baseline='middle'%3E1%3C/text%3E%3C/svg%3E"
 };
 
 const modeTitles = {
@@ -191,9 +198,7 @@ Player.prototype = {
                 onplay: () => {
                     duration.innerHTML = this.formatTime(Math.round(sound.duration()));
                     requestAnimationFrame(this.step.bind(this));
-                    // *移除旧的 progressBar 显示*
-                    // progressBar.style.display = 'block'; 
-                    pauseBtn.style.display = 'block'; playBtn.style.display = 'none'; loading.style.display = 'none';
+                    progressBar.style.display = 'block'; pauseBtn.style.display = 'block'; playBtn.style.display = 'none'; loading.style.display = 'none';
                     const isSRT = data.lyric && /\.srt$/i.test(data.lyric);
                     lyricInterval = setInterval(() => {
                         const pos = sound.seek();
@@ -204,10 +209,10 @@ Player.prototype = {
 
                     this.setupVisualization(sound);
                 },
-                onload: () => { loading.style.display = 'none';  }, // *移除旧的 progressBar 显示*
+                onload: () => { loading.style.display = 'none'; progressBar.style.display = 'block'; },
                 onend: () => { this.playNextTrack(); },
-                onpause: () => { if (lyricInterval) clearInterval(lyricInterval); if (backgroundInterval) clearInterval(backgroundInterval);  }, // *移除旧的 progressBar 显示*
-                onstop: () => { if (lyricInterval) clearInterval(lyricInterval); if (backgroundInterval) clearInterval(backgroundInterval);  }, // *移除旧的 progressBar 显示*
+                onpause: () => { if (lyricInterval) clearInterval(lyricInterval); if (backgroundInterval) clearInterval(backgroundInterval); progressBar.style.display = 'none'; },
+                onstop: () => { if (lyricInterval) clearInterval(lyricInterval); if (backgroundInterval) clearInterval(backgroundInterval); progressBar.style.display = 'none'; },
                 onseek: () => { const pos = sound.seek(); const isSRT = data.lyric && /\.srt$/i.test(data.lyric); lyricContainer.innerHTML = getCurrentLyric(pos, isSRT); lastLyricTime = pos; requestAnimationFrame(this.step.bind(this)); }
             });
         }
@@ -231,7 +236,7 @@ Player.prototype = {
             this.setupVisualization(sound); 
         }
 
-        // progressBar.style.margin = `-${window.innerHeight * 0.3 / 2}px auto`;
+        progressBar.style.margin = `-${window.innerHeight * 0.3 / 2}px auto`;
         if (sound.state() === 'loaded') { loading.style.display = 'none'; } else { loading.style.display = 'block'; playBtn.style.display = 'none'; pauseBtn.style.display = 'none'; }
         this.index = index;
     },
@@ -243,7 +248,8 @@ Player.prototype = {
             } catch (e) {  }
         }
         this.analyser = Howler.ctx.createAnalyser();
-        this.analyser.fftSize = 2048;
+        // *恢复更标准的 fftSize*
+        this.analyser.fftSize = 2048; // 通常比动态计算更稳定
         this.bufferLength = this.analyser.frequencyBinCount;
         this.dataArray = new Uint8Array(this.bufferLength);
 
@@ -254,6 +260,7 @@ Player.prototype = {
         }
     },
     
+    // *修改后的 draw 函数，更贴近原始风格*
     draw: function() {
         if (!this.analyser) {
             this.drawId = null;
@@ -266,16 +273,19 @@ Player.prototype = {
         const canvasCtx = waveCanvas.getContext("2d");
         canvasCtx.clearRect(0, 0, W, H);
         
+        // *应用可配置的透明度*
         canvasCtx.fillStyle = `rgba(255,255,255,${VISUALIZATION_OPACITY})`;
         
-        const barWidth = (W / this.bufferLength) * 2.5;
+        // *应用可配置的灵敏度和恢复原始计算方式*
+        const barWidth = (W / this.bufferLength) * 2.5; // *调整条形宽度以填充屏幕*
         let barHeight;
         let x = 0;
         for(let i = 0; i < this.bufferLength; i++) {
+            // *核心修改: 简单线性映射 + 灵敏度控制*
             barHeight = (this.dataArray[i] / 255.0) * H * VISUALIZATION_SENSITIVITY;
             
             canvasCtx.fillRect(x, H - barHeight, barWidth, barHeight);
-            x += barWidth + 1;
+            x += barWidth + 1; // 1px 间隔
         }
         this.drawId = requestAnimationFrame(this.draw.bind(this));
     },
@@ -402,25 +412,35 @@ Player.prototype = {
     skipTo: function (index) {
         const sound = this.playlist[this.index].howl;
         if (sound) sound.stop();
-        // progress.style.width = '0%'; // *移除旧的进度条重置*
+        progress.style.width = '0%';
         this.play(index);
     },
     
-    // *新增: 正确更新新进度条UI的函数*
-    updateProgressBar: function(percent) {
-        if (scrubFill && scrubSlider) {
-            scrubFill.style.width = `${percent * 100}%`;
-            scrubSlider.style.left = `${percent * 100}%`;
-        }
+    toggleMode: function() {
+        if (this.playbackMode === 'list') this.playbackMode = 'shuffle';
+        else if (this.playbackMode === 'shuffle') this.playbackMode = 'single';
+        else this.playbackMode = 'list';
+        this.updateModeButton();
     },
     
-    // *新增: 点击/拖动进度条改变播放位置的函数*
+    updateModeButton: function() {
+        if (modeBtn) {
+            modeBtn.style.backgroundImage = `url("${modeIcons[this.playbackMode]}")`;
+            modeBtn.title = modeTitles[this.playbackMode];
+        }
+    },
+
+    volume: function (val) {
+        Howler.volume(val);
+        let barWidth = (val * 90) / 100;
+        barFull.style.width = `${barWidth * 100}%`;
+        sliderBtn.style.left = `${window.innerWidth * barWidth + window.innerWidth * 0.05 - 25}px`;
+    },
+
     seek: function (per) {
         const sound = this.playlist[this.index].howl;
         if (sound && sound.playing()) {
-            const pos = sound.duration() * per;
-            sound.seek(pos);
-            this.updateProgressBar(per); // *立即更新UI*
+            sound.seek(sound.duration() * per);
         }
     },
 
@@ -430,12 +450,7 @@ Player.prototype = {
         let seek = sound.seek() || 0;
         let durationVal = sound.duration();
         timer.innerHTML = this.formatTime(Math.round(seek));
-        // *更新新进度条*
-        const percent = (durationVal > 0) ? (seek / durationVal) : 0;
-        this.updateProgressBar(percent);
-
-        duration.innerHTML = this.formatTime(Math.round(durationVal));
-
+        progress.style.width = `${((seek / durationVal) * 100) || 0}%`;
         if (sound.playing()) {
             requestAnimationFrame(this.step.bind(this));
         }
@@ -476,9 +491,7 @@ playBtn.addEventListener('click', () => player.play());
 pauseBtn.addEventListener('click', () => player.pause());
 prevBtn.addEventListener('click', () => player.skip('prev'));
 nextBtn.addEventListener('click', () => player.skip('next'));
-// *移除旧的点击事件监听器*
-// progressBar.addEventListener('click', ...); 
-
+progressBar.addEventListener('click', (event) => player.seek(event.clientX / window.innerWidth));
 playlistBtn.addEventListener('click', () => player.togglePlaylist());
 playlist.addEventListener('click', () => player.togglePlaylist());
 postBtn.addEventListener('click', () => player.togglePost());
@@ -505,41 +518,6 @@ const move = (event) => {
 volume.addEventListener('mousemove', move);
 volume.addEventListener('touchmove', move, { passive: true });
 
-// === 新增: 底部进度条事件监听器 ===
-let isScrubbing = false;
-
-const startScrub = (e) => {
-    isScrubbing = true;
-    scrubSlider.classList.add('dragging');
-    updateScrubPosition(e);
-};
-
-const updateScrubPosition = (e) => {
-    if (!isScrubbing) return;
-    const rect = scrubTrack.getBoundingClientRect();
-    let clientX = e.clientX || (e.touches && e.touches[0].clientX);
-    if (clientX === undefined) return;
-
-    let percent = (clientX - rect.left) / rect.width;
-    percent = Math.max(0, Math.min(1, percent)); // Clamp between 0 and 1
-    player.seek(percent);
-};
-
-const stopScrub = () => {
-    isScrubbing = false;
-    scrubSlider.classList.remove('dragging');
-};
-
-scrubTrack.addEventListener('mousedown', startScrub);
-scrubTrack.addEventListener('touchstart', startScrub, { passive: true });
-
-document.addEventListener('mousemove', updateScrubPosition);
-document.addEventListener('touchmove', updateScrubPosition, { passive: true });
-
-document.addEventListener('mouseup', stopScrub);
-document.addEventListener('touchend', stopScrub);
-// === /新增: 底部进度条事件监听器 ===
-
 
 document.addEventListener('keyup', e => {
     if (!player) return;
@@ -562,4 +540,4 @@ window.addEventListener('beforeunload', () => {
    }
 });
 
-console.log("\n %c Gmemp v3.7.0 (New Progress Bar) %c https://github.com/Meekdai/Gmemp \n", "color: #fff; background-image: linear-gradient(90deg, rgb(47, 172, 178) 0%, rgb(45, 190, 96) 100%); padding:5px 1px;", "background-image: linear-gradient(90deg, rgb(45, 190, 96) 0%, rgb(255, 255, 255) 100%); padding:5px 0;");
+console.log("\n %c Gmemp v3.6.4 (Visualization Tuned) %c https://github.com/Meekdai/Gmemp \n", "color: #fff; background-image: linear-gradient(90deg, rgb(47, 172, 178) 0%, rgb(45, 190, 96) 100%); padding:5px 1px;", "background-image: linear-gradient(90deg, rgb(45, 190, 96) 0%, rgb(255, 255, 255) 100%); padding:5px 0;");
