@@ -49,3 +49,29 @@
 
   <!-- 新增：标准底部进度条容器 -->
   <div id="progress-container">
+    <div id="progress-bar">
+      <div id="progress-filled"></div>
+      <div id="progress-slider"></div>
+    </div>
+    <!-- 时间显示与进度条同行 -->
+    <div id="progress-time-display">
+      <span id="progress-current-time">0:00</span> / <span id="progress-duration">0:00</span>
+    </div>
+  </div>
+
+  <canvas id="waveCanvas"></canvas>
+
+  <div id="playlist">
+    <div id="list"></div>
+  </div>
+
+  <div id="volume" class="fadeout">
+    <div id="barFull" class="bar"></div>
+    <div id="barEmpty" class="bar"></div>
+    <div id="sliderBtn"></div>
+  </div>
+
+  <script src="howler.min.js"></script>
+  <script src="player.js"></script>
+</body>
+</html>
