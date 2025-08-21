@@ -22,11 +22,19 @@
     <span id="track"></span>
     <div id="artist"></div>
     <div id="lyricContainer"></div>
-    <div id="timer">0:00</div>
-    <div id="duration">0:00</div>
+    <!-- 移除了顶部的 #timer 和 #duration -->
     <div id="post" style="display:none;"></div>
   </div>
   
+  <!-- 新增：底部进度条容器 -->
+  <div id="progress-container">
+    <span id="progress-time">00:00 / 00:00</span>
+    <div id="progress-track">
+      <div id="progress-fill"></div>
+      <div id="progress-handle"></div>
+    </div>
+  </div>
+
   <div class="controlsOuter">
     <div class="controlsInner">
       <div id="loading"></div>
@@ -43,14 +51,6 @@
     <div class="btn" id="volumeBtn" title="音量调节"></div>
   </div>
 
-  <!-- 新增：标准底部进度条 -->
-  <div id="progress-container">
-    <div id="progress-track">
-        <div id="progress-buffered"></div>
-        <div id="progress-played"></div>
-        <div id="progress-thumb"></div>
-    </div>
-  </div>
   <!-- 移除了旧的 #progressBar 和 #progress -->
 
   <canvas id="waveCanvas"></canvas>
