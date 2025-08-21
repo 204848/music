@@ -6,6 +6,7 @@ let media = "https://music.1357924680liu.dpdns.org/media/";
 const BACKGROUND_SLIDESHOW_INTERVAL = 5000;
 
 // 音频可视化灵敏度 (0.0 - 1.0, 值越小越不敏感/平缓, 值越大越敏感/激烈)
+// * 建议值范围: 0.3 (非常平缓) 到 0.8 (比较激烈)
 const VISUALIZATION_SENSITIVITY = 0.5; 
 
 // 音频可视化透明度 (0.0 - 1.0)
@@ -13,14 +14,14 @@ const VISUALIZATION_OPACITY = 0.5;
 // ==========================================================
 
 // Cache references to DOM elements
+// 注意：已更新以包含新进度条相关的元素
 let elms = [
-    'track', 'artist', 'timer', 'duration', 'post', 'playBtn', 'pauseBtn', 
-    'prevBtn', 'nextBtn', 'playlistBtn', 'postBtn', 'waveBtn', 'volumeBtn', 
-    'loading', 'playlist', 'list', 'volume', 'barEmpty', 'barFull', 'sliderBtn', 
-    'lyricBtn', 'lyricContainer', 'modeBtn',
-    // 新增进度条相关元素
-    'progressContainer', 'progressBar', 'progressFilled', 'progressSlider', 
-    'progressCurrentTime', 'progressDuration'
+    'track', 'artist', 'timer', 'duration', 'post', 'playBtn', 'pauseBtn', 'prevBtn', 'nextBtn', 
+    'playlistBtn', 'postBtn', 'waveBtn', 'volumeBtn', 'loading', 'playlist', 'list', 'volume', 
+    'barEmpty', 'barFull', 'sliderBtn', 'lyricBtn', 'lyricContainer', 'modeBtn',
+    // 新增的进度条元素
+    'progress-bar', 'progress-filled', 'progress-slider', 'progress-current-time', 'progress-duration',
+    'progress-container', 'progress-time-display' // 容器和时间显示也可选
 ];
 elms.forEach(function (elm) {
     window[elm] = document.getElementById(elm);
@@ -28,7 +29,6 @@ elms.forEach(function (elm) {
 
 const bgLayer1 = document.getElementById('bg-layer1');
 const bgLayer2 = document.getElementById('bg-layer2');
-const waveCanvas = document.getElementById('waveCanvas'); // 显式声明 waveCanvas
 
 let player;
 let playNum = 0;
@@ -76,8 +76,6 @@ request.onload = function () {
     }
 
     player = new Player(jsonData);
-    // 在 player 初始化后，设置进度条事件监听器
-    setupProgressBarEvents();
 };
 
 function isMobile() {
@@ -158,105 +156,11 @@ function getCurrentLyric(time, isSRT = false) {
     }
 }
 
-function formatTime(secs) {
-    let minutes = Math.floor(secs / 60) || 0;
-    let seconds = (secs - minutes * 60) || 0;
-    return `${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
-}
-
-// --- 新增：进度条事件处理逻辑 ---
-let isSliding = false;
-
-function setupProgressBarEvents() {
-    if (!progressBar) return; // 安全检查
-
-    const updateSliderPosition = (percent) => {
-        const maxWidth = progressBar.clientWidth;
-        const newPosition = Math.max(0, Math.min(maxWidth, percent * maxWidth));
-        if (progressSlider) {
-            progressSlider.style.left = `${newPosition}px`;
-        }
-        if (progressFilled) {
-            progressFilled.style.width = `${percent * 100}%`;
-        }
-    };
-
-    const onProgressClick = (e) => {
-        if (isSliding) return; // 如果正在拖动滑块，点击轨道不响应
-        const rect = progressBar.getBoundingClientRect();
-        const pos = (e.clientX - rect.left) / rect.width;
-        if (player && player.playlist[player.index].howl) {
-            player.seek(Math.max(0, Math.min(1, pos))); // 限制在 0-1 之间
-        }
-    };
-
-    const onSlideStart = (e) => {
-        isSliding = true;
-        // 防止文本选择和页面滚动
-        e.preventDefault();
-        document.body.style.userSelect = 'none';
-        document.body.style.touchAction = 'none';
-    };
-
-    const onSlideMove = (e) => {
-        if (!isSliding) return;
-        e.preventDefault();
-        const clientX = e.clientX || (e.touches && e.touches[0].clientX);
-        if (clientX === undefined) return;
-        
-        const rect = progressBar.getBoundingClientRect();
-        let pos = (clientX - rect.left) / rect.width;
-        pos = Math.max(0, Math.min(1, pos)); // 限制在 0-1 之间
-        
-        updateSliderPosition(pos);
-        
-        // 实时预览时间
-        if (player && player.playlist[player.index].howl) {
-            const sound = player.playlist[player.index].howl;
-            const previewTime = pos * sound.duration();
-            if (progressCurrentTime) {
-                progressCurrentTime.textContent = formatTime(Math.round(previewTime));
-            }
-        }
-    };
-
-    const onSlideEnd = () => {
-        if (!isSliding) return;
-        isSliding = false;
-        document.body.style.userSelect = '';
-        document.body.style.touchAction = '';
-        
-        if (player && player.playlist[player.index].howl) {
-            const rect = progressBar.getBoundingClientRect();
-            const endEvent = window.event || (arguments[0] && arguments[0].changedTouches ? arguments[0].changedTouches[0] : arguments[0]);
-            const clientX = endEvent.clientX || endEvent.pageX;
-            let pos = (clientX - rect.left) / rect.width;
-            pos = Math.max(0, Math.min(1, pos)); // 限制在 0-1 之间
-            player.seek(pos);
-        }
-    };
-
-    // 事件监听器
-    progressBar.addEventListener('click', onProgressClick);
-    
-    progressSlider.addEventListener('mousedown', onSlideStart);
-    progressSlider.addEventListener('touchstart', onSlideStart, { passive: false });
-    
-    document.addEventListener('mousemove', onSlideMove);
-    document.addEventListener('touchmove', onSlideMove, { passive: false });
-    
-    document.addEventListener('mouseup', onSlideEnd);
-    document.addEventListener('touchend', onSlideEnd);
-}
-// --- 新增结束 ---
-
-
 let Player = function (playlist) {
     this.playlist = playlist;
     this.index = playNum;
     this.isSlideshowRunning = false;
     this.playbackMode = 'list'; 
-    this.drawId = null; // 用于可视化动画的ID
 
     track.innerHTML = playlist[this.index].title;
     artist.innerHTML = playlist[this.index].artist;
@@ -300,15 +204,14 @@ Player.prototype = {
             sound = data.howl = new Howl({
                 src: [media + data.mp3], html5: isMobile(),
                 onplay: () => {
-                    const durationVal = Math.round(sound.duration());
-                    if (duration) duration.innerHTML = formatTime(durationVal);
-                    if (progressDuration) progressDuration.textContent = formatTime(durationVal);
+                    duration.innerHTML = this.formatTime(Math.round(sound.duration()));
+                    // 更新新的进度条总时长
+                    if(progressDuration) progressDuration.innerHTML = this.formatTime(Math.round(sound.duration()));
                     requestAnimationFrame(this.step.bind(this));
-                    
-                    playBtn.style.display = 'none';
-                    pauseBtn.style.display = 'block';
+                    progressBar.style.display = 'block'; 
+                    pauseBtn.style.display = 'block'; 
+                    playBtn.style.display = 'none'; 
                     loading.style.display = 'none';
-
                     const isSRT = data.lyric && /\.srt$/i.test(data.lyric);
                     lyricInterval = setInterval(() => {
                         const pos = sound.seek();
@@ -316,30 +219,29 @@ Player.prototype = {
                             lyricContainer.innerHTML = getCurrentLyric(pos, isSRT); lastLyricTime = pos;
                         }
                     }, 100);
-
                     this.setupVisualization(sound);
                 },
                 onload: () => { 
-                    loading.style.display = 'none'; 
-                    // 在加载完成时也更新一次时长
-                    const durationVal = Math.round(sound.duration());
-                    if (duration) duration.innerHTML = formatTime(durationVal);
-                    if (progressDuration) progressDuration.textContent = formatTime(durationVal);
+                    loading.style.display = 'none';
+                    // 确保加载完成后进度条可见
+                    if(progressBar) progressBar.style.display = 'block';
                 },
                 onend: () => { this.playNextTrack(); },
                 onpause: () => { 
-                    if (lyricInterval) clearInterval(lyricInterval); 
-                    if (backgroundInterval) clearInterval(backgroundInterval); 
+                    if (lyricInterval) clearInterval(lyricInterval);
+                    if (backgroundInterval) clearInterval(backgroundInterval);
+                    // 暂停时进度条仍可见，但动画停止
                 },
                 onstop: () => { 
-                    if (lyricInterval) clearInterval(lyricInterval); 
-                    if (backgroundInterval) clearInterval(backgroundInterval); 
+                    if (lyricInterval) clearInterval(lyricInterval);
+                    if (backgroundInterval) clearInterval(backgroundInterval);
                 },
                 onseek: () => { 
                     const pos = sound.seek();
-                    const isSRT = data.lyric && /\.srt$/i.test(data.lyric);
-                    lyricContainer.innerHTML = getCurrentLyric(pos, isSRT); lastLyricTime = pos; 
-                    requestAnimationFrame(this.step.bind(this)); 
+                    const isSRT = data.lyric && /\.srt$/i.test(data.lyric); 
+                    lyricContainer.innerHTML = getCurrentLyric(pos, isSRT); 
+                    lastLyricTime = pos; 
+                    requestAnimationFrame(this.step.bind(this));
                 }
             });
         }
@@ -360,11 +262,10 @@ Player.prototype = {
             playNum = index;
             this.loadLyric(data.lyric || null);
             if ('mediaSession' in navigator) this.updateMediaSession(data);
+            this.setupVisualization(sound); 
         }
 
-        // 每次播放都重新设置可视化，确保切换歌曲时正确
-        this.setupVisualization(sound); 
-
+        // 移除了对旧进度条 margin 的设置
         if (sound.state() === 'loaded') { 
             loading.style.display = 'none'; 
         } else { 
@@ -376,21 +277,18 @@ Player.prototype = {
     },
 
     setupVisualization: function(sound) {
-        // 清理旧的分析器
         if (this.analyser) {
             try {
                 this.analyser.disconnect(0);
-            } catch (e) { console.warn("Analyser disconnect warning:", e); }
+            } catch (e) {  }
         }
-        
         this.analyser = Howler.ctx.createAnalyser();
-        this.analyser.fftSize = 2048;
+        this.analyser.fftSize = 2048; 
         this.bufferLength = this.analyser.frequencyBinCount;
         this.dataArray = new Uint8Array(this.bufferLength);
 
         Howler.masterGain.connect(this.analyser);
         
-        // 重启或启动可视化绘制循环
         if (!this.drawId) {
             this.drawId = requestAnimationFrame(this.draw.bind(this));
         }
@@ -402,20 +300,13 @@ Player.prototype = {
             return;
         }
         let W = window.innerWidth, H = window.innerHeight;
-        if (waveCanvas) {
-            waveCanvas.width = W; 
-            waveCanvas.height = H;
-        } else {
-            this.drawId = null;
-            return;
-        }
+        waveCanvas.width = W; waveCanvas.height = H;
         
         this.analyser.getByteFrequencyData(this.dataArray);
         const canvasCtx = waveCanvas.getContext("2d");
         canvasCtx.clearRect(0, 0, W, H);
         canvasCtx.fillStyle = `rgba(255,255,255,${VISUALIZATION_OPACITY})`;
-        
-        const barWidth = (W / this.bufferLength) * 2.5;
+        const barWidth = (W / this.bufferLength) * 2.5; 
         let barHeight;
         let x = 0;
         for(let i = 0; i < this.bufferLength; i++) {
@@ -520,7 +411,7 @@ Player.prototype = {
     pause: function () {
         const sound = this.playlist[this.index].howl;
         if (sound) sound.pause();
-        
+        if (backgroundInterval) clearInterval(backgroundInterval);
         playBtn.style.display = 'block';
         pauseBtn.style.display = 'none';
     },
@@ -548,65 +439,67 @@ Player.prototype = {
     skipTo: function (index) {
         const sound = this.playlist[this.index].howl;
         if (sound) sound.stop();
-        
-        // 重置进度条UI
-        if (progressFilled) progressFilled.style.width = '0%';
-        if (progressSlider) progressSlider.style.left = '0px';
-        if (progressCurrentTime) progressCurrentTime.textContent = '0:00';
-        
+        // 重置新进度条的宽度
+        if(progressFilled) progressFilled.style.width = '0%';
+        if(progressSlider) progressSlider.style.left = '0%';
         this.play(index);
     },
     
-    // 核心修改：seek 方法现在与新的进度条交互
+    toggleMode: function() {
+        if (this.playbackMode === 'list') this.playbackMode = 'shuffle';
+        else if (this.playbackMode === 'shuffle') this.playbackMode = 'single';
+        else this.playbackMode = 'list';
+        this.updateModeButton();
+    },
+    
+    updateModeButton: function() {
+        if (modeBtn) {
+            modeBtn.style.backgroundImage = `url("${modeIcons[this.playbackMode]}")`;
+            modeBtn.title = modeTitles[this.playbackMode];
+        }
+    },
+
+    volume: function (val) {
+        Howler.volume(val);
+        let barWidth = (val * 90) / 100;
+        barFull.style.width = `${barWidth * 100}%`;
+        sliderBtn.style.left = `${window.innerWidth * barWidth + window.innerWidth * 0.05 - 25}px`;
+    },
+
+    // 核心修改：seek 方法现在更新新的进度条
     seek: function (per) {
         const sound = this.playlist[this.index].howl;
         if (sound && sound.playing()) {
-            const seekPos = sound.duration() * per;
-            sound.seek(seekPos);
-            
-            // Seek 时也立即更新歌词和UI
-            const isSRT = this.playlist[this.index].lyric && /\.srt$/i.test(this.playlist[this.index].lyric);
-            lyricContainer.innerHTML = getCurrentLyric(seekPos, isSRT);
-            lastLyricTime = seekPos;
-            
-            // 更新顶部和底部的时间显示
-            const formattedTime = formatTime(Math.round(seekPos));
-            if (timer) timer.innerHTML = formattedTime;
-            if (progressCurrentTime) progressCurrentTime.textContent = formattedTime;
-            
-            // 更新进度条UI
+            const pos = sound.duration() * per;
+            sound.seek(pos);
+            // 更新新的进度条UI
             if (progressFilled) progressFilled.style.width = `${per * 100}%`;
-            if (progressSlider) {
-                const maxWidth = progressBar.clientWidth;
-                progressSlider.style.left = `${per * maxWidth}px`;
-            }
+            if (progressSlider) progressSlider.style.left = `${per * 100}%`;
+            if (progressCurrentTime) progressCurrentTime.innerHTML = this.formatTime(Math.round(pos));
+            
+            // 更新顶部时间
+            if(timer) timer.innerHTML = this.formatTime(Math.round(pos));
         }
     },
-    
+
     // 核心修改：step 方法现在更新新的进度条
     step: function () {
         const sound = this.playlist[this.index].howl;
         if (!sound) return;
+        let seek = sound.seek() || 0;
+        let durationVal = sound.duration();
+        let progressPercent = ((seek / durationVal) * 100) || 0;
         
-        const seek = sound.seek() || 0;
-        const durationVal = sound.duration();
-        const progressPercent = durationVal ? (seek / durationVal) : 0;
-
         // 更新顶部时间显示
-        if (timer) timer.innerHTML = formatTime(Math.round(seek));
-        if (duration) duration.innerHTML = formatTime(Math.round(durationVal));
+        if(timer) timer.innerHTML = this.formatTime(Math.round(seek));
+        if(duration) duration.innerHTML = this.formatTime(Math.round(durationVal));
         
-        // 更新底部进度条和时间显示
-        if (!isSliding) { // 只有在没有手动拖动时才更新，避免冲突
-            if (progressCurrentTime) progressCurrentTime.textContent = formatTime(Math.round(seek));
-            if (progressDuration) progressDuration.textContent = formatTime(Math.round(durationVal));
-            if (progressFilled) progressFilled.style.width = `${progressPercent * 100}%`;
-            if (progressSlider && progressBar) {
-                const maxWidth = progressBar.clientWidth;
-                progressSlider.style.left = `${progressPercent * maxWidth}px`;
-            }
-        }
-        
+        // 更新新的进度条UI
+        if (progressFilled) progressFilled.style.width = `${progressPercent}%`;
+        if (progressSlider) progressSlider.style.left = `${progressPercent}%`;
+        if (progressCurrentTime) progressCurrentTime.innerHTML = this.formatTime(Math.round(seek));
+        if (progressDuration) progressDuration.innerHTML = this.formatTime(Math.round(durationVal));
+
         if (sound.playing()) {
             requestAnimationFrame(this.step.bind(this));
         }
@@ -628,75 +521,132 @@ Player.prototype = {
         });
     },
 
-    togglePlaylist: function () { 
-        let display = (playlist.style.display === 'block') ? 'none' : 'block'; 
-        setTimeout(() => { 
-            playlist.style.display = display; 
-            if (display === 'block') { 
-                list.scrollTop = document.querySelector('#list-song-' + playNum).offsetTop - list.offsetHeight / 2; 
-            } 
-        }, (display === 'block') ? 0 : 500); 
-        playlist.className = (display === 'block') ? 'fadein' : 'fadeout'; 
-    },
+    togglePlaylist: function () { let display = (playlist.style.display === 'block') ? 'none' : 'block'; setTimeout(() => { playlist.style.display = display; if (display === 'block') { list.scrollTop = document.querySelector('#list-song-' + playNum).offsetTop - list.offsetHeight / 2; } }, (display === 'block') ? 0 : 500); playlist.className = (display === 'block') ? 'fadein' : 'fadeout'; },
     togglePost: function () { post.style.display = (post.style.display == "none") ? "block" : "none"; },
     toggleWave: function () {
-        if (waveCanvas) {
-            waveCanvas.style.display = (waveCanvas.style.display == "none") ? "block" : "none";
-            if (waveCanvas.style.display == "none" && this.drawId) {
-                 cancelAnimationFrame(this.drawId); this.drawId = null;
-            } else if (waveCanvas.style.display == "block" && this.playlist[this.index].howl && this.playlist[this.index].howl.playing()) {
-                if (!this.drawId) this.drawId = requestAnimationFrame(this.draw.bind(this));
-            }
+        waveCanvas.style.display = (waveCanvas.style.display == "none") ? "block" : "none";
+        if (waveCanvas.style.display == "none" && player && player.playlist[player.index].howl && player.playlist[player.index].howl.playing()) {
+             cancelAnimationFrame(player.drawId); player.drawId = null;
+        } else if (waveCanvas.style.display == "block" && player && player.playlist[player.index].howl && player.playlist[player.index].howl.playing()) {
+            if (!player.drawId) player.drawId = requestAnimationFrame(player.draw.bind(player));
         }
     },
-    toggleVolume: function () { 
-        let display = (volume.style.display === 'block') ? 'none' : 'block'; 
-        setTimeout(() => { volume.style.display = display; }, (display === 'block') ? 0 : 500); 
-        volume.className = (display === 'block') ? 'fadein' : 'fadeout'; 
-    },
-    formatTime: function (secs) { // 保留原型方法，虽然现在用全局的formatTime更多
-        return formatTime(secs); 
-    },
-    toggleMode: function() {
-        if (this.playbackMode === 'list') this.playbackMode = 'shuffle';
-        else if (this.playbackMode === 'shuffle') this.playbackMode = 'single';
-        else this.playbackMode = 'list';
-        this.updateModeButton();
-    },
-    updateModeButton: function() {
-        if (modeBtn) {
-            modeBtn.style.backgroundImage = `url("${modeIcons[this.playbackMode]}")`;
-            modeBtn.title = modeTitles[this.playbackMode];
-        }
-    },
-    volume: function (val) {
-        Howler.volume(val);
-        let barWidth = (val * 90) / 100;
-        if (barFull) barFull.style.width = `${barWidth * 100}%`;
-        if (sliderBtn) {
-            sliderBtn.style.left = `${window.innerWidth * barWidth + window.innerWidth * 0.05 - 25}px`;
-        }
-    },
-    
+    toggleVolume: function () { let display = (volume.style.display === 'block') ? 'none' : 'block'; setTimeout(() => { volume.style.display = display; }, (display === 'block') ? 0 : 500); volume.className = (display === 'block') ? 'fadein' : 'fadeout'; },
+    formatTime: function (secs) { 
+        let minutes = Math.floor(secs / 60) || 0; 
+        let seconds = (secs - minutes * 60) || 0; 
+        return `${minutes}:${(seconds < 10 ? '0' : '')}${seconds}`; 
+    }
 };
 
-// Controls
-playBtn.addEventListener('click', function () { if(player) player.play(); });
-pauseBtn.addEventListener('click', function () { if(player) player.pause(); });
-prevBtn.addEventListener('click', function () { if(player) player.skip('prev'); });
-nextBtn.addEventListener('click', function () { if(player) player.skip('next'); });
+// --- 以下为完整函数体，保持不变 ---
+Player.prototype.updateMediaSession = function(data) {if (!('mediaSession' in navigator)) return; const coverPic = Array.isArray(data.pic) ? data.pic[0] : data.pic; const metadata = { title: data.title, artist: data.artist }; const setMetadata = (artwork = []) => { navigator.mediaSession.metadata = new MediaMetadata({ ...metadata, artwork }); }; navigator.mediaSession.setActionHandler('play', () => this.play()); navigator.mediaSession.setActionHandler('pause', () => this.pause()); navigator.mediaSession.setActionHandler('previoustrack', () => this.skip('prev')); navigator.mediaSession.setActionHandler('nexttrack', () => this.skip('next')); if (!coverPic) { setMetadata(); return; } const img = new Image(); img.crossOrigin = 'Anonymous'; img.onload = () => { const canvas = document.createElement('canvas'); const ctx = canvas.getContext('2d'); const size = 512; canvas.width = size; canvas.height = size; const srcSize = Math.min(img.width, img.height); const sx = (img.width - srcSize) / 2, sy = (img.height - srcSize) / 2; ctx.drawImage(img, sx, sy, srcSize, srcSize, 0, 0, size, size); setMetadata([{ src: canvas.toDataURL('image/jpeg', 0.9), sizes: '512x512', type: 'image/jpeg' }]); }; img.onerror = () => { console.warn("封面图片加载失败 for mediaSession: " + img.src); setMetadata(); }; img.src = media + encodeURI(coverPic);};
+Player.prototype.setBackground = function(picData, forceReset = false) { if (backgroundInterval) clearInterval(backgroundInterval); currentImageCache = []; if (Array.isArray(picData) && picData.length > 1) { this.isSlideshowRunning = true; const firstImageUrl = `url('${media}${encodeURI(picData[0])}')`; bgLayer1.style.backgroundImage = firstImageUrl; bgLayer1.style.opacity = 1; bgLayer2.style.opacity = 0; activeBgLayer = 1; picData.forEach(picName => { const img = new Image(); img.src = media + encodeURI(picName); currentImageCache.push(img); }); this.startBackgroundSlideshow(picData, forceReset); } else { this.isSlideshowRunning = false; const singlePic = Array.isArray(picData) ? picData[0] : picData; const imageUrl = `url('${media}${encodeURI(singlePic)}')`; bgLayer1.style.backgroundImage = imageUrl; bgLayer1.style.opacity = 1; bgLayer2.style.opacity = 0; activeBgLayer = 1; }};
+Player.prototype.startBackgroundSlideshow = function(images, resetIndex = true) { if (backgroundInterval) clearInterval(backgroundInterval); if (resetIndex) currentBgIndex = 0; const initialImage = currentImageCache[currentBgIndex]; if(initialImage) { const currentActiveLayer = (activeBgLayer === 1) ? bgLayer1 : bgLayer2; currentActiveLayer.style.backgroundImage = `url('${initialImage.src}')`; currentActiveLayer.style.opacity = 1; } const changeImage = () => { currentBgIndex = (currentBgIndex + 1) % images.length; const nextImage = currentImageCache[currentBgIndex]; if(nextImage) { let nextLayer = (activeBgLayer === 1) ? bgLayer2 : bgLayer1; let currentLayer = (activeBgLayer === 1) ? bgLayer1 : bgLayer2; nextLayer.style.backgroundImage = `url('${nextImage.src}')`; currentLayer.style.opacity = 0; nextLayer.style.opacity = 1; activeBgLayer = (activeBgLayer === 1) ? 2 : 1; } }; backgroundInterval = setInterval(changeImage, BACKGROUND_SLIDESHOW_INTERVAL);};
+Player.prototype.loadLyric = function (filename) { if (!filename) { currentLyrics = []; lyricContainer.innerHTML = ''; return; } const ext = filename.toLowerCase().split('.').pop(); fetch(media + encodeURI(filename)).then(r => r.text()).then(text => { currentLyrics = (ext === 'srt') ? parseSRT(text) : (ext === 'lrc') ? parseLRC(text) : []; const sound = this.playlist[this.index].howl; const pos = sound ? sound.seek() : 0; lyricContainer.innerHTML = getCurrentLyric(pos, ext === 'srt'); lastLyricTime = pos; }).catch(() => { currentLyrics = []; lyricContainer.innerHTML = ''; }); };
+Player.prototype.togglePlaylist = function () { let display = (playlist.style.display === 'block') ? 'none' : 'block'; setTimeout(() => { playlist.style.display = display; if (display === 'block') { list.scrollTop = document.querySelector('#list-song-' + playNum).offsetTop - list.offsetHeight / 2; } }, (display === 'block') ? 0 : 500); playlist.className = (display === 'block') ? 'fadein' : 'fadeout'; };
+Player.prototype.togglePost = function () { post.style.display = (post.style.display == "none") ? "block" : "none"; };
+Player.prototype.toggleWave = function () {
+    waveCanvas.style.display = (waveCanvas.style.display == "none") ? "block" : "none";
+    if (waveCanvas.style.display == "none" && player && player.playlist[player.index].howl && player.playlist[player.index].howl.playing()) {
+         cancelAnimationFrame(player.drawId); player.drawId = null;
+    } else if (waveCanvas.style.display == "block" && player && player.playlist[player.index].howl && player.playlist[player.index].howl.playing()) {
+        if (!player.drawId) player.drawId = requestAnimationFrame(player.draw.bind(player));
+    }
+};
+Player.prototype.toggleVolume = function () { let display = (volume.style.display === 'block') ? 'none' : 'block'; setTimeout(() => { volume.style.display = display; }, (display === 'block') ? 0 : 500); volume.className = (display === 'block') ? 'fadein' : 'fadeout'; };
+Player.prototype.formatTime = function (secs) { let minutes = Math.floor(secs / 60) || 0; let seconds = (secs - minutes * 60) || 0; return `${minutes}:${(seconds < 10 ? '0' : '')}${seconds}`; };
 
-playlistBtn.addEventListener('click', function () { if(player) player.togglePlaylist(); });
-playlist.addEventListener('click', function () { if(player) player.togglePlaylist(); });
-postBtn.addEventListener('click', function () { if(player) player.togglePost(); });
-waveBtn.addEventListener('click', function () { if(player) player.toggleWave(); });
-volumeBtn.addEventListener('click', function () { if(player) player.toggleVolume(); });
-volume.addEventListener('click', function () { if(player) player.toggleVolume(); });
-modeBtn.addEventListener('click', function () { if(player) player.toggleMode(); });
+// --- Event Listeners ---
+playBtn.addEventListener('click', () => player.play());
+pauseBtn.addEventListener('click', () => player.pause());
+prevBtn.addEventListener('click', () => player.skip('prev'));
+nextBtn.addEventListener('click', () => player.skip('next'));
 
-// Volume
-barEmpty.addEventListener('click', function (event) {
-    if (!player) return;
+// 移除了旧的 #progressBar 点击事件
+
+playlistBtn.addEventListener('click', () => player.togglePlaylist());
+playlist.addEventListener('click', () => player.togglePlaylist());
+postBtn.addEventListener('click', () => player.togglePost());
+waveBtn.addEventListener('click', () => player.toggleWave());
+volumeBtn.addEventListener('click', () => player.toggleVolume());
+volume.addEventListener('click', () => player.toggleVolume());
+modeBtn.addEventListener('click', () => player.toggleMode());
+
+// --- 新的进度条事件监听器 ---
+let isDragging = false;
+
+// 1. 点击轨道跳转
+progressBar.addEventListener('click', (e) => {
+    if (!player || !player.playlist[player.index].howl) return;
+    const rect = progressBar.getBoundingClientRect();
+    const pos = (e.clientX - rect.left) / rect.width;
+    player.seek(Math.max(0, Math.min(1, pos))); // 限制在0-1之间
+});
+
+// 2. 滑块拖动开始
+progressSlider.addEventListener('mousedown', (e) => {
+    e.preventDefault(); // 防止默认拖拽行为
+    isDragging = true;
+    document.body.style.cursor = 'grabbing';
+    // 防止文字选择
+    document.body.style.userSelect = 'none';
+    document.body.style.webkitUserSelect = 'none';
+});
+
+progressSlider.addEventListener('touchstart', (e) => {
+    isDragging = true;
+    // 防止页面滚动
+    e.preventDefault();
+    document.body.style.userSelect = 'none';
+    document.body.style.webkitUserSelect = 'none';
+}, { passive: false }); // passive: false 允许 preventDefault
+
+// 3. 全局鼠标/触摸移动监听
+const handleDragMove = (e) => {
+    if (!isDragging || !player || !player.playlist[player.index].howl) return;
+    
+    const clientX = e.clientX || (e.touches && e.touches[0].clientX);
+    if (clientX === undefined) return; // 防止无效坐标
+
+    const rect = progressBar.getBoundingClientRect();
+    let pos = (clientX - rect.left) / rect.width;
+    pos = Math.max(0, Math.min(1, pos)); // 限制在0-1之间
+    
+    // 实时更新进度条UI（不调用seek，避免频繁播放操作）
+    if (progressFilled) progressFilled.style.width = `${pos * 100}%`;
+    if (progressSlider) progressSlider.style.left = `${pos * 100}%`;
+    
+    // 实时更新时间显示
+    const sound = player.playlist[player.index].howl;
+    const currentTime = sound.duration() * pos;
+    if (progressCurrentTime) progressCurrentTime.innerHTML = player.formatTime(Math.round(currentTime));
+};
+
+document.addEventListener('mousemove', handleDragMove);
+document.addEventListener('touchmove', handleDragMove, { passive: false });
+
+// 4. 全局鼠标/触摸释放结束拖动
+const handleDragEnd = () => {
+    if (!isDragging) return;
+    isDragging = false;
+    document.body.style.cursor = '';
+    document.body.style.userSelect = '';
+    document.body.style.webkitUserSelect = '';
+
+    // 拖动结束后，应用最终的播放位置
+    if (player && player.playlist[player.index].howl) {
+        const rect = progressBar.getBoundingClientRect();
+        const finalPos = parseFloat(progressSlider.style.left) / 100;
+        player.seek(Math.max(0, Math.min(1, finalPos)));
+    }
+};
+
+document.addEventListener('mouseup', handleDragEnd);
+document.addEventListener('touchend', handleDragEnd);
+
+// --- 音量控制事件保持不变 ---
+barEmpty.addEventListener('click', (event) => {
     let per = event.layerX / parseFloat(getComputedStyle(barEmpty, null).width.replace("px", ""));
     player.volume(per);
 });
@@ -705,7 +655,7 @@ sliderBtn.addEventListener('touchstart', () => window.sliderDown = true, { passi
 volume.addEventListener('mouseup', () => window.sliderDown = false);
 volume.addEventListener('touchend', () => window.sliderDown = false);
 const moveVolume = (event) => {
-    if (window.sliderDown && player) {
+    if (window.sliderDown) {
         let x = event.clientX || event.touches[0].clientX;
         let per = Math.min(1, Math.max(0, (x - barEmpty.getBoundingClientRect().left) / barEmpty.clientWidth));
         player.volume(per);
@@ -714,19 +664,10 @@ const moveVolume = (event) => {
 volume.addEventListener('mousemove', moveVolume);
 volume.addEventListener('touchmove', moveVolume, { passive: true });
 
-// Lyrics toggle
-lyricBtn.addEventListener('click', function () {
-    if (lyricContainer) {
-        lyricContainer.style.display = (lyricContainer.style.display === 'none' || !lyricContainer.style.display) ? 'block' : 'none';
-    }
-});
-
-// Keyboard
+// --- 键盘和歌词事件保持不变 ---
 document.addEventListener('keyup', e => {
     if (!player) return;
-    if (e.key === ' ' || e.key === "MediaPlayPause") { 
-        pauseBtn.style.display === 'block' ? player.pause() : player.play(); 
-    }
+    if (e.key === ' ' || e.key === "MediaPlayPause") { pauseBtn.style.display === 'block' ? player.pause() : player.play(); }
     else if (e.key === "MediaTrackNext") { player.skip('next'); }
     else if (e.key === "MediaTrackPrevious") { player.skip('prev'); }
     else if (e.key === "l" || e.key === "L") { player.togglePlaylist(); }
@@ -735,7 +676,11 @@ document.addEventListener('keyup', e => {
     else if (e.key === "v" || e.key === "V") { player.toggleVolume(); }
 });
 
-// 页面卸载时清理资源
+lyricBtn.addEventListener('click', () => {
+    lyricContainer.style.display = (lyricContainer.style.display === 'none' || !lyricContainer.style.display) ? 'block' : 'none';
+});
+
+// --- 资源清理保持不变 ---
 window.addEventListener('beforeunload', () => {
    if (player && player.drawId) {
        cancelAnimationFrame(player.drawId);
