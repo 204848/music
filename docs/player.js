@@ -37,7 +37,7 @@ let currentLyrics = [];
 let lyricInterval = null;
 let lastLyricTime = -1;
 let isSeeking = false;
-let currentSound = null;
+let pendingSeekPosition = null; // 用于存储暂停时的拖动位置
 
 // 背景轮询与缓存相关变量
 let backgroundInterval = null;
@@ -48,8 +48,8 @@ let currentImageCache = [];
 // SVG 图标 Data URIs
 const modeIcons = {
     list: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Cpath fill='%23fff' d='M0 128c0-17.7 14.3-32 32-32H480c17.7 0 32 14.3 32 32s-14.3 32-32 32H32c-17.7 0-32-14.3-32-32zm0 256c0-17.7 14.3-32 32-32H480c17.7 0 32 14.3 32 32s-14.3 32-32 32H32c-17.7 0-32-14.3-32-32zM0 256c0-17.7 14.3-32 32-32H480c17.7 0 32 14.3 32 32s-14.3 32-32 32H32c-17.7 0-32-14.3-32-32z'/%3E%3C/svg%3E",
-    shuffle: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Cpath fill='%23fff' d='M403.8 34.4c12-5 25.7-2.2 34.9 6.9l64 64c6 6 9.4 14.1 9.4 22.6s-3.4 16.6-9.4 22.6l-64 64c-9.2 9.2-22.9 11.9-34.9 6.9s-19.8-16.6-19.8-29.6V160H352c-10.1 0-19.6 4.7-25.6 12.8L284 229.3 244 176l31.2-41.6C293.3 110.2 321.8 96 352 96h32V64c0-12.9 7.8-24.6 19.8-29.6zM164 282.7L204 336l-31.2 41.6C154.7 401.8 126.2 416 96 416H32c-17.7 0-32-14.3-32-32s14.3-32 32-32H96c10.1 0 19.6-4.7 25.6-12.8L164 282.7zm274.6 188c-9.2 9.2-22.9 11.9-34.9 6.9s-19.8-16.6-19.8-29.6V416H352c-30.2 0-58.7-14.2-76.8-38.4L121.6 172.8c-6-8.1-15.5-12.8-25.6-12.8H32c-17.7 0-32-14.3-32-32s14.3-32 32-32H96c30.2 0 58.7 14.2 76.8 38.4l153.6 204.8c6 8.1 15.5 12.8 25.6 12.8h32V320c0-12.9 7.8-24.6 19.8-29.6s25.7-2.2 34.9 6.9l64 64c6 6 9.4 14.1 9.4 22.6s-3.4 16.6-9.4 22.6l-64 64z'/%3E%3C/svg%3E",
-    single: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Cpath fill='%23fff' d='M0 224c0 17.7 14.3 32 32 32s32-14.3 32-32c0-53 43-96 96-96H320v32c0 12.9 7.8 24.6 19.8 29.6s25.7 2.2 34.9-6.9l64-64c6-6 9.4-14.1 9.4-22.6s-3.4-16.6-9.4-22.6l-64-64c-9.2-9.2-22.9-11.9-34.9-6.9S320 19.1 320 32V64H160C71.6 64 0 135.6 0 224zm512 64c0-17.7-14.3-32-32-32s-32 14.3-32 32c0 53-43 96-96 96H192V352c0-12.9-7.8-24.6-19.8-29.6s-25.7-2.2-34.9 6.9l-64 64c-6 6-9.4 14.1-9.4 22.6s3.4 16.6 9.4 22.6l64 64c9.2 9.2 22.9 11.9 34.9 6.9s19.8-16.6 19.8-29.6V448H352c88.4 0 160-71.6 160-160z'/%3E%3C/svg%3E"
+    shuffle: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Cpath fill='%23fff' d='M403.8 34.4c12-5 25.7-2.2 34.9 6.9l64 64c6 6 9.4 14.1 9.4 22.6s-3.4 16.6-9.4 22.6l-64 64c-9.2 9.2-22.9 11.9-34.9 6.9s-19.8-16.6-19.8-29.6V160H352c-10.1 0-19.6 4.7-25.6 12.8L182.2 320H224c13.3 0 24 10.7 24 24s-10.7 24-24 24H128c-13.3 0-24-10.7-24-24V320c0-13.3 10.7-24 24-24h45.3L314.7 160H224c-13.3 0-24-10.7-24-24s10.7-24 24-24h160v-32c0-12.9 7.8-24.6 19.8-29.6zM160 352H96v-32c0-12.9 7.8-24.6 19.8-29.6s25.7-2.2 34.9 6.9l64 64c6 6 9.4 14.1 9.4 22.6s-3.4 16.6-9.4 22.6l-64 64c-9.2 9.2-22.9 11.9-34.9 6.9s-19.8-16.6-19.8-29.6V416h64c13.3 0 24-10.7 24-24s-10.7-24-24-24z'/%3E%3C/svg%3E",
+    single: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Cpath fill='%23fff' d='M0 224c0-17.7 14.3-32 32-32s32 14.3 32 32V256c0 44.2 35.8 80 80 80H224c17.7 0 32 14.3 32 32s-14.3 32-32 32H144C64.5 400 0 335.5 0 256V224zM288 96H368c44.2 0 80 35.8 80 80v32c0 17.7 14.3 32 32 32s32-14.3 32-32V176c0-79.5-64.5-144-144-144H288c-17.7 0-32 14.3-32 32s14.3 32 32 32zM208 256a48 48 0 1 0 96 0 48 48 0 1 0 -96 0z'/%3E%3Cpath fill='%23fff' transform='translate(120, 25) scale(0.4)' d='M432,128.2,336,32.2V96h-24A120,120,0,0,0,92.5,215.5a120,120,0,0,0,219,81l48,48A184.2,184.2,0,0,1,311.5,416C191,416,96,321,96,200.5S191,85,311.5,85H336v64Z'/%3E%3Ctext x='240' y='325' font-size='200' font-weight='bold' fill='%23fff' text-anchor='middle' alignment-baseline='middle'%3E1%3C/text%3E%3C/svg%3E"
 };
 
 const modeTitles = {
@@ -221,12 +221,17 @@ Player.prototype = {
                     }, 100);
 
                     this.setupVisualization(sound);
+                    
+                    // 如果有待处理的seek位置，在播放时跳转到该位置
+                    if (pendingSeekPosition !== null) {
+                        sound.seek(pendingSeekPosition);
+                        this.setPositionUI(pendingSeekPosition, sound.duration());
+                        pendingSeekPosition = null;
+                    }
                 },
                 onload: () => { 
                     loading.style.display = 'none'; 
-                    if (sound.duration()) {
-                      duration.innerHTML = this.formatTime(Math.round(sound.duration()));  // 添加这行
-                      this.updateDurationDisplays(sound.duration());
+                    this.updateDurationDisplays(sound.duration());
                 },
                 onend: () => { this.playNextTrack(); },
                 onpause: () => { if (lyricInterval) clearInterval(lyricInterval); if (backgroundInterval) clearInterval(backgroundInterval); },
@@ -235,7 +240,6 @@ Player.prototype = {
             });
         }
         sound.play();
-        currentSound = sound;
 
         if (isNewTrack) {
             track.innerHTML = data.title;
@@ -253,6 +257,9 @@ Player.prototype = {
             this.loadLyric(data.lyric || null);
             if ('mediaSession' in navigator) this.updateMediaSession(data);
             this.setupVisualization(sound); 
+            
+            // 重置pendingSeekPosition
+            pendingSeekPosition = null;
         }
 
         if (sound.state() === 'loaded') { 
@@ -265,14 +272,10 @@ Player.prototype = {
     },
 
     preloadDuration: function(data) {
-        if (data.howl) {
-            // 如果已经创建过sound对象，直接使用
-            setTimeout(() => {
-                if (data.howl.duration()) {
-                    this.updateDurationDisplays(data.howl.duration());
-                }
-            }, 100);
-        } else {
+        if (data.howl && data.howl.duration()) {
+            // 如果已经创建过sound对象且有时长，直接使用
+            this.updateDurationDisplays(data.howl.duration());
+        } else if (!data.howl) {
             // 创建临时sound对象来获取时长
             const tempSound = new Howl({
                 src: [media + data.mp3],
@@ -285,17 +288,23 @@ Player.prototype = {
                     console.log("预加载时长失败");
                 }
             });
+        } else {
+            // 已有sound对象但时长未加载完成，稍后重试
+            setTimeout(() => {
+                if (data.howl && data.howl.duration()) {
+                    this.updateDurationDisplays(data.howl.duration());
+                }
+            }, 500);
         }
     },
 
     updateDurationDisplays: function(duration) {
-    if (duration && !isNaN(duration)) {
-        const formattedDuration = this.formatTime(Math.round(duration));
-        // 确保这两行都执行
-        if (duration) window.duration.innerHTML = formattedDuration;  // 右上角总时间
-        if (durationDisplay) durationDisplay.innerHTML = formattedDuration;  // 进度条右侧时间
-    }
-},
+        if (duration && !isNaN(duration) && duration !== Infinity) {
+            const formattedDuration = this.formatTime(Math.round(duration));
+            duration.innerHTML = formattedDuration;
+            durationDisplay.innerHTML = formattedDuration;
+        }
+    },
 
     setupVisualization: function(sound) {
         if (this.analyser) {
@@ -462,6 +471,7 @@ Player.prototype = {
     skipTo: function (index) {
         const sound = this.playlist[this.index].howl;
         if (sound) sound.stop();
+        pendingSeekPosition = null; // 跳转到新歌曲时重置pending位置
         this.play(index);
     },
     
@@ -489,17 +499,33 @@ Player.prototype = {
     seek: function (per) {
         const sound = this.playlist[this.index].howl;
         if (sound) {
-            sound.seek(sound.duration() * per);
-            // 立即更新UI
-            const seek = sound.duration() * per;
-            this.setPositionUI(seek, sound.duration());
+            const duration = sound.duration();
+            const seekPosition = duration * per;
+            if (sound.playing()) {
+                // 如果正在播放，直接seek
+                sound.seek(seekPosition);
+                this.setPositionUI(seekPosition, duration);
+            } else {
+                // 如果暂停，保存seek位置，等待播放时使用
+                pendingSeekPosition = seekPosition;
+                this.setPositionUI(seekPosition, duration);
+            }
+        } else {
+            // 没有sound对象时，只更新UI
+            const data = this.playlist[this.index];
+            if (data.howl && data.howl.duration()) {
+                const duration = data.howl.duration();
+                const seekPosition = duration * per;
+                pendingSeekPosition = seekPosition;
+                this.setPositionUI(seekPosition, duration);
+            }
         }
     },
 
     setPositionUI: function(seek, duration) {
         timer.innerHTML = this.formatTime(Math.floor(seek));
         currentTimeDisplay.innerHTML = this.formatTime(Math.floor(seek));
-        if (duration && !isNaN(duration)) {
+        if (duration && !isNaN(duration) && duration !== Infinity) {
             const formattedDuration = this.formatTime(Math.floor(duration));
             duration.innerHTML = formattedDuration;
             durationDisplay.innerHTML = formattedDuration;
@@ -583,12 +609,21 @@ const onSeek = (e) => {
     progressFilled.style.width = (percent * 100) + '%';
     progressSlider.style.left = (percent * 100) + '%';
     
-    // 如果有当前音频，实时更新时间显示
-    const sound = player.playlist[player.index].howl;
-    if (sound) {
-        const seek = sound.duration() * percent;
+    // 实时更新时间显示
+    const data = player.playlist[player.index];
+    if (data.howl && data.howl.duration()) {
+        const duration = data.howl.duration();
+        const seek = duration * percent;
         currentTimeDisplay.innerHTML = player.formatTime(Math.floor(seek));
         timer.innerHTML = player.formatTime(Math.floor(seek));
+    } else if (data.howl) {
+        // 如果有sound对象但时长还未加载，尝试获取
+        const duration = data.howl.duration();
+        if (duration && !isNaN(duration) && duration !== Infinity) {
+            const seek = duration * percent;
+            currentTimeDisplay.innerHTML = player.formatTime(Math.floor(seek));
+            timer.innerHTML = player.formatTime(Math.floor(seek));
+        }
     }
 };
 
