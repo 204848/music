@@ -199,12 +199,18 @@ Player.prototype = {
         let data = this.playlist[index];
         let sound;
 
+        // 清除之前的定时器
+        if (lyricInterval) clearInterval(lyricInterval);
+        lastLyricTime = -1;
+
+        // 如果是新track，重置进度条
+        if (isNewTrack) {
+            this.resetProgressBar();
+        }
+
         if (!isNewTrack && this.isSlideshowRunning) {
             this.startBackgroundSlideshow(data.pic, false);
         }
-
-        if (lyricInterval) clearInterval(lyricInterval);
-        lastLyricTime = -1;
 
         if (data.howl) {
             sound = data.howl;
@@ -283,6 +289,16 @@ Player.prototype = {
             loading.style.display = 'block'; playBtn.style.display = 'none'; pauseBtn.style.display = 'none'; 
         }
         this.index = index;
+    },
+
+    resetProgressBar: function() {
+        // 重置进度条到0
+        progressFilled.style.width = '0%';
+        progressSlider.style.left = '0%';
+        currentTimeDisplay.innerHTML = '0:00';
+        timer.innerHTML = '0:00';
+        // 重置缓存的seek位置
+        pendingSeekPercent = null;
     },
 
     preloadDuration: function(data, index) {
@@ -429,6 +445,7 @@ Player.prototype = {
     setBackground: function(picData, forceReset = false) {
         if (backgroundInterval) clearInterval(backgroundInterval);
         currentImageCache = [];
+        currentBgIndex = 0; // 重置背景索引
         if (Array.isArray(picData) && picData.length > 1) {
             this.isSlideshowRunning = true;
             const firstImageUrl = `url('${media}${encodeURI(picData[0])}')`;
