@@ -119,7 +119,7 @@ body {
   position: absolute;
   width: 100%;
   height: 70px;
-  bottom: 120px; /* 为新进度条预留空间 */
+  bottom: 12px; /* 为新进度条预留空间 */
   z-index: 20;
 }
 
@@ -246,7 +246,7 @@ body {
   position: absolute;
   width: 100%;
   height: 60px; /* 整体容器高度 */
-  bottom: 50px; /* 距离底部，为音量条留空间 */
+  bottom: 69px; /* 距离底部，为音量条留空间 */
   display: flex;
   align-items: center;
   justify-content: center;
