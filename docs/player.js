@@ -37,6 +37,7 @@ let currentLyrics = [];
 let lyricInterval = null;
 let lastLyricTime = -1;
 let isSeeking = false;
+let currentSound = null;
 
 // 背景轮询与缓存相关变量
 let backgroundInterval = null;
@@ -173,6 +174,9 @@ let Player = function (playlist) {
     document.title = `${playlist[this.index].title} - Gmemp`;
     this.loadLyric(playlist[this.index].lyric || null);
 
+    // 预加载当前歌曲时长
+    this.preloadDuration(playlist[this.index]);
+
     playlist.forEach((song, index) => {
         let div = document.createElement('div');
         div.className = 'list-song';
@@ -229,6 +233,7 @@ Player.prototype = {
             });
         }
         sound.play();
+        currentSound = sound;
 
         if (isNewTrack) {
             track.innerHTML = data.title;
@@ -248,15 +253,45 @@ Player.prototype = {
             this.setupVisualization(sound); 
         }
 
-        this.updateDurationDisplays(sound.duration());
-        if (sound.state() === 'loaded') { loading.style.display = 'none'; } else { loading.style.display = 'block'; playBtn.style.display = 'none'; pauseBtn.style.display = 'none'; }
+        if (sound.state() === 'loaded') { 
+            loading.style.display = 'none'; 
+            this.updateDurationDisplays(sound.duration());
+        } else { 
+            loading.style.display = 'block'; playBtn.style.display = 'none'; pauseBtn.style.display = 'none'; 
+        }
         this.index = index;
     },
 
+    preloadDuration: function(data) {
+        if (data.howl) {
+            // 如果已经创建过sound对象，直接使用
+            setTimeout(() => {
+                if (data.howl.duration()) {
+                    this.updateDurationDisplays(data.howl.duration());
+                }
+            }, 100);
+        } else {
+            // 创建临时sound对象来获取时长
+            const tempSound = new Howl({
+                src: [media + data.mp3],
+                html5: isMobile(),
+                onload: () => {
+                    this.updateDurationDisplays(tempSound.duration());
+                    tempSound.unload(); // 卸载临时对象
+                },
+                onloaderror: () => {
+                    console.log("预加载时长失败");
+                }
+            });
+        }
+    },
+
     updateDurationDisplays: function(duration) {
-        const durationStr = this.formatTime(Math.round(duration));
-        duration.innerHTML = durationStr;
-        durationDisplay.innerHTML = durationStr;
+        if (duration && !isNaN(duration)) {
+            const formattedDuration = this.formatTime(Math.round(duration));
+            duration.innerHTML = formattedDuration;
+            durationDisplay.innerHTML = formattedDuration;
+        }
     },
 
     setupVisualization: function(sound) {
@@ -266,8 +301,7 @@ Player.prototype = {
             } catch (e) {  }
         }
         this.analyser = Howler.ctx.createAnalyser();
-        // *恢复更标准的 fftSize*
-        this.analyser.fftSize = 2048; // 通常比动态计算更稳定
+        this.analyser.fftSize = 2048;
         this.bufferLength = this.analyser.frequencyBinCount;
         this.dataArray = new Uint8Array(this.bufferLength);
 
@@ -278,7 +312,6 @@ Player.prototype = {
         }
     },
     
-    // *修改后的 draw 函数，更贴近原始风格*
     draw: function() {
         if (!this.analyser) {
             this.drawId = null;
@@ -291,19 +324,15 @@ Player.prototype = {
         const canvasCtx = waveCanvas.getContext("2d");
         canvasCtx.clearRect(0, 0, W, H);
         
-        // *应用可配置的透明度*
         canvasCtx.fillStyle = `rgba(255,255,255,${VISUALIZATION_OPACITY})`;
         
-        // *应用可配置的灵敏度和恢复原始计算方式*
-        const barWidth = (W / this.bufferLength) * 2.5; // *调整条形宽度以填充屏幕*
+        const barWidth = (W / this.bufferLength) * 2.5;
         let barHeight;
         let x = 0;
         for(let i = 0; i < this.bufferLength; i++) {
-            // *核心修改: 简单线性映射 + 灵敏度控制*
             barHeight = (this.dataArray[i] / 255.0) * H * VISUALIZATION_SENSITIVITY;
-            
             canvasCtx.fillRect(x, H - barHeight, barWidth, barHeight);
-            x += barWidth + 1; // 1px 间隔
+            x += barWidth + 1;
         }
         this.drawId = requestAnimationFrame(this.draw.bind(this));
     },
@@ -456,20 +485,25 @@ Player.prototype = {
 
     seek: function (per) {
         const sound = this.playlist[this.index].howl;
-        if (sound && sound.playing()) {
+        if (sound) {
             sound.seek(sound.duration() * per);
+            // 立即更新UI
+            const seek = sound.duration() * per;
+            this.setPositionUI(seek, sound.duration());
         }
     },
 
     setPositionUI: function(seek, duration) {
         timer.innerHTML = this.formatTime(Math.floor(seek));
         currentTimeDisplay.innerHTML = this.formatTime(Math.floor(seek));
-        const durationStr = this.formatTime(Math.floor(duration));
-        duration.innerHTML = durationStr;
-        durationDisplay.innerHTML = durationStr;
-        const percent = (seek / duration) * 100;
-        progressFilled.style.width = percent + '%';
-        progressSlider.style.left = percent + '%';
+        if (duration && !isNaN(duration)) {
+            const formattedDuration = this.formatTime(Math.floor(duration));
+            duration.innerHTML = formattedDuration;
+            durationDisplay.innerHTML = formattedDuration;
+            const percent = (seek / duration) * 100;
+            progressFilled.style.width = percent + '%';
+            progressSlider.style.left = percent + '%';
+        }
     },
 
     step: function () {
@@ -477,7 +511,10 @@ Player.prototype = {
         if (!sound) return;
         let seek = sound.seek() || 0;
         let durationVal = sound.duration();
-        this.setPositionUI(seek, durationVal);
+        // 只有在非拖动状态下才自动更新进度条
+        if (!isSeeking) {
+            this.setPositionUI(seek, durationVal);
+        }
         if (sound.playing()) {
             requestAnimationFrame(this.step.bind(this));
         }
@@ -522,14 +559,14 @@ nextBtn.addEventListener('click', () => player.skip('next'));
 // 新的进度条事件处理
 const startSeek = (e) => {
     isSeeking = true;
+    progressSlider.classList.add('active');
     document.body.style.cursor = 'grabbing';
-    progressSlider.style.transform = 'translate(-50%, -50%) scale(1.2)';
     window.addEventListener('mousemove', onSeek);
     window.addEventListener('mouseup', endSeek);
     window.addEventListener('touchmove', onSeek, { passive: false });
     window.addEventListener('touchend', endSeek);
-    onSeek(e); // 立即更新位置
     e.preventDefault();
+    onSeek(e); // 立即更新位置
 };
 
 const onSeek = (e) => {
@@ -538,23 +575,25 @@ const onSeek = (e) => {
     const rect = progressBar.getBoundingClientRect();
     let percent = (clientX - rect.left) / rect.width;
     percent = Math.max(0, Math.min(1, percent));
+    
+    // 实时更新UI
     progressFilled.style.width = (percent * 100) + '%';
     progressSlider.style.left = (percent * 100) + '%';
     
-    // 实时更新时间显示
+    // 如果有当前音频，实时更新时间显示
     const sound = player.playlist[player.index].howl;
     if (sound) {
-        const duration = sound.duration();
-        const currentTime = duration * percent;
-        currentTimeDisplay.innerHTML = player.formatTime(Math.floor(currentTime));
+        const seek = sound.duration() * percent;
+        currentTimeDisplay.innerHTML = player.formatTime(Math.floor(seek));
+        timer.innerHTML = player.formatTime(Math.floor(seek));
     }
 };
 
 const endSeek = () => {
     if (!isSeeking) return;
     isSeeking = false;
+    progressSlider.classList.remove('active');
     document.body.style.cursor = '';
-    progressSlider.style.transform = 'translate(-50%, -50%)';
     window.removeEventListener('mousemove', onSeek);
     window.removeEventListener('mouseup', endSeek);
     window.removeEventListener('touchmove', onSeek);
@@ -603,7 +642,6 @@ const move = (event) => {
 volume.addEventListener('mousemove', move);
 volume.addEventListener('touchmove', move, { passive: true });
 
-
 document.addEventListener('keyup', e => {
     if (!player) return;
     if (e.key === ' ' || e.key === "MediaPlayPause") { pauseBtn.style.display === 'block' ? player.pause() : player.play(); }
@@ -623,6 +661,15 @@ window.addEventListener('beforeunload', () => {
    if (player && player.drawId) {
        cancelAnimationFrame(player.drawId);
    }
+});
+
+// 处理控制台错误信息
+window.addEventListener('error', (e) => {
+    if (e.message && e.message.includes('Unchecked runtime.lastError')) {
+        // 忽略Chrome扩展相关的错误
+        return;
+    }
+    console.error('An error occurred:', e.error);
 });
 
 console.log("\n %c Gmemp v3.6.4 (Visualization Tuned) %c https://github.com/Meekdai/Gmemp \n", "color: #fff; background-image: linear-gradient(90deg, rgb(47, 172, 178) 0%, rgb(45, 190, 96) 100%); padding:5px 1px;", "background-image: linear-gradient(90deg, rgb(45, 190, 96) 0%, rgb(255, 255, 255) 100%); padding:5px 0;");
