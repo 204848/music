@@ -2,19 +2,20 @@ let media = "https://music.1357924680liu.dpdns.org/media/";
 
 // ==========================================================
 // == 可配置项 ==
-// 背景图轮播的切换间隔时间（单位：毫秒）。例如：5000 代表 5 秒
 const BACKGROUND_SLIDESHOW_INTERVAL = 5000;
-
-// 音频可视化灵敏度 (0.0 - 1.0, 值越小越不敏感/平缓, 值越大越敏感/激烈)
-// * 建议值范围: 0.3 (非常平缓) 到 0.8 (比较激烈)
 const VISUALIZATION_SENSITIVITY = 0.5; 
-
-// 音频可视化透明度 (0.0 - 1.0)
 const VISUALIZATION_OPACITY = 0.5; 
 // ==========================================================
 
 // Cache references to DOM elements
-let elms = ['track', 'artist', 'timer', 'duration', 'post', 'playBtn', 'pauseBtn', 'prevBtn', 'nextBtn', 'playlistBtn', 'postBtn', 'waveBtn', 'volumeBtn', 'progress', 'progressBar', 'waveCanvas', 'loading', 'playlist', 'list', 'volume', 'barEmpty', 'barFull', 'sliderBtn', 'lyricBtn', 'lyricContainer', 'modeBtn'];
+let elms = [
+    'track', 'artist', 'post', 'playBtn', 'pauseBtn', 'prevBtn', 'nextBtn', 
+    'playlistBtn', 'postBtn', 'waveBtn', 'volumeBtn', 'waveCanvas', 'loading', 
+    'playlist', 'list', 'volume', 'barEmpty', 'barFull', 'sliderBtn', 
+    'lyricBtn', 'lyricContainer', 'modeBtn',
+    // 新增进度条相关元素
+    'progressContainer', 'progressTime', 'progressTrack', 'progressFill', 'progressHandle'
+];
 elms.forEach(function (elm) {
     window[elm] = document.getElementById(elm);
 });
@@ -148,6 +149,9 @@ function getCurrentLyric(time, isSRT = false) {
     }
 }
 
+// --- 新增：进度条拖动相关变量 ---
+let isDragging = false;
+
 let Player = function (playlist) {
     this.playlist = playlist;
     this.index = playNum;
@@ -196,9 +200,9 @@ Player.prototype = {
             sound = data.howl = new Howl({
                 src: [media + data.mp3], html5: isMobile(),
                 onplay: () => {
-                    duration.innerHTML = this.formatTime(Math.round(sound.duration()));
+                    // 移除了顶部 duration 显示
                     requestAnimationFrame(this.step.bind(this));
-                    progressBar.style.display = 'block'; pauseBtn.style.display = 'block'; playBtn.style.display = 'none'; loading.style.display = 'none';
+                    pauseBtn.style.display = 'block'; playBtn.style.display = 'none'; loading.style.display = 'none';
                     const isSRT = data.lyric && /\.srt$/i.test(data.lyric);
                     lyricInterval = setInterval(() => {
                         const pos = sound.seek();
@@ -209,10 +213,10 @@ Player.prototype = {
 
                     this.setupVisualization(sound);
                 },
-                onload: () => { loading.style.display = 'none'; progressBar.style.display = 'block'; },
+                onload: () => { loading.style.display = 'none'; },
                 onend: () => { this.playNextTrack(); },
-                onpause: () => { if (lyricInterval) clearInterval(lyricInterval); if (backgroundInterval) clearInterval(backgroundInterval); progressBar.style.display = 'none'; },
-                onstop: () => { if (lyricInterval) clearInterval(lyricInterval); if (backgroundInterval) clearInterval(backgroundInterval); progressBar.style.display = 'none'; },
+                onpause: () => { if (lyricInterval) clearInterval(lyricInterval); if (backgroundInterval) clearInterval(backgroundInterval); },
+                onstop: () => { if (lyricInterval) clearInterval(lyricInterval); if (backgroundInterval) clearInterval(backgroundInterval); },
                 onseek: () => { const pos = sound.seek(); const isSRT = data.lyric && /\.srt$/i.test(data.lyric); lyricContainer.innerHTML = getCurrentLyric(pos, isSRT); lastLyricTime = pos; requestAnimationFrame(this.step.bind(this)); }
             });
         }
@@ -236,7 +240,6 @@ Player.prototype = {
             this.setupVisualization(sound); 
         }
 
-        progressBar.style.margin = `-${window.innerHeight * 0.3 / 2}px auto`;
         if (sound.state() === 'loaded') { loading.style.display = 'none'; } else { loading.style.display = 'block'; playBtn.style.display = 'none'; pauseBtn.style.display = 'none'; }
         this.index = index;
     },
@@ -248,8 +251,7 @@ Player.prototype = {
             } catch (e) {  }
         }
         this.analyser = Howler.ctx.createAnalyser();
-        // *恢复更标准的 fftSize*
-        this.analyser.fftSize = 2048; // 通常比动态计算更稳定
+        this.analyser.fftSize = 2048;
         this.bufferLength = this.analyser.frequencyBinCount;
         this.dataArray = new Uint8Array(this.bufferLength);
 
@@ -260,7 +262,6 @@ Player.prototype = {
         }
     },
     
-    // *修改后的 draw 函数，更贴近原始风格*
     draw: function() {
         if (!this.analyser) {
             this.drawId = null;
@@ -273,19 +274,15 @@ Player.prototype = {
         const canvasCtx = waveCanvas.getContext("2d");
         canvasCtx.clearRect(0, 0, W, H);
         
-        // *应用可配置的透明度*
         canvasCtx.fillStyle = `rgba(255,255,255,${VISUALIZATION_OPACITY})`;
         
-        // *应用可配置的灵敏度和恢复原始计算方式*
-        const barWidth = (W / this.bufferLength) * 2.5; // *调整条形宽度以填充屏幕*
+        const barWidth = (W / this.bufferLength) * 2.5;
         let barHeight;
         let x = 0;
         for(let i = 0; i < this.bufferLength; i++) {
-            // *核心修改: 简单线性映射 + 灵敏度控制*
             barHeight = (this.dataArray[i] / 255.0) * H * VISUALIZATION_SENSITIVITY;
-            
             canvasCtx.fillRect(x, H - barHeight, barWidth, barHeight);
-            x += barWidth + 1; // 1px 间隔
+            x += barWidth + 1;
         }
         this.drawId = requestAnimationFrame(this.draw.bind(this));
     },
@@ -412,7 +409,10 @@ Player.prototype = {
     skipTo: function (index) {
         const sound = this.playlist[this.index].howl;
         if (sound) sound.stop();
-        progress.style.width = '0%';
+        // 重置进度条填充和滑块位置
+        if (progressFill) progressFill.style.width = '0%';
+        if (progressHandle) progressHandle.style.left = '0%';
+        if (progressTime) progressTime.textContent = '00:00 / 00:00';
         this.play(index);
     },
     
@@ -437,6 +437,7 @@ Player.prototype = {
         sliderBtn.style.left = `${window.innerWidth * barWidth + window.innerWidth * 0.05 - 25}px`;
     },
 
+    // --- 修改：seek 函数现在通过新的进度条调用 ---
     seek: function (per) {
         const sound = this.playlist[this.index].howl;
         if (sound && sound.playing()) {
@@ -444,13 +445,27 @@ Player.prototype = {
         }
     },
 
+    // --- 修改：step 函数现在更新新的进度条 ---
     step: function () {
         const sound = this.playlist[this.index].howl;
         if (!sound) return;
         let seek = sound.seek() || 0;
         let durationVal = sound.duration();
-        timer.innerHTML = this.formatTime(Math.round(seek));
-        progress.style.width = `${((seek / durationVal) * 100) || 0}%`;
+        
+        // 更新新的进度条
+        if (progressFill) {
+            const percent = (seek / durationVal) * 100;
+            progressFill.style.width = `${percent}%`;
+        }
+        if (progressHandle) {
+            const percent = (seek / durationVal) * 100;
+            progressHandle.style.left = `${percent}%`;
+        }
+        // 更新时间显示
+        if (progressTime) {
+            progressTime.textContent = `${this.formatTime(Math.round(seek))} / ${this.formatTime(Math.round(durationVal))}`;
+        }
+
         if (sound.playing()) {
             requestAnimationFrame(this.step.bind(this));
         }
@@ -483,15 +498,74 @@ Player.prototype = {
         }
     },
     toggleVolume: function () { let display = (volume.style.display === 'block') ? 'none' : 'block'; setTimeout(() => { volume.style.display = display; }, (display === 'block') ? 0 : 500); volume.className = (display === 'block') ? 'fadein' : 'fadeout'; },
-    formatTime: function (secs) { let minutes = Math.floor(secs / 60) || 0; let seconds = (secs - minutes * 60) || 0; return `${minutes}:${(seconds < 10 ? '0' : '')}${seconds}`; }
+    formatTime: function (secs) { let minutes = Math.floor(secs / 60) || 0; let seconds = (secs - minutes * 60) || 0; return `${minutes < 10 ? '0' : ''}${minutes}:${seconds < 10 ? '0' : ''}${seconds}`; }
 };
 
-// Event Listeners
+// --- Event Listeners ---
 playBtn.addEventListener('click', () => player.play());
 pauseBtn.addEventListener('click', () => player.pause());
 prevBtn.addEventListener('click', () => player.skip('prev'));
 nextBtn.addEventListener('click', () => player.skip('next'));
-progressBar.addEventListener('click', (event) => player.seek(event.clientX / window.innerWidth));
+
+// --- 新增：进度条事件监听器 ---
+// 点击轨道跳转
+if (progressTrack) {
+    progressTrack.addEventListener('click', (e) => {
+        if (isDragging) return; // 如果正在拖动，点击不生效
+        const rect = progressTrack.getBoundingClientRect();
+        const pos = (e.clientX - rect.left) / rect.width;
+        player.seek(pos);
+    });
+}
+
+// 滑块拖动逻辑
+if (progressHandle) {
+    const startDrag = (e) => {
+        isDragging = true;
+        progressHandle.style.cursor = 'grabbing';
+    };
+
+    const duringDrag = (e) => {
+        if (!isDragging) return;
+        const clientX = e.clientX || (e.touches && e.touches[0].clientX);
+        if (clientX === undefined) return;
+        
+        const rect = progressTrack.getBoundingClientRect();
+        let pos = (clientX - rect.left) / rect.width;
+        pos = Math.max(0, Math.min(1, pos)); // 限制在 0-1 之间
+
+        // 实时更新 UI（不跳转，仅视觉反馈）
+        if (progressFill) progressFill.style.width = `${pos * 100}%`;
+        if (progressHandle) progressHandle.style.left = `${pos * 100}%`;
+    };
+
+    const stopDrag = (e) => {
+        if (!isDragging) return;
+        isDragging = false;
+        progressHandle.style.cursor = 'grab';
+        
+        const clientX = e.clientX || (e.changedTouches && e.changedTouches[0].clientX);
+        if (clientX === undefined) return;
+
+        const rect = progressTrack.getBoundingClientRect();
+        let pos = (clientX - rect.left) / rect.width;
+        pos = Math.max(0, Math.min(1, pos)); // 限制在 0-1 之间
+        
+        // 拖动结束后执行跳转
+        player.seek(pos);
+    };
+
+    // PC 端事件
+    progressHandle.addEventListener('mousedown', startDrag);
+    document.addEventListener('mousemove', duringDrag);
+    document.addEventListener('mouseup', stopDrag);
+
+    // 移动端事件
+    progressHandle.addEventListener('touchstart', startDrag, { passive: false });
+    document.addEventListener('touchmove', duringDrag, { passive: false });
+    document.addEventListener('touchend', stopDrag, { passive: false });
+}
+
 playlistBtn.addEventListener('click', () => player.togglePlaylist());
 playlist.addEventListener('click', () => player.togglePlaylist());
 postBtn.addEventListener('click', () => player.togglePost());
@@ -540,4 +614,4 @@ window.addEventListener('beforeunload', () => {
    }
 });
 
-console.log("\n %c Gmemp v3.6.4 (Visualization Tuned) %c https://github.com/Meekdai/Gmemp \n", "color: #fff; background-image: linear-gradient(90deg, rgb(47, 172, 178) 0%, rgb(45, 190, 96) 100%); padding:5px 1px;", "background-image: linear-gradient(90deg, rgb(45, 190, 96) 0%, rgb(255, 255, 255) 100%); padding:5px 0;");
+console.log("\n %c Gmemp v3.7.0 (New Progress Bar) %c https://github.com/Meekdai/Gmemp \n", "color: #fff; background-image: linear-gradient(90deg, rgb(47, 172, 178) 0%, rgb(45, 190, 96) 100%); padding:5px 1px;", "background-image: linear-gradient(90deg, rgb(45, 190, 96) 0%, rgb(255, 255, 255) 100%); padding:5px 0;");
