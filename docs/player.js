@@ -2,20 +2,14 @@ let media = "https://music.1357924680liu.dpdns.org/media/";
 
 // ==========================================================
 // == 可配置项 ==
-// 背景图轮播的切换间隔时间（单位：毫秒）。例如：5000 代表 5 秒
 const BACKGROUND_SLIDESHOW_INTERVAL = 5000;
-
-// 音频可视化灵敏度 (0.0 - 1.0, 值越小越不敏感/平缓, 值越大越敏感/激烈)
-// * 建议值范围: 0.3 (非常平缓) 到 0.8 (比较激烈)
 const VISUALIZATION_SENSITIVITY = 0.5; 
-
-// 音频可视化透明度 (0.0 - 1.0)
 const VISUALIZATION_OPACITY = 0.5; 
 // ==========================================================
 
 // Cache references to DOM elements
-// **已更新：移除旧的 progressBar 和 progress，添加新的进度条元素**
-let elms = ['track', 'artist', 'timer', 'duration', 'post', 'playBtn', 'pauseBtn', 'prevBtn', 'nextBtn', 'playlistBtn', 'postBtn', 'waveBtn', 'volumeBtn', 'waveCanvas', 'loading', 'playlist', 'list', 'volume', 'barEmpty', 'barFull', 'sliderBtn', 'lyricBtn', 'lyricContainer', 'modeBtn', 'progressContainer', 'progressTrack', 'progressPlayed', 'progressThumb'];
+// *重要: 添加对新进度条元素的引用*
+let elms = ['track', 'artist', 'timer', 'duration', 'post', 'playBtn', 'pauseBtn', 'prevBtn', 'nextBtn', 'playlistBtn', 'postBtn', 'waveBtn', 'volumeBtn', 'loading', 'playlist', 'list', 'volume', 'barEmpty', 'barFull', 'sliderBtn', 'lyricBtn', 'lyricContainer', 'modeBtn', 'scrubTrack', 'scrubFill', 'scrubSlider'];
 elms.forEach(function (elm) {
     window[elm] = document.getElementById(elm);
 });
@@ -30,17 +24,15 @@ let currentLyrics = [];
 let lyricInterval = null;
 let lastLyricTime = -1;
 
-// 背景轮询与缓存相关变量
 let backgroundInterval = null;
 let currentBgIndex = 0;
 let activeBgLayer = 1;
 let currentImageCache = [];
 
-// SVG 图标 Data URIs
 const modeIcons = {
     list: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Cpath fill='%23fff' d='M0 128c0-17.7 14.3-32 32-32H480c17.7 0 32 14.3 32 32s-14.3 32-32 32H32c-17.7 0-32-14.3-32-32zm0 256c0-17.7 14.3-32 32-32H480c17.7 0 32 14.3 32 32s-14.3 32-32 32H32c-17.7 0-32-14.3-32-32zM0 256c0-17.7 14.3-32 32-32H480c17.7 0 32 14.3 32 32s-14.3 32-32 32H32c-17.7 0-32-14.3-32-32z'/%3E%3C/svg%3E",
     shuffle: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Cpath fill='%23fff' d='M403.8 34.4c12-5 25.7-2.2 34.9 6.9l64 64c6 6 9.4 14.1 9.4 22.6s-3.4 16.6-9.4 22.6l-64 64c-9.2 9.2-22.9 11.9-34.9 6.9s-19.8-16.6-19.8-29.6V160H352c-10.1 0-19.6 4.7-25.6 12.8L182.2 320H224c13.3 0 24 10.7 24 24s-10.7 24-24 24H128c-13.3 0-24-10.7-24-24V320c0-13.3 10.7-24 24-24h45.3L314.7 160H224c-13.3 0-24-10.7-24-24s10.7-24 24-24h160v-32c0-12.9 7.8-24.6 19.8-29.6zM160 352H96v-32c0-12.9 7.8-24.6 19.8-29.6s25.7-2.2 34.9 6.9l64 64c6 6 9.4 14.1 9.4 22.6s-3.4 16.6-9.4 22.6l-64 64c-9.2 9.2-22.9 11.9-34.9 6.9s-19.8-16.6-19.8-29.6V416h64c13.3 0 24-10.7 24-24s-10.7-24-24-24z'/%3E%3C/svg%3E",
-    single: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Cpath fill='%23fff' d='M0 224c0-17.7 14.3-32 32-32s32 14.3 32 32V256c0 44.2 35.8 80 80 80H224c17.7 0 32 14.3 32 32s-14.3 32-32 32H144C64.5 400 0 335.5 0 256V224zM288 96H368c44.2 0 80 35.8 80 80v32c0 17.7 14.3 32 32 32s32-14.3 32-32V176c0-79.5-64.5-144-144-144H288c-17.7 0-32 14.3-32 32s14.3 32 32 32zM208 256a48 48 0 1 0 96 0 48 48 0 1 0 -96 0z'/%3E%3Cpath fill='%23fff' transform='translate(120, 25) scale(0.4)' d='M432,128.2,336,32.2V96h-24A120,120,0,0,0,92.5,215.5a120,120,0,0,0,219,81l48,48A184.2,184.2,0,0,1,311.5,416C191,416,96,321,96,200.5S191,85,311.5,85H336v64Z'/%3E%3Ctext x='240' y='325' font-size='200' font-weight='bold' fill='%23fff' text-anchor='middle' alignment-baseline='middle'%3E1%3C/text%3E%3C/svg%3E"
+    single: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Cpath fill='%23fff' d='M0 224c0-17.7 14.3-32 32-32s32 14.3 32 32V256c0 44.2 35.8 80 80 80H224c17.7 0 32 14.3 32 32s-14.3 32-32 32H144C64.5 400 0 335.5 0 256V224zM288 96H368c44.2 0 80 35.8 80 80v32c0 17.7 14.3 32 32 32s32-14.3 32-32V176c0-79.5-64.5-144-144-144H288c-17.7 0-32 14.3-32 32s14.3 32 32 32zM208 256a48 48 0 1 0 96 0 48 48 0 1 0 -96 0z'/%3E%3Cpath fill='%23fff' transform='translate(120, 25) scale(0.4)' d='M432,128.2,336,32.2V96h-24A120,120,0 0,0,92.5,215.5a120,120,0 0,0,219,81l48,48A184.2,184.2,0 0,1,311.5,416C191,416,96,321,96,200.5S191,85,311.5,85H336v64Z'/%3E%3Ctext x='240' y='325' font-size='200' font-weight='bold' fill='%23fff' text-anchor='middle' alignment-baseline='middle'%3E1%3C/text%3E%3C/svg%3E"
 };
 
 const modeTitles = {
@@ -199,7 +191,9 @@ Player.prototype = {
                 onplay: () => {
                     duration.innerHTML = this.formatTime(Math.round(sound.duration()));
                     requestAnimationFrame(this.step.bind(this));
-                    progressBar.style.display = 'block'; pauseBtn.style.display = 'block'; playBtn.style.display = 'none'; loading.style.display = 'none';
+                    // *移除旧的 progressBar 显示*
+                    // progressBar.style.display = 'block'; 
+                    pauseBtn.style.display = 'block'; playBtn.style.display = 'none'; loading.style.display = 'none';
                     const isSRT = data.lyric && /\.srt$/i.test(data.lyric);
                     lyricInterval = setInterval(() => {
                         const pos = sound.seek();
@@ -210,10 +204,10 @@ Player.prototype = {
 
                     this.setupVisualization(sound);
                 },
-                onload: () => { loading.style.display = 'none'; progressBar.style.display = 'block'; },
+                onload: () => { loading.style.display = 'none';  }, // *移除旧的 progressBar 显示*
                 onend: () => { this.playNextTrack(); },
-                onpause: () => { if (lyricInterval) clearInterval(lyricInterval); if (backgroundInterval) clearInterval(backgroundInterval); },
-                onstop: () => { if (lyricInterval) clearInterval(lyricInterval); if (backgroundInterval) clearInterval(backgroundInterval); },
+                onpause: () => { if (lyricInterval) clearInterval(lyricInterval); if (backgroundInterval) clearInterval(backgroundInterval);  }, // *移除旧的 progressBar 显示*
+                onstop: () => { if (lyricInterval) clearInterval(lyricInterval); if (backgroundInterval) clearInterval(backgroundInterval);  }, // *移除旧的 progressBar 显示*
                 onseek: () => { const pos = sound.seek(); const isSRT = data.lyric && /\.srt$/i.test(data.lyric); lyricContainer.innerHTML = getCurrentLyric(pos, isSRT); lastLyricTime = pos; requestAnimationFrame(this.step.bind(this)); }
             });
         }
@@ -237,6 +231,7 @@ Player.prototype = {
             this.setupVisualization(sound); 
         }
 
+        // progressBar.style.margin = `-${window.innerHeight * 0.3 / 2}px auto`;
         if (sound.state() === 'loaded') { loading.style.display = 'none'; } else { loading.style.display = 'block'; playBtn.style.display = 'none'; pauseBtn.style.display = 'none'; }
         this.index = index;
     },
@@ -379,6 +374,7 @@ Player.prototype = {
     pause: function () {
         const sound = this.playlist[this.index].howl;
         if (sound) sound.pause();
+        if (backgroundInterval) clearInterval(backgroundInterval);
         playBtn.style.display = 'block';
         pauseBtn.style.display = 'none';
     },
@@ -406,51 +402,26 @@ Player.prototype = {
     skipTo: function (index) {
         const sound = this.playlist[this.index].howl;
         if (sound) sound.stop();
-        // **更新：重置新进度条的宽度**
-        if (progressPlayed) progressPlayed.style.width = '0%';
-        if (progressThumb) progressThumb.style.left = '0%';
+        // progress.style.width = '0%'; // *移除旧的进度条重置*
         this.play(index);
     },
     
-    // **新增/修改：根据百分比跳转播放位置**
-    // 这个函数用于响应点击或拖动事件
-    seekTo: function (percent) {
+    // *新增: 正确更新新进度条UI的函数*
+    updateProgressBar: function(percent) {
+        if (scrubFill && scrubSlider) {
+            scrubFill.style.width = `${percent * 100}%`;
+            scrubSlider.style.left = `${percent * 100}%`;
+        }
+    },
+    
+    // *新增: 点击/拖动进度条改变播放位置的函数*
+    seek: function (per) {
         const sound = this.playlist[this.index].howl;
         if (sound && sound.playing()) {
-            const durationVal = sound.duration();
-            const seekTime = durationVal * percent;
-            sound.seek(seekTime);
-            
-            // 立即更新歌词和 UI
-            const isSRT = this.playlist[this.index].lyric && /\.srt$/i.test(this.playlist[this.index].lyric);
-            lyricContainer.innerHTML = getCurrentLyric(seekTime, isSRT);
-            lastLyricTime = seekTime;
-            
-            // 立即更新进度条 UI
-            if (progressPlayed) progressPlayed.style.width = `${percent * 100}%`;
-            if (progressThumb) progressThumb.style.left = `${percent * 100}%`;
+            const pos = sound.duration() * per;
+            sound.seek(pos);
+            this.updateProgressBar(per); // *立即更新UI*
         }
-    },
-    
-    toggleMode: function() {
-        if (this.playbackMode === 'list') this.playbackMode = 'shuffle';
-        else if (this.playbackMode === 'shuffle') this.playbackMode = 'single';
-        else this.playbackMode = 'list';
-        this.updateModeButton();
-    },
-    
-    updateModeButton: function() {
-        if (modeBtn) {
-            modeBtn.style.backgroundImage = `url("${modeIcons[this.playbackMode]}")`;
-            modeBtn.title = modeTitles[this.playbackMode];
-        }
-    },
-
-    volume: function (val) {
-        Howler.volume(val);
-        let barWidth = (val * 90) / 100;
-        barFull.style.width = `${barWidth * 100}%`;
-        sliderBtn.style.left = `${window.innerWidth * barWidth + window.innerWidth * 0.05 - 25}px`;
     },
 
     step: function () {
@@ -459,10 +430,12 @@ Player.prototype = {
         let seek = sound.seek() || 0;
         let durationVal = sound.duration();
         timer.innerHTML = this.formatTime(Math.round(seek));
-        // **更新：使用新进度条元素**
+        // *更新新进度条*
         const percent = (durationVal > 0) ? (seek / durationVal) : 0;
-        if (progressPlayed) progressPlayed.style.width = `${percent * 100}%`;
-        if (progressThumb) progressThumb.style.left = `${percent * 100}%`;
+        this.updateProgressBar(percent);
+
+        duration.innerHTML = this.formatTime(Math.round(durationVal));
+
         if (sound.playing()) {
             requestAnimationFrame(this.step.bind(this));
         }
@@ -498,12 +471,13 @@ Player.prototype = {
     formatTime: function (secs) { let minutes = Math.floor(secs / 60) || 0; let seconds = (secs - minutes * 60) || 0; return `${minutes}:${(seconds < 10 ? '0' : '')}${seconds}`; }
 };
 
-// --- Event Listeners ---
-
+// Event Listeners
 playBtn.addEventListener('click', () => player.play());
 pauseBtn.addEventListener('click', () => player.pause());
 prevBtn.addEventListener('click', () => player.skip('prev'));
 nextBtn.addEventListener('click', () => player.skip('next'));
+// *移除旧的点击事件监听器*
+// progressBar.addEventListener('click', ...); 
 
 playlistBtn.addEventListener('click', () => player.togglePlaylist());
 playlist.addEventListener('click', () => player.togglePlaylist());
@@ -513,70 +487,6 @@ volumeBtn.addEventListener('click', () => player.toggleVolume());
 volume.addEventListener('click', () => player.toggleVolume());
 modeBtn.addEventListener('click', () => player.toggleMode());
 
-// --- 新增：底部进度条事件监听 ---
-let isDragging = false;
-
-// 点击轨道跳转
-progressTrack.addEventListener('click', (e) => {
-    if (isDragging) return; // 如果正在拖动，点击事件不处理
-    const rect = progressTrack.getBoundingClientRect();
-    const pos = (e.clientX - rect.left) / rect.width;
-    player.seekTo(Math.max(0, Math.min(1, pos))); // 限制在 0-1 之间
-});
-
-// 开始拖动
-const startDrag = (e) => {
-    isDragging = true;
-    progressTrack.classList.add('dragging'); // 添加拖动状态类，用于显示滑块
-    // 防止文本选择等干扰
-    e.preventDefault();
-};
-
-// 拖动过程
-const onDrag = (e) => {
-    if (!isDragging) return;
-    const clientX = e.clientX || (e.touches && e.touches[0].clientX);
-    if (clientX === undefined) return;
-    
-    const rect = progressTrack.getBoundingClientRect();
-    let pos = (clientX - rect.left) / rect.width;
-    pos = Math.max(0, Math.min(1, pos)); // 限制在 0-1 之间
-    
-    // 实时更新UI，无需等待音频跳转
-    if (progressPlayed) progressPlayed.style.width = `${pos * 100}%`;
-    if (progressThumb) progressThumb.style.left = `${pos * 100}%`;
-};
-
-// 结束拖动
-const stopDrag = (e) => {
-    if (!isDragging) return;
-    isDragging = false;
-    progressTrack.classList.remove('dragging');
-    
-    const clientX = e.clientX || (e.changedTouches && e.changedTouches[0].clientX);
-    if (clientX === undefined) return;
-
-    const rect = progressTrack.getBoundingClientRect();
-    let pos = (clientX - rect.left) / rect.width;
-    pos = Math.max(0, Math.min(1, pos)); // 限制在 0-1 之间
-    
-    player.seekTo(pos);
-};
-
-// 为滑块和轨道绑定事件
-progressThumb.addEventListener('mousedown', startDrag);
-progressTrack.addEventListener('mousedown', startDrag);
-document.addEventListener('mousemove', onDrag);
-document.addEventListener('mouseup', stopDrag);
-
-// 移动端支持
-progressThumb.addEventListener('touchstart', startDrag, { passive: false });
-progressTrack.addEventListener('touchstart', startDrag, { passive: false });
-document.addEventListener('touchmove', onDrag, { passive: false });
-document.addEventListener('touchend', stopDrag);
-
-
-// --- 音量控制事件 ---
 barEmpty.addEventListener('click', (event) => {
     let per = event.layerX / parseFloat(getComputedStyle(barEmpty, null).width.replace("px", ""));
     player.volume(per);
@@ -595,8 +505,42 @@ const move = (event) => {
 volume.addEventListener('mousemove', move);
 volume.addEventListener('touchmove', move, { passive: true });
 
+// === 新增: 底部进度条事件监听器 ===
+let isScrubbing = false;
 
-// 键盘快捷键
+const startScrub = (e) => {
+    isScrubbing = true;
+    scrubSlider.classList.add('dragging');
+    updateScrubPosition(e);
+};
+
+const updateScrubPosition = (e) => {
+    if (!isScrubbing) return;
+    const rect = scrubTrack.getBoundingClientRect();
+    let clientX = e.clientX || (e.touches && e.touches[0].clientX);
+    if (clientX === undefined) return;
+
+    let percent = (clientX - rect.left) / rect.width;
+    percent = Math.max(0, Math.min(1, percent)); // Clamp between 0 and 1
+    player.seek(percent);
+};
+
+const stopScrub = () => {
+    isScrubbing = false;
+    scrubSlider.classList.remove('dragging');
+};
+
+scrubTrack.addEventListener('mousedown', startScrub);
+scrubTrack.addEventListener('touchstart', startScrub, { passive: true });
+
+document.addEventListener('mousemove', updateScrubPosition);
+document.addEventListener('touchmove', updateScrubPosition, { passive: true });
+
+document.addEventListener('mouseup', stopScrub);
+document.addEventListener('touchend', stopScrub);
+// === /新增: 底部进度条事件监听器 ===
+
+
 document.addEventListener('keyup', e => {
     if (!player) return;
     if (e.key === ' ' || e.key === "MediaPlayPause") { pauseBtn.style.display === 'block' ? player.pause() : player.play(); }
@@ -608,12 +552,10 @@ document.addEventListener('keyup', e => {
     else if (e.key === "v" || e.key === "V") { player.toggleVolume(); }
 });
 
-// 歌词开关
 lyricBtn.addEventListener('click', () => {
     lyricContainer.style.display = (lyricContainer.style.display === 'none' || !lyricContainer.style.display) ? 'block' : 'none';
 });
 
-// 页面卸载时清理资源
 window.addEventListener('beforeunload', () => {
    if (player && player.drawId) {
        cancelAnimationFrame(player.drawId);
