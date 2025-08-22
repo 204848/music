@@ -154,13 +154,19 @@ function parseSRT(srtText) {
             text += lines[i].trim();
             i++;
         }
-        if (text) result.push({ start, end, text });
+        if (text) result.push({ time: start, end, text });
     }
     return result;
 }
 
 function getCurrentLyricIndex(time, lyrics) {
     if (!lyrics || lyrics.length === 0) return -1;
+    
+    // 修复：即使没有00:00时间戳，也能正确找到第一句歌词
+    if (time < lyrics[0].time) {
+        // 如果时间在第一句歌词之前，显示第一句歌词
+        return 0;
+    }
     
     // 二分查找优化性能
     let left = 0;
@@ -182,7 +188,8 @@ function getCurrentLyricIndex(time, lyrics) {
         return result;
     }
     
-    return -1;
+    // 如果找不到匹配的歌词，返回最后一个歌词的索引
+    return Math.max(0, result);
 }
 
 function updateLyricDisplay(lyrics, currentIndex) {
@@ -196,35 +203,22 @@ function updateLyricDisplay(lyrics, currentIndex) {
         return;
     }
     
-    // 为歌词切换添加动画效果
-    const prev2El = lyricLines.prev2;
-    const prev1El = lyricLines.prev1;
-    const currentEl = lyricLines.current;
-    const next1El = lyricLines.next1;
-    const next2El = lyricLines.next2;
+    // 确保currentIndex在有效范围内
+    const index = Math.max(0, Math.min(currentIndex, lyrics.length - 1));
     
-    // 添加淡出效果
-    prev2El.style.opacity = '0';
-    prev1El.style.opacity = '0';
-    currentEl.style.opacity = '0';
-    next1El.style.opacity = '0';
-    next2El.style.opacity = '0';
+    // 更新5句歌词显示
+    lyricLines.prev2.textContent = (index >= 2) ? lyrics[index - 2].text : '';
+    lyricLines.prev1.textContent = (index >= 1) ? lyrics[index - 1].text : '';
+    lyricLines.current.textContent = (index >= 0) ? lyrics[index].text : '';
+    lyricLines.next1.textContent = (index < lyrics.length - 1) ? lyrics[index + 1].text : '';
+    lyricLines.next2.textContent = (index < lyrics.length - 2) ? lyrics[index + 2].text : '';
     
-    setTimeout(() => {
-        // 更新5句歌词显示
-        prev2El.textContent = (currentIndex >= 2) ? lyrics[currentIndex - 2].text : '';
-        prev1El.textContent = (currentIndex >= 1) ? lyrics[currentIndex - 1].text : '';
-        currentEl.textContent = (currentIndex >= 0) ? lyrics[currentIndex].text : '';
-        next1El.textContent = (currentIndex < lyrics.length - 1) ? lyrics[currentIndex + 1].text : '';
-        next2El.textContent = (currentIndex < lyrics.length - 2) ? lyrics[currentIndex + 2].text : '';
-        
-        // 添加淡入效果
-        prev2El.style.opacity = currentIndex >= 2 ? '0.7' : '0';
-        prev1El.style.opacity = currentIndex >= 1 ? '0.7' : '0';
-        currentEl.style.opacity = '1';
-        next1El.style.opacity = currentIndex < lyrics.length - 1 ? '0.7' : '0';
-        next2El.style.opacity = currentIndex < lyrics.length - 2 ? '0.7' : '0';
-    }, 150);
+    // 设置透明度
+    lyricLines.prev2.style.opacity = index >= 2 ? '0.7' : '0';
+    lyricLines.prev1.style.opacity = index >= 1 ? '0.7' : '0';
+    lyricLines.current.style.opacity = '1';
+    lyricLines.next1.style.opacity = index < lyrics.length - 1 ? '0.7' : '0';
+    lyricLines.next2.style.opacity = index < lyrics.length - 2 ? '0.7' : '0';
 }
 
 let Player = function (playlist) {
@@ -288,7 +282,7 @@ Player.prototype = {
                     requestAnimationFrame(this.step.bind(this));
                     pauseBtn.style.display = 'block'; playBtn.style.display = 'none'; loading.style.display = 'none';
                     
-                    // 启动歌词更新定时器
+                    // 启动歌词更新定时器（更新频率改为80ms）
                     lyricInterval = setInterval(() => {
                         const pos = sound.seek();
                         const lyrics = preloadedLyrics[index] || currentLyrics;
@@ -298,7 +292,7 @@ Player.prototype = {
                             updateLyricDisplay(lyrics, currentIndex);
                             lastLyricIndex = currentIndex;
                         }
-                    }, 100);
+                    }, 80);
 
                     this.setupVisualization(sound);
                     
