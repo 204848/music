@@ -224,7 +224,7 @@ function updateLyricDisplay(lyrics, currentIndex) {
         currentEl.style.opacity = '1';
         next1El.style.opacity = currentIndex < lyrics.length - 1 ? '0.7' : '0';
         next2El.style.opacity = currentIndex < lyrics.length - 2 ? '0.7' : '0';
-    }, 150);
+    }, 100);
 }
 
 let Player = function (playlist) {
@@ -298,7 +298,7 @@ Player.prototype = {
                             updateLyricDisplay(lyrics, currentIndex);
                             lastLyricIndex = currentIndex;
                         }
-                    }, 70);
+                    }, 80); // 更新频率改为80ms
 
                     this.setupVisualization(sound);
                     
