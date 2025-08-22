@@ -162,6 +162,7 @@ function parseSRT(srtText) {
 function getCurrentLyricIndex(time, lyrics) {
     if (!lyrics || lyrics.length === 0) return -1;
     
+    // 修复：即使没有00:00时间戳，也能正确找到对应歌词
     // 从后往前查找，找到第一个时间小于等于当前时间的歌词
     for (let i = lyrics.length - 1; i >= 0; i--) {
         if (time >= lyrics[i].time) {
@@ -205,13 +206,6 @@ function updateLyricDisplay(lyrics, currentIndex) {
     lyricLines.current.style.opacity = '1';
     lyricLines.next1.style.opacity = index < lyrics.length - 1 ? '0.7' : '0';
     lyricLines.next2.style.opacity = index < lyrics.length - 2 ? '0.7' : '0';
-    
-    // 确保变换被应用
-    lyricLines.prev2.style.transform = index >= 2 ? 'translateY(-32px)' : 'translateY(0)';
-    lyricLines.prev1.style.transform = index >= 1 ? 'translateY(-16px)' : 'translateY(0)';
-    lyricLines.current.style.transform = 'scale(1.05)';
-    lyricLines.next1.style.transform = index < lyrics.length - 1 ? 'translateY(16px)' : 'translateY(0)';
-    lyricLines.next2.style.transform = index < lyrics.length - 2 ? 'translateY(32px)' : 'translateY(0)';
 }
 
 let Player = function (playlist) {
@@ -344,12 +338,14 @@ Player.prototype = {
             
             // 切换歌曲后立即更新歌词
             setTimeout(() => {
-                const pos = sound.seek();
-                const lyrics = preloadedLyrics[index] || currentLyrics;
-                const currentIndex = getCurrentLyricIndex(pos, lyrics);
-                updateLyricDisplay(lyrics, currentIndex);
-                lastLyricIndex = currentIndex;
-            }, 50);
+                if (sound.playing()) {
+                    const pos = sound.seek();
+                    const lyrics = preloadedLyrics[index] || currentLyrics;
+                    const currentIndex = getCurrentLyricIndex(pos, lyrics);
+                    updateLyricDisplay(lyrics, currentIndex);
+                    lastLyricIndex = currentIndex;
+                }
+            }, 100);
         }
 
         if (sound.state() === 'loaded') { 
