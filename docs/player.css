@@ -69,7 +69,7 @@ body {
   line-height: 1.4;
   text-align: center;
   text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.6);
-  max-height: 200px;
+  max-height: 220px;
   overflow: hidden;
   padding: 8px 0;
   transition: opacity 0.3s;
@@ -101,7 +101,7 @@ body {
 }
 
 .lyric-line {
-  transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  transition: all 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
   padding: 8px 20px;
   width: 100%;
   box-sizing: border-box;
@@ -117,14 +117,18 @@ body {
   /* 防止内容溢出破坏圆角 */
   border-radius: 8px;
   margin: 2px 0;
+  min-height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .prev-line-2 {
-  transform: translateY(-40px);
+  transform: translateY(-50px);
 }
 
 .prev-line-1 {
-  transform: translateY(-20px);
+  transform: translateY(-25px);
 }
 
 .current-line {
@@ -133,7 +137,7 @@ body {
   opacity: 1;
   filter: none;
   transform: scale(1.05);
-  margin: 10px 0;
+  margin: 12px 0;
   color: #fff;
   text-shadow: 0 2px 4px rgba(0, 0, 0, 0.7);
   z-index: 2;
@@ -143,14 +147,15 @@ body {
   border-radius: 10px;
   padding: 12px 25px;
   box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+  min-height: 32px;
 }
 
 .next-line-1 {
-  transform: translateY(20px);
+  transform: translateY(25px);
 }
 
 .next-line-2 {
-  transform: translateY(40px);
+  transform: translateY(50px);
 }
 
 /* 当前歌词高亮效果 */
@@ -614,11 +619,14 @@ body {
     font-size: 14px;
     padding: 6px 15px;
     margin: 1px 0;
+    min-height: 24px;
   }
   
   .current-line {
     font-size: 18px;
     padding: 10px 20px;
+    margin: 8px 0;
+    min-height: 28px;
   }
   
   #lyrics-wrapper {
@@ -645,7 +653,6 @@ body {
   
   /* 确保移动端歌词完整显示 */
   .lyric-line {
-    min-height: 24px;
     display: flex;
     align-items: center;
     justify-content: center;
