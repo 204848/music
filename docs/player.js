@@ -236,11 +236,11 @@ function updateLyricDisplay(lyrics, currentIndex) {
         next2El.style.opacity = index < lyrics.length - 2 ? '0.7' : '0';
         
         // 重置变换
-        prev2El.style.transform = index >= 2 ? 'translateY(-40px)' : 'translateY(0)';
-        prev1El.style.transform = index >= 1 ? 'translateY(-20px)' : 'translateY(0)';
+        prev2El.style.transform = index >= 2 ? 'translateY(-32px)' : 'translateY(0)';
+        prev1El.style.transform = index >= 1 ? 'translateY(-16px)' : 'translateY(0)';
         currentEl.style.transform = 'scale(1.05)';
-        next1El.style.transform = index < lyrics.length - 1 ? 'translateY(20px)' : 'translateY(0)';
-        next2El.style.transform = index < lyrics.length - 2 ? 'translateY(40px)' : 'translateY(0)';
+        next1El.style.transform = index < lyrics.length - 1 ? 'translateY(16px)' : 'translateY(0)';
+        next2El.style.transform = index < lyrics.length - 2 ? 'translateY(32px)' : 'translateY(0)';
     }, 150);
 }
 
@@ -291,8 +291,18 @@ Player.prototype = {
             this.resetProgressBar();
         }
 
+        // 背景轮播控制
         if (!isNewTrack && this.isSlideshowRunning) {
-            this.startBackgroundSlideshow(data.pic, false);
+            // 如果是继续播放且有背景轮播，保持轮播运行
+            if (backgroundInterval) {
+                // 轮播已在运行，无需操作
+            } else {
+                // 重新启动轮播
+                this.startBackgroundSlideshow(data.pic, false);
+            }
+        } else if (isNewTrack) {
+            // 新歌曲，重新设置背景
+            this.setBackground(data.pic, true);
         }
 
         // 修复：避免重复创建sound对象
@@ -329,6 +339,11 @@ Player.prototype = {
                         this.setPositionUI(sound.duration() * pendingSeekPercent, sound.duration());
                         pendingSeekPercent = null;
                     }
+                    
+                    // 确保背景轮播在播放时运行
+                    if (this.isSlideshowRunning && !backgroundInterval) {
+                        this.startBackgroundSlideshow(data.pic, false);
+                    }
                 },
                 onload: () => { 
                     loading.style.display = 'none'; 
@@ -337,8 +352,18 @@ Player.prototype = {
                     preloadedDurations[index] = sound.duration();
                 },
                 onend: () => { this.playNextTrack(); },
-                onpause: () => { if (lyricInterval) clearInterval(lyricInterval); if (backgroundInterval) clearInterval(backgroundInterval); },
-                onstop: () => { if (lyricInterval) clearInterval(lyricInterval); if (backgroundInterval) clearInterval(backgroundInterval); },
+                onpause: () => { 
+                    if (lyricInterval) clearInterval(lyricInterval); 
+                    // 暂停时停止背景轮播
+                    if (backgroundInterval) clearInterval(backgroundInterval);
+                    backgroundInterval = null;
+                },
+                onstop: () => { 
+                    if (lyricInterval) clearInterval(lyricInterval); 
+                    // 停止时停止背景轮播
+                    if (backgroundInterval) clearInterval(backgroundInterval);
+                    backgroundInterval = null;
+                },
                 onseek: () => { 
                     const pos = sound.seek(); 
                     const lyrics = preloadedLyrics[index] || currentLyrics;
@@ -360,7 +385,6 @@ Player.prototype = {
             artist.innerHTML = data.artist;
             document.title = `${data.title} - Gmemp`;
             post.innerHTML = `<p><b>${data.date}</b></p>${data.article}`;
-            this.setBackground(data.pic, true);
             window.location.hash = "#" + index;
             const ogImage = Array.isArray(data.pic) ? data.pic[0] : data.pic;
             document.querySelector('meta[property="og:title"]').setAttribute('content', data.title);
@@ -535,9 +559,12 @@ Player.prototype = {
     },
     
     setBackground: function(picData, forceReset = false) {
+        // 清除之前的背景轮播
         if (backgroundInterval) clearInterval(backgroundInterval);
+        backgroundInterval = null;
         currentImageCache = [];
         currentBgIndex = 0; // 重置背景索引
+        
         if (Array.isArray(picData) && picData.length > 1) {
             this.isSlideshowRunning = true;
             const firstImageUrl = `url('${media}${encodeURI(picData[0])}')`;
@@ -545,12 +572,18 @@ Player.prototype = {
             bgLayer1.style.opacity = 1;
             bgLayer2.style.opacity = 0;
             activeBgLayer = 1;
+            
+            // 预加载所有图片
             picData.forEach(picName => {
                 const img = new Image();
                 img.src = media + encodeURI(picName);
                 currentImageCache.push(img);
             });
-            this.startBackgroundSlideshow(picData, forceReset);
+            
+            // 如果当前正在播放，启动背景轮播
+            if (this.playlist[this.index] && this.playlist[this.index].howl && this.playlist[this.index].howl.playing()) {
+                this.startBackgroundSlideshow(picData, forceReset);
+            }
         } else {
             this.isSlideshowRunning = false;
             const singlePic = Array.isArray(picData) ? picData[0] : picData;
@@ -563,7 +596,9 @@ Player.prototype = {
     },
     
     startBackgroundSlideshow: function(images, resetIndex = true) {
+        // 确保只启动一个轮播定时器
         if (backgroundInterval) clearInterval(backgroundInterval);
+        
         if (resetIndex) currentBgIndex = 0;
         const initialImage = currentImageCache[currentBgIndex];
         if(initialImage) {
@@ -571,7 +606,10 @@ Player.prototype = {
             currentActiveLayer.style.backgroundImage = `url('${initialImage.src}')`;
             currentActiveLayer.style.opacity = 1;
         }
+        
         const changeImage = () => {
+            if (currentImageCache.length === 0) return;
+            
             currentBgIndex = (currentBgIndex + 1) % images.length;
             const nextImage = currentImageCache[currentBgIndex];
             if(nextImage) {
@@ -583,13 +621,16 @@ Player.prototype = {
                 activeBgLayer = (activeBgLayer === 1) ? 2 : 1;
             }
         };
+        
         backgroundInterval = setInterval(changeImage, BACKGROUND_SLIDESHOW_INTERVAL);
     },
 
     pause: function () {
         const sound = this.playlist[this.index].howl;
         if (sound) sound.pause();
+        // 暂停时停止背景轮播
         if (backgroundInterval) clearInterval(backgroundInterval);
+        backgroundInterval = null;
         playBtn.style.display = 'block';
         pauseBtn.style.display = 'none';
     },
@@ -925,6 +966,8 @@ window.addEventListener('beforeunload', () => {
    if (player && player.drawId) {
        cancelAnimationFrame(player.drawId);
    }
+   // 清理背景轮播
+   if (backgroundInterval) clearInterval(backgroundInterval);
 });
 
 // 处理控制台错误信息
@@ -936,4 +979,4 @@ window.addEventListener('error', (e) => {
     console.error('An error occurred:', e.error);
 });
 
-console.log("\n %c Gmemp v3.6.4 (Visualization Tuned) %c https://github.com/Meekdai/Gmemp \n", "color: #fff; background-image: linear-gradient(90deg, rgb(47, 172, 178) 0%, rgb(45, 190, 96) 100%); padding:5px 1px;", "background-image: linear-gradient(90deg, rgb(45, 190, 96) 0%, rgb(255, 255, 255) 100%); padding:5px 0;"); 
+console.log("\n %c Gmemp v3.6.4 (Visualization Tuned) %c https://github.com/Meekdai/Gmemp \n", "color: #fff; background-image: linear-gradient(90deg, rgb(47, 172, 178) 0%, rgb(45, 190, 96) 100%); padding:5px 1px;", "background-image: linear-gradient(90deg, rgb(45, 190, 96) 0%, rgb(255, 255, 255) 100%); padding:5px 0;");
