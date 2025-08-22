@@ -272,7 +272,8 @@ Player.prototype = {
             this.startBackgroundSlideshow(data.pic, false);
         }
 
-        if (data.howl) {
+        // 修复：避免重复创建sound对象
+        if (data.howl && data.howl.state() !== 'unloaded') {
             sound = data.howl;
         } else {
             sound = data.howl = new Howl({
@@ -284,13 +285,16 @@ Player.prototype = {
                     
                     // 启动歌词更新定时器（更新频率改为80ms）
                     lyricInterval = setInterval(() => {
-                        const pos = sound.seek();
-                        const lyrics = preloadedLyrics[index] || currentLyrics;
-                        const currentIndex = getCurrentLyricIndex(pos, lyrics);
-                        
-                        if (currentIndex !== lastLyricIndex) {
-                            updateLyricDisplay(lyrics, currentIndex);
-                            lastLyricIndex = currentIndex;
+                        // 只有在非拖动状态下才更新歌词
+                        if (!isSeeking) {
+                            const pos = sound.seek();
+                            const lyrics = preloadedLyrics[index] || currentLyrics;
+                            const currentIndex = getCurrentLyricIndex(pos, lyrics);
+                            
+                            if (currentIndex !== lastLyricIndex) {
+                                updateLyricDisplay(lyrics, currentIndex);
+                                lastLyricIndex = currentIndex;
+                            }
                         }
                     }, 80);
 
@@ -626,7 +630,7 @@ Player.prototype = {
                 // 立即更新UI
                 const seek = duration * per;
                 this.setPositionUI(seek, duration);
-                // 立即更新歌词
+                // 立即更新歌词（仅在拖动时更新）
                 this.updateLyricAtTime(seek, currentIndex);
             } else {
                 // 如果没有播放，保存seek位置等待播放时使用
@@ -803,7 +807,7 @@ const onSeek = (e) => {
             currentTimeDisplay.innerHTML = formattedSeek;
         }
         
-        // 实时更新歌词
+        // 实时更新歌词（仅在拖动时更新）
         const data = player.playlist[currentIndex];
         const lyrics = preloadedLyrics[currentIndex] || currentLyrics;
         if (lyrics && lyrics.length > 0) {
@@ -828,6 +832,18 @@ const endSeek = () => {
     const rect = progressBar.getBoundingClientRect();
     const percent = (event.clientX - rect.left) / rect.width;
     player.seek(Math.max(0, Math.min(1, percent)));
+    
+    // seek完成后重新启动歌词更新
+    setTimeout(() => {
+        if (player && player.playlist[player.index].howl && player.playlist[player.index].howl.playing()) {
+            const sound = player.playlist[player.index].howl;
+            const pos = sound.seek();
+            const lyrics = preloadedLyrics[player.index] || currentLyrics;
+            const currentIndex = getCurrentLyricIndex(pos, lyrics);
+            updateLyricDisplay(lyrics, currentIndex);
+            lastLyricIndex = currentIndex;
+        }
+    }, 50);
 };
 
 progressSlider.addEventListener('mousedown', startSeek);
