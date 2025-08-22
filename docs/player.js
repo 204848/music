@@ -162,16 +162,16 @@ function parseSRT(srtText) {
 function getCurrentLyricIndex(time, lyrics) {
     if (!lyrics || lyrics.length === 0) return -1;
     
-    // 修复：即使没有00:00时间戳，也能正确找到对应的歌词
-    // 使用二分查找找到最接近的时间点
+    // 修复：即使没有00:00时间戳，也能正确找到第一句歌词
+    if (time < lyrics[0].time) {
+        // 如果时间在第一句歌词之前，显示第一句歌词
+        return 0;
+    }
+    
+    // 二分查找优化性能
     let left = 0;
     let right = lyrics.length - 1;
     let result = -1;
-    
-    // 特殊处理：如果时间在第一句歌词之前，返回第一句歌词索引
-    if (time < lyrics[0].time) {
-        return 0;
-    }
     
     while (left <= right) {
         const mid = Math.floor((left + right) / 2);
@@ -188,8 +188,8 @@ function getCurrentLyricIndex(time, lyrics) {
         return result;
     }
     
-    // 如果没找到在时间范围内的歌词，返回最后一个匹配的索引
-    return result;
+    // 如果找不到匹配的歌词，返回最后一个歌词索引
+    return Math.max(0, result);
 }
 
 function updateLyricDisplay(lyrics, currentIndex) {
@@ -203,38 +203,22 @@ function updateLyricDisplay(lyrics, currentIndex) {
         return;
     }
     
-    // 修复：确保索引不会越界
+    // 确保索引在有效范围内
     const index = Math.max(0, Math.min(currentIndex, lyrics.length - 1));
     
-    // 为歌词切换添加动画效果
-    const prev2El = lyricLines.prev2;
-    const prev1El = lyricLines.prev1;
-    const currentEl = lyricLines.current;
-    const next1El = lyricLines.next1;
-    const next2El = lyricLines.next2;
+    // 更新5句歌词显示
+    lyricLines.prev2.textContent = (index >= 2) ? lyrics[index - 2].text : '';
+    lyricLines.prev1.textContent = (index >= 1) ? lyrics[index - 1].text : '';
+    lyricLines.current.textContent = (index >= 0) ? lyrics[index].text : '';
+    lyricLines.next1.textContent = (index < lyrics.length - 1) ? lyrics[index + 1].text : '';
+    lyricLines.next2.textContent = (index < lyrics.length - 2) ? lyrics[index + 2].text : '';
     
-    // 添加淡出效果
-    prev2El.style.opacity = '0';
-    prev1El.style.opacity = '0';
-    currentEl.style.opacity = '0';
-    next1El.style.opacity = '0';
-    next2El.style.opacity = '0';
-    
-    setTimeout(() => {
-        // 更新5句歌词显示
-        prev2El.textContent = (index >= 2) ? lyrics[index - 2].text : '';
-        prev1El.textContent = (index >= 1) ? lyrics[index - 1].text : '';
-        currentEl.textContent = (index >= 0) ? lyrics[index].text : '';
-        next1El.textContent = (index < lyrics.length - 1) ? lyrics[index + 1].text : '';
-        next2El.textContent = (index < lyrics.length - 2) ? lyrics[index + 2].text : '';
-        
-        // 添加淡入效果
-        prev2El.style.opacity = index >= 2 ? '0.7' : '0';
-        prev1El.style.opacity = index >= 1 ? '0.7' : '0';
-        currentEl.style.opacity = '1';
-        next1El.style.opacity = index < lyrics.length - 1 ? '0.7' : '0';
-        next2El.style.opacity = index < lyrics.length - 2 ? '0.7' : '0';
-    }, 100);
+    // 设置透明度
+    lyricLines.prev2.style.opacity = index >= 2 ? '0.7' : '0';
+    lyricLines.prev1.style.opacity = index >= 1 ? '0.7' : '0';
+    lyricLines.current.style.opacity = '1';
+    lyricLines.next1.style.opacity = index < lyrics.length - 1 ? '0.7' : '0';
+    lyricLines.next2.style.opacity = index < lyrics.length - 2 ? '0.7' : '0';
 }
 
 let Player = function (playlist) {
@@ -304,7 +288,6 @@ Player.prototype = {
                         const lyrics = preloadedLyrics[index] || currentLyrics;
                         const currentIndex = getCurrentLyricIndex(pos, lyrics);
                         
-                        // 修复：确保每次位置变化都更新歌词显示
                         if (currentIndex !== lastLyricIndex) {
                             updateLyricDisplay(lyrics, currentIndex);
                             lastLyricIndex = currentIndex;
@@ -716,16 +699,6 @@ Player.prototype = {
         // 只有在非拖动状态下才自动更新进度条
         if (!isSeeking) {
             this.setPositionUI(seek, durationVal);
-            
-            // 修复：在step函数中也更新歌词显示
-            const lyrics = preloadedLyrics[this.index] || currentLyrics;
-            if (lyrics && lyrics.length > 0) {
-                const currentIndex = getCurrentLyricIndex(seek, lyrics);
-                if (currentIndex !== lastLyricIndex) {
-                    updateLyricDisplay(lyrics, currentIndex);
-                    lastLyricIndex = currentIndex;
-                }
-            }
         }
         if (sound.playing()) {
             requestAnimationFrame(this.step.bind(this));
