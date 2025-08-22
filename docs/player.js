@@ -44,7 +44,7 @@ let playNum = 0;
 let requestJson = "memp.json";
 let currentLyrics = [];
 let lyricInterval = null;
-let lastLyricIndex = -2; // 用于跟踪当前歌词索引，初始值设为-2确保第一次必定更新
+let lastLyricIndex = -1; // 用于跟踪当前歌词索引
 let isSeeking = false;
 let pendingSeekPercent = null; // 用于存储等待播放时的seek位置
 let preloadedDurations = {}; // 缓存预加载的时长
@@ -162,16 +162,27 @@ function parseSRT(srtText) {
 function getCurrentLyricIndex(time, lyrics) {
     if (!lyrics || lyrics.length === 0) return -1;
     
-    // 修复：即使没有00:00时间戳，也能正确找到对应歌词
-    // 从后往前查找，找到第一个时间小于等于当前时间的歌词
-    for (let i = lyrics.length - 1; i >= 0; i--) {
-        if (time >= lyrics[i].time) {
-            return i;
+    // 二分查找优化性能
+    let left = 0;
+    let right = lyrics.length - 1;
+    let result = -1;
+    
+    while (left <= right) {
+        const mid = Math.floor((left + right) / 2);
+        if (lyrics[mid].time <= time) {
+            result = mid;
+            left = mid + 1;
+        } else {
+            right = mid - 1;
         }
     }
     
-    // 如果所有歌词的时间都比当前时间大，返回第一句歌词
-    return 0;
+    // 确保当前时间在歌词的时间范围内
+    if (result >= 0 && time < (lyrics[result].end || Infinity)) {
+        return result;
+    }
+    
+    return -1;
 }
 
 function updateLyricDisplay(lyrics, currentIndex) {
@@ -182,30 +193,38 @@ function updateLyricDisplay(lyrics, currentIndex) {
         lyricLines.current.textContent = '暂无歌词';
         lyricLines.next1.textContent = '';
         lyricLines.next2.textContent = '';
-        lyricLines.prev2.style.opacity = '0';
-        lyricLines.prev1.style.opacity = '0';
-        lyricLines.current.style.opacity = '1';
-        lyricLines.next1.style.opacity = '0';
-        lyricLines.next2.style.opacity = '0';
         return;
     }
     
-    // 确保currentIndex在有效范围内
-    const index = Math.max(0, Math.min(currentIndex, lyrics.length - 1));
+    // 为歌词切换添加动画效果
+    const prev2El = lyricLines.prev2;
+    const prev1El = lyricLines.prev1;
+    const currentEl = lyricLines.current;
+    const next1El = lyricLines.next1;
+    const next2El = lyricLines.next2;
     
-    // 更新5句歌词显示
-    lyricLines.prev2.textContent = (index >= 2) ? lyrics[index - 2].text : '';
-    lyricLines.prev1.textContent = (index >= 1) ? lyrics[index - 1].text : '';
-    lyricLines.current.textContent = (index >= 0) ? lyrics[index].text : '';
-    lyricLines.next1.textContent = (index < lyrics.length - 1) ? lyrics[index + 1].text : '';
-    lyricLines.next2.textContent = (index < lyrics.length - 2) ? lyrics[index + 2].text : '';
+    // 添加淡出效果
+    prev2El.style.opacity = '0';
+    prev1El.style.opacity = '0';
+    currentEl.style.opacity = '0';
+    next1El.style.opacity = '0';
+    next2El.style.opacity = '0';
     
-    // 设置透明度
-    lyricLines.prev2.style.opacity = index >= 2 ? '0.7' : '0';
-    lyricLines.prev1.style.opacity = index >= 1 ? '0.7' : '0';
-    lyricLines.current.style.opacity = '1';
-    lyricLines.next1.style.opacity = index < lyrics.length - 1 ? '0.7' : '0';
-    lyricLines.next2.style.opacity = index < lyrics.length - 2 ? '0.7' : '0';
+    setTimeout(() => {
+        // 更新5句歌词显示
+        prev2El.textContent = (currentIndex >= 2) ? lyrics[currentIndex - 2].text : '';
+        prev1El.textContent = (currentIndex >= 1) ? lyrics[currentIndex - 1].text : '';
+        currentEl.textContent = (currentIndex >= 0) ? lyrics[currentIndex].text : '';
+        next1El.textContent = (currentIndex < lyrics.length - 1) ? lyrics[currentIndex + 1].text : '';
+        next2El.textContent = (currentIndex < lyrics.length - 2) ? lyrics[currentIndex + 2].text : '';
+        
+        // 添加淡入效果
+        prev2El.style.opacity = currentIndex >= 2 ? '0.7' : '0';
+        prev1El.style.opacity = currentIndex >= 1 ? '0.7' : '0';
+        currentEl.style.opacity = '1';
+        next1El.style.opacity = currentIndex < lyrics.length - 1 ? '0.7' : '0';
+        next2El.style.opacity = currentIndex < lyrics.length - 2 ? '0.7' : '0';
+    }, 150);
 }
 
 let Player = function (playlist) {
@@ -248,7 +267,7 @@ Player.prototype = {
 
         // 清除之前的定时器
         if (lyricInterval) clearInterval(lyricInterval);
-        lastLyricIndex = -2; // 重置为-2确保必定更新
+        lastLyricIndex = -1;
 
         // 如果是新track，重置进度条
         if (isNewTrack) {
@@ -269,18 +288,17 @@ Player.prototype = {
                     requestAnimationFrame(this.step.bind(this));
                     pauseBtn.style.display = 'block'; playBtn.style.display = 'none'; loading.style.display = 'none';
                     
-                    // 启动歌词更新定时器（更新频率改为80ms）
+                    // 启动歌词更新定时器
                     lyricInterval = setInterval(() => {
                         const pos = sound.seek();
                         const lyrics = preloadedLyrics[index] || currentLyrics;
                         const currentIndex = getCurrentLyricIndex(pos, lyrics);
                         
-                        // 确保每次位置变化都更新歌词
                         if (currentIndex !== lastLyricIndex) {
                             updateLyricDisplay(lyrics, currentIndex);
                             lastLyricIndex = currentIndex;
                         }
-                    }, 80);
+                    }, 100);
 
                     this.setupVisualization(sound);
                     
@@ -290,13 +308,6 @@ Player.prototype = {
                         this.setPositionUI(sound.duration() * pendingSeekPercent, sound.duration());
                         pendingSeekPercent = null;
                     }
-                    
-                    // 立即更新一次歌词显示
-                    const pos = sound.seek();
-                    const lyrics = preloadedLyrics[index] || currentLyrics;
-                    const currentIndex = getCurrentLyricIndex(pos, lyrics);
-                    updateLyricDisplay(lyrics, currentIndex);
-                    lastLyricIndex = currentIndex;
                 },
                 onload: () => { 
                     loading.style.display = 'none'; 
@@ -335,17 +346,6 @@ Player.prototype = {
             this.loadLyric(data.lyric || null); // 修复：确保每次切换歌曲都重新加载歌词
             if ('mediaSession' in navigator) this.updateMediaSession(data);
             this.setupVisualization(sound); 
-            
-            // 切换歌曲后立即更新歌词
-            setTimeout(() => {
-                if (sound.playing()) {
-                    const pos = sound.seek();
-                    const lyrics = preloadedLyrics[index] || currentLyrics;
-                    const currentIndex = getCurrentLyricIndex(pos, lyrics);
-                    updateLyricDisplay(lyrics, currentIndex);
-                    lastLyricIndex = currentIndex;
-                }
-            }, 100);
         }
 
         if (sound.state() === 'loaded') { 
