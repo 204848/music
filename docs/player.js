@@ -196,25 +196,35 @@ function updateLyricDisplay(lyrics, currentIndex) {
         return;
     }
     
-    // 添加过渡效果类
-    const lines = [lyricLines.prev2, lyricLines.prev1, lyricLines.current, lyricLines.next1, lyricLines.next2];
-    lines.forEach(line => {
-        line.classList.add('lyric-transition');
-    });
+    // 为歌词切换添加动画效果
+    const prev2El = lyricLines.prev2;
+    const prev1El = lyricLines.prev1;
+    const currentEl = lyricLines.current;
+    const next1El = lyricLines.next1;
+    const next2El = lyricLines.next2;
     
-    // 更新5句歌词显示
-    lyricLines.prev2.textContent = (currentIndex >= 2) ? lyrics[currentIndex - 2].text : '';
-    lyricLines.prev1.textContent = (currentIndex >= 1) ? lyrics[currentIndex - 1].text : '';
-    lyricLines.current.textContent = (currentIndex >= 0) ? lyrics[currentIndex].text : '';
-    lyricLines.next1.textContent = (currentIndex < lyrics.length - 1) ? lyrics[currentIndex + 1].text : '';
-    lyricLines.next2.textContent = (currentIndex < lyrics.length - 2) ? lyrics[currentIndex + 2].text : '';
+    // 添加淡出效果
+    prev2El.style.opacity = '0';
+    prev1El.style.opacity = '0';
+    currentEl.style.opacity = '0';
+    next1El.style.opacity = '0';
+    next2El.style.opacity = '0';
     
-    // 移除过渡效果类以重新触发动画
     setTimeout(() => {
-        lines.forEach(line => {
-            line.classList.remove('lyric-transition');
-        });
-    }, 10);
+        // 更新5句歌词显示
+        prev2El.textContent = (currentIndex >= 2) ? lyrics[currentIndex - 2].text : '';
+        prev1El.textContent = (currentIndex >= 1) ? lyrics[currentIndex - 1].text : '';
+        currentEl.textContent = (currentIndex >= 0) ? lyrics[currentIndex].text : '';
+        next1El.textContent = (currentIndex < lyrics.length - 1) ? lyrics[currentIndex + 1].text : '';
+        next2El.textContent = (currentIndex < lyrics.length - 2) ? lyrics[currentIndex + 2].text : '';
+        
+        // 添加淡入效果
+        prev2El.style.opacity = currentIndex >= 2 ? '0.7' : '0';
+        prev1El.style.opacity = currentIndex >= 1 ? '0.7' : '0';
+        currentEl.style.opacity = '1';
+        next1El.style.opacity = currentIndex < lyrics.length - 1 ? '0.7' : '0';
+        next2El.style.opacity = currentIndex < lyrics.length - 2 ? '0.7' : '0';
+    }, 150);
 }
 
 let Player = function (playlist) {
@@ -277,7 +287,6 @@ Player.prototype = {
                     this.updateDurationDisplays(sound.duration());
                     requestAnimationFrame(this.step.bind(this));
                     pauseBtn.style.display = 'block'; playBtn.style.display = 'none'; loading.style.display = 'none';
-                    const isSRT = data.lyric && /\.srt$/i.test(data.lyric);
                     
                     // 启动歌词更新定时器
                     lyricInterval = setInterval(() => {
@@ -334,7 +343,7 @@ Player.prototype = {
             if(document.querySelector('#list-song-' + playNum)) { document.querySelector('#list-song-' + playNum).style.backgroundColor = ''; }
             document.querySelector('#list-song-' + index).style.backgroundColor = 'rgba(255, 255, 255, 0.1)';
             playNum = index;
-            this.loadLyric(data.lyric || null);
+            this.loadLyric(data.lyric || null); // 修复：确保每次切换歌曲都重新加载歌词
             if ('mediaSession' in navigator) this.updateMediaSession(data);
             this.setupVisualization(sound); 
         }
@@ -711,17 +720,7 @@ Player.prototype = {
             return;
         }
         
-        // 如果已经预加载过该歌曲的歌词，直接使用
-        if (preloadedLyrics[currentIndex]) {
-            currentLyrics = preloadedLyrics[currentIndex];
-            const sound = this.playlist[currentIndex].howl;
-            const pos = sound ? sound.seek() : 0;
-            const currentIndexInLyrics = getCurrentLyricIndex(pos, currentLyrics);
-            updateLyricDisplay(currentLyrics, currentIndexInLyrics);
-            lastLyricIndex = currentIndexInLyrics;
-            return;
-        }
-
+        // 修复：每次切换歌曲都重新加载歌词，不管是否已缓存
         const ext = filename.toLowerCase().split('.').pop();
         fetch(media + encodeURI(filename)).then(r => r.text()).then(text => {
             const parsedLyrics = (ext === 'srt') ? parseSRT(text) : (ext === 'lrc') ? parseLRC(text) : [];
