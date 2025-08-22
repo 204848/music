@@ -522,7 +522,7 @@ Player.prototype = {
             this.startBackgroundSlideshow(picData, forceReset);
         } else {
             this.isSlideshowRunning = false;
-            const singlePic = Array.isArray(picData) ? picData[0] : picData;
+            const singlePic = Array.isArray(picData) ? data.pic[0] : data.pic;
             const imageUrl = `url('${media}${encodeURI(singlePic)}')`;
             bgLayer1.style.backgroundImage = imageUrl;
             bgLayer1.style.opacity = 1;
