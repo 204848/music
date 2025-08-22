@@ -30,12 +30,21 @@ const durationDisplay = document.getElementById('progress-duration');
 const bgLayer1 = document.getElementById('bg-layer1');
 const bgLayer2 = document.getElementById('bg-layer2');
 
+// 新增歌词元素引用
+const lyricLines = {
+    prev2: document.querySelector('.prev-line-2'),
+    prev1: document.querySelector('.prev-line-1'),
+    current: document.querySelector('.current-line'),
+    next1: document.querySelector('.next-line-1'),
+    next2: document.querySelector('.next-line-2')
+};
+
 let player;
 let playNum = 0;
 let requestJson = "memp.json";
 let currentLyrics = [];
 let lyricInterval = null;
-let lastLyricTime = -1;
+let lastLyricIndex = -1; // 用于跟踪当前歌词索引
 let isSeeking = false;
 let pendingSeekPercent = null; // 用于存储等待播放时的seek位置
 let preloadedDurations = {}; // 缓存预加载的时长
@@ -150,15 +159,49 @@ function parseSRT(srtText) {
     return result;
 }
 
-function getCurrentLyric(time, lyrics, isSRT = false) {
-    if (!lyrics || lyrics.length === 0) return '';
-    if (isSRT) {
-        const active = lyrics.find(l => time >= l.start && time < l.end);
-        return active ? active.text : '';
-    } else {
-        const active = lyrics.find(l => time >= l.time && time < l.end);
-        return active ? active.text : '';
+function getCurrentLyricIndex(time, lyrics) {
+    if (!lyrics || lyrics.length === 0) return -1;
+    
+    // 二分查找优化性能
+    let left = 0;
+    let right = lyrics.length - 1;
+    let result = -1;
+    
+    while (left <= right) {
+        const mid = Math.floor((left + right) / 2);
+        if (lyrics[mid].time <= time) {
+            result = mid;
+            left = mid + 1;
+        } else {
+            right = mid - 1;
+        }
     }
+    
+    // 确保当前时间在歌词的时间范围内
+    if (result >= 0 && time < (lyrics[result].end || Infinity)) {
+        return result;
+    }
+    
+    return -1;
+}
+
+function updateLyricDisplay(lyrics, currentIndex) {
+    if (!lyrics || lyrics.length === 0) {
+        // 无歌词时显示提示
+        lyricLines.prev2.textContent = '';
+        lyricLines.prev1.textContent = '';
+        lyricLines.current.textContent = '暂无歌词';
+        lyricLines.next1.textContent = '';
+        lyricLines.next2.textContent = '';
+        return;
+    }
+    
+    // 更新5句歌词显示
+    lyricLines.prev2.textContent = (currentIndex >= 2) ? lyrics[currentIndex - 2].text : '';
+    lyricLines.prev1.textContent = (currentIndex >= 1) ? lyrics[currentIndex - 1].text : '';
+    lyricLines.current.textContent = (currentIndex >= 0) ? lyrics[currentIndex].text : '';
+    lyricLines.next1.textContent = (currentIndex < lyrics.length - 1) ? lyrics[currentIndex + 1].text : '';
+    lyricLines.next2.textContent = (currentIndex < lyrics.length - 2) ? lyrics[currentIndex + 2].text : '';
 }
 
 let Player = function (playlist) {
@@ -201,7 +244,7 @@ Player.prototype = {
 
         // 清除之前的定时器
         if (lyricInterval) clearInterval(lyricInterval);
-        lastLyricTime = -1;
+        lastLyricIndex = -1;
 
         // 如果是新track，重置进度条
         if (isNewTrack) {
@@ -226,10 +269,12 @@ Player.prototype = {
                     // 启动歌词更新定时器
                     lyricInterval = setInterval(() => {
                         const pos = sound.seek();
-                        if (Math.abs(pos - lastLyricTime) > 0.1) {
-                            const lyrics = preloadedLyrics[index] || currentLyrics;
-                            lyricContainer.innerHTML = getCurrentLyric(pos, lyrics, isSRT); 
-                            lastLyricTime = pos;
+                        const lyrics = preloadedLyrics[index] || currentLyrics;
+                        const currentIndex = getCurrentLyricIndex(pos, lyrics);
+                        
+                        if (currentIndex !== lastLyricIndex) {
+                            updateLyricDisplay(lyrics, currentIndex);
+                            lastLyricIndex = currentIndex;
                         }
                     }, 100);
 
@@ -253,10 +298,10 @@ Player.prototype = {
                 onstop: () => { if (lyricInterval) clearInterval(lyricInterval); if (backgroundInterval) clearInterval(backgroundInterval); },
                 onseek: () => { 
                     const pos = sound.seek(); 
-                    const isSRT = data.lyric && /\.srt$/i.test(data.lyric); 
                     const lyrics = preloadedLyrics[index] || currentLyrics;
-                    lyricContainer.innerHTML = getCurrentLyric(pos, lyrics, isSRT); 
-                    lastLyricTime = pos; 
+                    const currentIndex = getCurrentLyricIndex(pos, lyrics);
+                    updateLyricDisplay(lyrics, currentIndex);
+                    lastLyricIndex = currentIndex;
                     requestAnimationFrame(this.step.bind(this)); 
                 }
             });
@@ -591,10 +636,11 @@ Player.prototype = {
     updateLyricAtTime: function(time, index) {
         // 实时更新歌词显示
         const data = this.playlist[index];
-        const isSRT = data.lyric && /\.srt$/i.test(data.lyric);
         const lyrics = preloadedLyrics[index] || currentLyrics;
         if (lyrics && lyrics.length > 0) {
-            lyricContainer.innerHTML = getCurrentLyric(time, lyrics, isSRT);
+            const currentIndex = getCurrentLyricIndex(time, lyrics);
+            updateLyricDisplay(lyrics, currentIndex);
+            lastLyricIndex = currentIndex;
         }
     },
 
@@ -648,7 +694,7 @@ Player.prototype = {
         if (!filename) {
             currentLyrics = []; 
             preloadedLyrics[currentIndex] = [];
-            lyricContainer.innerHTML = ''; 
+            updateLyricDisplay([], -1); // 清空歌词显示
             return;
         }
         
@@ -657,9 +703,9 @@ Player.prototype = {
             currentLyrics = preloadedLyrics[currentIndex];
             const sound = this.playlist[currentIndex].howl;
             const pos = sound ? sound.seek() : 0;
-            const isSRT = filename && /\.srt$/i.test(filename);
-            lyricContainer.innerHTML = getCurrentLyric(pos, currentLyrics, isSRT);
-            lastLyricTime = pos;
+            const currentIndexInLyrics = getCurrentLyricIndex(pos, currentLyrics);
+            updateLyricDisplay(currentLyrics, currentIndexInLyrics);
+            lastLyricIndex = currentIndexInLyrics;
             return;
         }
 
@@ -671,12 +717,13 @@ Player.prototype = {
             
             const sound = this.playlist[currentIndex].howl;
             const pos = sound ? sound.seek() : 0;
-            lyricContainer.innerHTML = getCurrentLyric(pos, parsedLyrics, ext === 'srt');
-            lastLyricTime = pos;
+            const currentIndexInLyrics = getCurrentLyricIndex(pos, parsedLyrics);
+            updateLyricDisplay(parsedLyrics, currentIndexInLyrics);
+            lastLyricIndex = currentIndexInLyrics;
         }).catch(() => {
             preloadedLyrics[currentIndex] = [];
             currentLyrics = []; 
-            lyricContainer.innerHTML = '';
+            updateLyricDisplay([], -1); // 清空歌词显示
         });
     },
 
@@ -748,10 +795,11 @@ const onSeek = (e) => {
         
         // 实时更新歌词
         const data = player.playlist[currentIndex];
-        const isSRT = data.lyric && /\.srt$/i.test(data.lyric);
         const lyrics = preloadedLyrics[currentIndex] || currentLyrics;
         if (lyrics && lyrics.length > 0) {
-            lyricContainer.innerHTML = getCurrentLyric(seek, lyrics, isSRT);
+            const currentIndexInLyrics = getCurrentLyricIndex(seek, lyrics);
+            updateLyricDisplay(lyrics, currentIndexInLyrics);
+            lastLyricIndex = currentIndexInLyrics;
         }
     }
 };
