@@ -322,7 +322,11 @@ Player.prototype = {
                 }
             });
         }
-        sound.play();
+        
+        // 修复：只有在没有播放时才调用play()
+        if (!sound.playing()) {
+            sound.play();
+        }
 
         if (isNewTrack) {
             track.innerHTML = data.title;
