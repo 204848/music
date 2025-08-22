@@ -298,7 +298,7 @@ Player.prototype = {
                             updateLyricDisplay(lyrics, currentIndex);
                             lastLyricIndex = currentIndex;
                         }
-                    }, 100);
+                    }, 70);
 
                     this.setupVisualization(sound);
                     
