@@ -84,71 +84,58 @@ body {
   align-items: center;
   justify-content: center;
   height: 100%;
-  position: relative;
-  overflow: hidden;
+  background: rgba(0, 0, 0, 0.3);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border-radius: 15px;
+  padding: 15px 10px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+  max-width: 800px;
+  margin: 0 auto;
+  box-sizing: border-box;
 }
 
 .lyric-line {
-  transition: all 0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  transition: all 0.5s ease;
   padding: 5px 20px;
   width: 100%;
   box-sizing: border-box;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  position: absolute;
-  left: 0;
-  right: 0;
-  opacity: 0;
-  transform: translateY(0);
-  filter: blur(0px);
+  opacity: 0.7;
 }
 
-.prev-line-2 {
-  top: 0;
-  font-size: 14px;
-  opacity: 0.4;
-  transform: translateY(-20px);
-}
-
-.prev-line-1 {
-  top: 25%;
-  font-size: 15px;
-  opacity: 0.6;
-  transform: translateY(-10px);
+.prev-line, .next-line {
+  filter: blur(1px);
+  font-size: 16px;
 }
 
 .current-line {
-  top: 50%;
-  transform: translateY(-50%);
-  font-size: 20px;
+  font-size: 22px;
   font-weight: bold;
   opacity: 1;
   filter: none;
+  transform: scale(1.05);
+  margin: 10px 0;
+  color: #ffffff;
+  text-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
+}
+
+.prev-line-2 {
+  transform: translateY(-10px);
+}
+
+.prev-line-1 {
+  transform: translateY(-5px);
 }
 
 .next-line-1 {
-  bottom: 25%;
-  font-size: 15px;
-  opacity: 0.6;
-  transform: translateY(10px);
+  transform: translateY(5px);
 }
 
 .next-line-2 {
-  bottom: 0;
-  font-size: 14px;
-  opacity: 0.4;
-  transform: translateY(20px);
-}
-
-/* 激活状态的歌词行 */
-.lyric-line.active {
-  opacity: 1;
-}
-
-.lyric-line.prev-line, 
-.lyric-line.next-line {
-  filter: blur(1px);
+  transform: translateY(10px);
 }
 
 .no-lyrics {
@@ -602,11 +589,8 @@ body {
     font-size: 18px;
   }
   
-  .prev-line-2, .next-line-2 {
-    font-size: 12px;
-  }
-  
-  .prev-line-1, .next-line-1 {
-    font-size: 13px;
+  #lyrics-wrapper {
+    border-radius: 10px;
+    padding: 10px 5px;
   }
 }
