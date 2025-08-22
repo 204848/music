@@ -196,12 +196,25 @@ function updateLyricDisplay(lyrics, currentIndex) {
         return;
     }
     
+    // 添加过渡效果类
+    const lines = [lyricLines.prev2, lyricLines.prev1, lyricLines.current, lyricLines.next1, lyricLines.next2];
+    lines.forEach(line => {
+        line.classList.add('lyric-transition');
+    });
+    
     // 更新5句歌词显示
     lyricLines.prev2.textContent = (currentIndex >= 2) ? lyrics[currentIndex - 2].text : '';
     lyricLines.prev1.textContent = (currentIndex >= 1) ? lyrics[currentIndex - 1].text : '';
     lyricLines.current.textContent = (currentIndex >= 0) ? lyrics[currentIndex].text : '';
     lyricLines.next1.textContent = (currentIndex < lyrics.length - 1) ? lyrics[currentIndex + 1].text : '';
     lyricLines.next2.textContent = (currentIndex < lyrics.length - 2) ? lyrics[currentIndex + 2].text : '';
+    
+    // 移除过渡效果类以重新触发动画
+    setTimeout(() => {
+        lines.forEach(line => {
+            line.classList.remove('lyric-transition');
+        });
+    }, 10);
 }
 
 let Player = function (playlist) {
