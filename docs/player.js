@@ -203,22 +203,45 @@ function updateLyricDisplay(lyrics, currentIndex) {
         return;
     }
     
-    // 确保currentIndex在有效范围内
-    const index = Math.max(0, Math.min(currentIndex, lyrics.length - 1));
+    // 为歌词切换添加动画效果
+    const prev2El = lyricLines.prev2;
+    const prev1El = lyricLines.prev1;
+    const currentEl = lyricLines.current;
+    const next1El = lyricLines.next1;
+    const next2El = lyricLines.next2;
     
-    // 更新5句歌词显示
-    lyricLines.prev2.textContent = (index >= 2) ? lyrics[index - 2].text : '';
-    lyricLines.prev1.textContent = (index >= 1) ? lyrics[index - 1].text : '';
-    lyricLines.current.textContent = (index >= 0) ? lyrics[index].text : '';
-    lyricLines.next1.textContent = (index < lyrics.length - 1) ? lyrics[index + 1].text : '';
-    lyricLines.next2.textContent = (index < lyrics.length - 2) ? lyrics[index + 2].text : '';
+    // 添加淡出效果
+    prev2El.style.opacity = '0';
+    prev1El.style.opacity = '0';
+    currentEl.style.opacity = '0';
+    next1El.style.opacity = '0';
+    next2El.style.opacity = '0';
     
-    // 设置透明度
-    lyricLines.prev2.style.opacity = index >= 2 ? '0.7' : '0';
-    lyricLines.prev1.style.opacity = index >= 1 ? '0.7' : '0';
-    lyricLines.current.style.opacity = '1';
-    lyricLines.next1.style.opacity = index < lyrics.length - 1 ? '0.7' : '0';
-    lyricLines.next2.style.opacity = index < lyrics.length - 2 ? '0.7' : '0';
+    setTimeout(() => {
+        // 确保currentIndex在有效范围内
+        const index = Math.max(0, Math.min(currentIndex, lyrics.length - 1));
+        
+        // 更新5句歌词显示
+        prev2El.textContent = (index >= 2) ? lyrics[index - 2].text : '';
+        prev1El.textContent = (index >= 1) ? lyrics[index - 1].text : '';
+        currentEl.textContent = (index >= 0) ? lyrics[index].text : '';
+        next1El.textContent = (index < lyrics.length - 1) ? lyrics[index + 1].text : '';
+        next2El.textContent = (index < lyrics.length - 2) ? lyrics[index + 2].text : '';
+        
+        // 添加淡入效果和变换效果（垂直平滑滚动、渐渐清晰、渐渐变大）
+        prev2El.style.opacity = index >= 2 ? '0.7' : '0';
+        prev1El.style.opacity = index >= 1 ? '0.7' : '0';
+        currentEl.style.opacity = '1';
+        next1El.style.opacity = index < lyrics.length - 1 ? '0.7' : '0';
+        next2El.style.opacity = index < lyrics.length - 2 ? '0.7' : '0';
+        
+        // 重置变换
+        prev2El.style.transform = index >= 2 ? 'translateY(-40px)' : 'translateY(0)';
+        prev1El.style.transform = index >= 1 ? 'translateY(-20px)' : 'translateY(0)';
+        currentEl.style.transform = 'scale(1.05)';
+        next1El.style.transform = index < lyrics.length - 1 ? 'translateY(20px)' : 'translateY(0)';
+        next2El.style.transform = index < lyrics.length - 2 ? 'translateY(40px)' : 'translateY(0)';
+    }, 150);
 }
 
 let Player = function (playlist) {
@@ -630,7 +653,7 @@ Player.prototype = {
                 // 立即更新UI
                 const seek = duration * per;
                 this.setPositionUI(seek, duration);
-                // 立即更新歌词（仅在拖动时更新）
+                // 立即更新歌词（使用当前歌曲的歌词）
                 this.updateLyricAtTime(seek, currentIndex);
             } else {
                 // 如果没有播放，保存seek位置等待播放时使用
@@ -640,7 +663,7 @@ Player.prototype = {
                 if (duration && !isNaN(duration) && isFinite(duration)) {
                     const seek = duration * per;
                     this.setPositionUI(seek, duration);
-                    // 立即更新歌词
+                    // 立即更新歌词（使用当前歌曲的歌词）
                     this.updateLyricAtTime(seek, currentIndex);
                 }
             }
@@ -651,14 +674,14 @@ Player.prototype = {
             if (cachedDuration && !isNaN(cachedDuration) && isFinite(cachedDuration)) {
                 const seek = cachedDuration * per;
                 this.setPositionUI(seek, cachedDuration);
-                // 立即更新歌词
+                // 立即更新歌词（使用当前歌曲的歌词）
                 this.updateLyricAtTime(seek, currentIndex);
             }
         }
     },
 
     updateLyricAtTime: function(time, index) {
-        // 实时更新歌词显示
+        // 实时更新歌词显示（确保使用正确歌曲的歌词）
         const data = this.playlist[index];
         const lyrics = preloadedLyrics[index] || currentLyrics;
         if (lyrics && lyrics.length > 0) {
@@ -807,7 +830,7 @@ const onSeek = (e) => {
             currentTimeDisplay.innerHTML = formattedSeek;
         }
         
-        // 实时更新歌词（仅在拖动时更新）
+        // 实时更新歌词（使用当前歌曲的歌词）
         const data = player.playlist[currentIndex];
         const lyrics = preloadedLyrics[currentIndex] || currentLyrics;
         if (lyrics && lyrics.length > 0) {
@@ -913,4 +936,4 @@ window.addEventListener('error', (e) => {
     console.error('An error occurred:', e.error);
 });
 
-console.log("\n %c Gmemp v3.6.4 (Visualization Tuned) %c https://github.com/Meekdai/Gmemp \n", "color: #fff; background-image: linear-gradient(90deg, rgb(47, 172, 178) 0%, rgb(45, 190, 96) 100%); padding:5px 1px;", "background-image: linear-gradient(90deg, rgb(45, 190, 96) 0%, rgb(255, 255, 255) 100%); padding:5px 0;");
+console.log("\n %c Gmemp v3.6.4 (Visualization Tuned) %c https://github.com/Meekdai/Gmemp \n", "color: #fff; background-image: linear-gradient(90deg, rgb(47, 172, 178) 0%, rgb(45, 190, 96) 100%); padding:5px 1px;", "background-image: linear-gradient(90deg, rgb(45, 190, 96) 0%, rgb(255, 255, 255) 100%); padding:5px 0;"); 
