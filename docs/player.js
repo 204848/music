@@ -162,16 +162,16 @@ function parseSRT(srtText) {
 function getCurrentLyricIndex(time, lyrics) {
     if (!lyrics || lyrics.length === 0) return -1;
     
-    // 修复：即使没有00:00时间戳，也能正确找到第一句歌词
-    if (time < lyrics[0].time) {
-        // 如果时间在第一句歌词之前，显示第一句歌词
-        return 0;
-    }
-    
-    // 二分查找优化性能
+    // 修复：即使没有00:00时间戳，也能正确找到对应的歌词
+    // 使用二分查找找到最接近的时间点
     let left = 0;
     let right = lyrics.length - 1;
     let result = -1;
+    
+    // 特殊处理：如果时间在第一句歌词之前，返回第一句歌词索引
+    if (time < lyrics[0].time) {
+        return 0;
+    }
     
     while (left <= right) {
         const mid = Math.floor((left + right) / 2);
@@ -188,6 +188,7 @@ function getCurrentLyricIndex(time, lyrics) {
         return result;
     }
     
+    // 如果没找到在时间范围内的歌词，返回最后一个匹配的索引
     return result;
 }
 
@@ -202,8 +203,8 @@ function updateLyricDisplay(lyrics, currentIndex) {
         return;
     }
     
-    // 修复：确保即使currentIndex为-1也能正确显示
-    const index = Math.max(0, currentIndex);
+    // 修复：确保索引不会越界
+    const index = Math.max(0, Math.min(currentIndex, lyrics.length - 1));
     
     // 为歌词切换添加动画效果
     const prev2El = lyricLines.prev2;
@@ -303,6 +304,7 @@ Player.prototype = {
                         const lyrics = preloadedLyrics[index] || currentLyrics;
                         const currentIndex = getCurrentLyricIndex(pos, lyrics);
                         
+                        // 修复：确保每次位置变化都更新歌词显示
                         if (currentIndex !== lastLyricIndex) {
                             updateLyricDisplay(lyrics, currentIndex);
                             lastLyricIndex = currentIndex;
@@ -714,6 +716,16 @@ Player.prototype = {
         // 只有在非拖动状态下才自动更新进度条
         if (!isSeeking) {
             this.setPositionUI(seek, durationVal);
+            
+            // 修复：在step函数中也更新歌词显示
+            const lyrics = preloadedLyrics[this.index] || currentLyrics;
+            if (lyrics && lyrics.length > 0) {
+                const currentIndex = getCurrentLyricIndex(seek, lyrics);
+                if (currentIndex !== lastLyricIndex) {
+                    updateLyricDisplay(lyrics, currentIndex);
+                    lastLyricIndex = currentIndex;
+                }
+            }
         }
         if (sound.playing()) {
             requestAnimationFrame(this.step.bind(this));
