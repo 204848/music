@@ -188,7 +188,7 @@ function getCurrentLyricIndex(time, lyrics) {
         return result;
     }
     
-    // 如果找不到匹配的歌词，返回最后一个歌词索引
+    // 如果找不到匹配的歌词，返回最后一个歌词的索引
     return Math.max(0, result);
 }
 
@@ -203,7 +203,7 @@ function updateLyricDisplay(lyrics, currentIndex) {
         return;
     }
     
-    // 确保索引在有效范围内
+    // 确保currentIndex在有效范围内
     const index = Math.max(0, Math.min(currentIndex, lyrics.length - 1));
     
     // 更新5句歌词显示
