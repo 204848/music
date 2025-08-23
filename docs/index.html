@@ -71,21 +71,14 @@
     <div id="list"></div>
   </div>
 
-  <!-- 保留原有的音量控制元素 -->
-  <div id="volume" class="fadeout">
-    <div id="barFull" class="bar"></div>
-    <div id="barEmpty" class="bar"></div>
-    <div id="sliderBtn"></div>
-  </div>
-
-  <!-- 新增：竖直音量条容器 -->
-  <div id="vertical-volume-container">
-    <div id="vertical-volume-bar">
-      <div id="vertical-volume-track">
-        <div id="vertical-volume-filled"></div>
-        <div id="vertical-volume-thumb"></div>
+  <!-- 新增：音量调节控件（替代原有的 #volume） -->
+  <div id="volume-control" class="volume-control">
+    <div class="volume-bar-container">
+      <div class="volume-bar-track">
+        <div class="volume-bar-fill"></div>
+        <div class="volume-slider"></div>
       </div>
-      <div id="volume-value">100</div>
+      <div class="volume-level-display">100</div>
     </div>
   </div>
 
