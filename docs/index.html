@@ -53,8 +53,6 @@
     <div class="btn" id="volumeBtn" title="音量调节"></div>
   </div>
 
-  <!-- 移除旧的 #progressBar 和 #progress -->
-
   <!-- 新增：标准底部进度条容器 -->
   <div id="progress-container">
     <div id="progress-bar">
@@ -71,6 +69,13 @@
 
   <div id="playlist">
     <div id="list"></div>
+  </div>
+
+  <!-- 保留原有的音量控制元素 -->
+  <div id="volume" class="fadeout">
+    <div id="barFull" class="bar"></div>
+    <div id="barEmpty" class="bar"></div>
+    <div id="sliderBtn"></div>
   </div>
 
   <!-- 新增：竖直音量条容器 -->
