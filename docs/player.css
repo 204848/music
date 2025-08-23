@@ -406,6 +406,101 @@ body {
   flex-shrink: 0; /* 防止被挤压 */
 }
 
+/* --- 竖直音量条 --- */
+#vertical-volume-container {
+  position: absolute;
+  bottom: 100px; /* 调整到进度条上方 */
+  right: 5%;
+  width: 40px;
+  height: 200px;
+  display: none;
+  z-index: 100;
+  transform: translateX(50%);
+}
+
+#vertical-volume-bar {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+}
+
+#vertical-volume-track {
+  position: relative;
+  width: 12px;
+  height: 150px;
+  border-radius: 6px;
+  overflow: hidden;
+  margin-bottom: 10px;
+  background-color: #606060;
+}
+
+#vertical-volume-track::before {
+  content: '';
+  position: absolute;
+  top: -6px;
+  left: 0;
+  width: 12px;
+  height: 12px;
+  background-color: #606060;
+  border-radius: 50%;
+}
+
+#vertical-volume-track::after {
+  content: '';
+  position: absolute;
+  bottom: -6px;
+  left: 0;
+  width: 12px;
+  height: 12px;
+  background-color: #606060;
+  border-radius: 50%;
+}
+
+#vertical-volume-filled {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  background-color: #FFFFFF;
+  border-radius: 6px;
+}
+
+#vertical-volume-filled::before {
+  content: '';
+  position: absolute;
+  bottom: -6px;
+  left: 0;
+  width: 12px;
+  height: 12px;
+  background-color: #FFFFFF;
+  border-radius: 50%;
+}
+
+#vertical-volume-thumb {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 16px;
+  height: 16px;
+  background-color: #FFFFFF;
+  border-radius: 50%;
+  cursor: pointer;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+  z-index: 2;
+}
+
+#volume-value {
+  color: #FFFFFF;
+  font-size: 14px;
+  font-weight: bold;
+  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.33);
+  margin-top: 5px;
+}
+
 /* --- 其他元素 --- */
 
 #loading {
@@ -656,5 +751,11 @@ body {
     display: flex;
     align-items: center;
     justify-content: center;
+  }
+  
+  /* 手机端竖直音量条调整 */
+  #vertical-volume-container {
+    bottom: 160px;
+    right: 5%;
   }
 }
