@@ -291,13 +291,10 @@ Player.prototype = {
             this.resetProgressBar();
         }
 
-        // 背景轮播控制
+        // 修复：背景轮播控制
         if (!isNewTrack && this.isSlideshowRunning) {
-            // 如果是继续播放且有背景轮播，保持轮播运行
-            if (backgroundInterval) {
-                // 轮播已在运行，无需操作
-            } else {
-                // 重新启动轮播
+            // 继续播放且有背景轮播，保持轮播运行
+            if (!backgroundInterval && data.howl && data.howl.playing()) {
                 this.startBackgroundSlideshow(data.pic, false);
             }
         } else if (isNewTrack) {
@@ -354,15 +351,9 @@ Player.prototype = {
                 onend: () => { this.playNextTrack(); },
                 onpause: () => { 
                     if (lyricInterval) clearInterval(lyricInterval); 
-                    // 暂停时停止背景轮播
-                    if (backgroundInterval) clearInterval(backgroundInterval);
-                    backgroundInterval = null;
                 },
                 onstop: () => { 
                     if (lyricInterval) clearInterval(lyricInterval); 
-                    // 停止时停止背景轮播
-                    if (backgroundInterval) clearInterval(backgroundInterval);
-                    backgroundInterval = null;
                 },
                 onseek: () => { 
                     const pos = sound.seek(); 
@@ -581,7 +572,8 @@ Player.prototype = {
             });
             
             // 如果当前正在播放，启动背景轮播
-            if (this.playlist[this.index] && this.playlist[this.index].howl && this.playlist[this.index].howl.playing()) {
+            const currentSong = this.playlist[this.index];
+            if (currentSong && currentSong.howl && currentSong.howl.playing()) {
                 this.startBackgroundSlideshow(picData, forceReset);
             }
         } else {
@@ -600,6 +592,17 @@ Player.prototype = {
         if (backgroundInterval) clearInterval(backgroundInterval);
         
         if (resetIndex) currentBgIndex = 0;
+        
+        // 确保图片已预加载
+        if (currentImageCache.length === 0) {
+            // 重新预加载图片
+            images.forEach(picName => {
+                const img = new Image();
+                img.src = media + encodeURI(picName);
+                currentImageCache.push(img);
+            });
+        }
+        
         const initialImage = currentImageCache[currentBgIndex];
         if(initialImage) {
             const currentActiveLayer = (activeBgLayer === 1) ? bgLayer1 : bgLayer2;
@@ -628,9 +631,6 @@ Player.prototype = {
     pause: function () {
         const sound = this.playlist[this.index].howl;
         if (sound) sound.pause();
-        // 暂停时停止背景轮播
-        if (backgroundInterval) clearInterval(backgroundInterval);
-        backgroundInterval = null;
         playBtn.style.display = 'block';
         pauseBtn.style.display = 'none';
     },
