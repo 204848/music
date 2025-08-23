@@ -73,10 +73,15 @@
     <div id="list"></div>
   </div>
 
-  <div id="volume" class="fadeout">
-    <div id="barFull" class="bar"></div>
-    <div id="barEmpty" class="bar"></div>
-    <div id="sliderBtn"></div>
+  <!-- 新增：竖直音量条容器 -->
+  <div id="vertical-volume-container">
+    <div id="vertical-volume-bar">
+      <div id="vertical-volume-track">
+        <div id="vertical-volume-filled"></div>
+        <div id="vertical-volume-thumb"></div>
+      </div>
+      <div id="volume-value">100</div>
+    </div>
   </div>
 
   <script src="howler.min.js"></script>
