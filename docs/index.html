@@ -30,13 +30,11 @@
         <div class="lyric-line next-line next-line-2"></div>
       </div>
     </div>
-    <!-- 时间显示从全屏进度条移至此处 -->
     <div id="timer">0:00</div>
     <div id="duration">0:00</div>
     <div id="post" style="display:none;"></div>
   </div>
   
-  <!-- 保留原有控制按钮 -->
   <div class="controlsOuter">
     <div class="controlsInner">
       <div id="loading"></div>
@@ -50,26 +48,22 @@
     <div class="btn" id="modeBtn" title="顺序播放"></div>
     <div class="btn" id="postBtn" title="简介/本人的话"></div>
     <div class="btn" id="waveBtn" title="节奏条开关"></div>
-    <div class="btn volume-btn-container" id="volumeBtnContainer" title="音量调节">
-      <div class="btn" id="volumeBtn"></div>
-      <!-- 音量控制条容器 -->
-      <div class="volume-control-container">
-        <div class="volume-control-track">
-          <div class="volume-control-fill"></div>
-          <div class="volume-control-thumb"></div>
-          <div class="volume-control-value">100</div>
+    <div class="btn volume-btn" id="volumeBtn" title="音量调节">
+      <div class="volume-popup" id="volumePopup">
+        <div class="volume-track" id="volumeTrack">
+          <div class="volume-fill" id="volumeFill"></div>
+          <div class="volume-thumb" id="volumeThumb"></div>
+          <div class="volume-value" id="volumeValue">100</div>
         </div>
       </div>
     </div>
   </div>
 
-  <!-- 新增：标准底部进度条容器 -->
   <div id="progress-container">
     <div id="progress-bar">
       <div id="progress-filled"></div>
       <div id="progress-slider"></div>
     </div>
-    <!-- 时间显示与进度条同行 -->
     <div id="progress-time-display">
       <span id="progress-current-time">0:00</span> / <span id="progress-duration">0:00</span>
     </div>
