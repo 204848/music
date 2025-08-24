@@ -28,12 +28,10 @@ const currentTimeDisplay = document.getElementById('progress-current-time');
 const durationDisplay = document.getElementById('progress-duration');
 
 // 音量控制相关元素
-const volumePopup = document.querySelector('#volumePopup');
-const volumeTrack = document.getElementById('volumeTrack');
-const volumeFilled = document.getElementById('volumeFilled');
-const volumeSlider = document.getElementById('volumeSlider');
-const volumeValue = document.getElementById('volumeValue');
-const volumeBtn = document.getElementById('volumeBtn');
+const volumePopup = document.getElementById('volume-popup');
+const volumeBarTrack = document.getElementById('volume-bar-track');
+const volumeBarFilled = document.getElementById('volume-bar-filled');
+const volumePercentage = document.getElementById('volume-percentage');
 
 const bgLayer1 = document.getElementById('bg-layer1');
 const bgLayer2 = document.getElementById('bg-layer2');
@@ -64,11 +62,6 @@ let currentBgIndex = 0;
 let activeBgLayer = 1;
 let currentImageCache = [];
 
-// 音量控制相关变量
-let isVolumeDragging = false;
-let volumePopupTimeout = null;
-let isVolumePopupVisible = false;
-
 // SVG 图标 Data URIs
 const modeIcons = {
     list: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Cpath fill='%23fff' d='M0 128c0-17.7 14.3-32 32-32H480c17.7 0 32 14.3 32 32s-14.3 32-32 32H32c-17.7 0-32-14.3-32-32zm0 256c0-17.7 14.3-32 32-32H480c17.7 0 32 14.3 32 32s-14.3 32-32 32H32c-17.7 0-32-14.3-32-32zM0 256c0-17.7 14.3-32 32-32H480c17.7 0 32 14.3 32 32s-14.3 32-32 32H32c-17.7 0-32-14.3-32-32z'/%3E%3C/svg%3E",
@@ -81,6 +74,10 @@ const modeTitles = {
     shuffle: '随机播放',
     single: '单曲循环'
 };
+
+// 音量控制相关变量
+let isVolumeDragging = false;
+let volumeHideTimeout = null;
 
 let request = new XMLHttpRequest();
 request.open("GET", requestJson);
@@ -259,43 +256,34 @@ function updateLyricDisplay(lyrics, currentIndex) {
 
 // 音量控制相关函数
 function showVolumePopup() {
-    if (volumePopupTimeout) {
-        clearTimeout(volumePopupTimeout);
-        volumePopupTimeout = null;
-    }
-    
+    clearTimeout(volumeHideTimeout);
     volumePopup.style.display = 'flex';
-    isVolumePopupVisible = true;
-    
-    // 缩短进度条
-    progressBar.style.width = '89%';
-    progressBar.style.transition = 'width 0.3s ease';
+    progressContainer.style.width = '89%';
 }
 
 function hideVolumePopup() {
-    volumePopupTimeout = setTimeout(() => {
+    volumeHideTimeout = setTimeout(() => {
         volumePopup.style.display = 'none';
-        isVolumePopupVisible = false;
-        
-        // 恢复进度条长度
-        progressBar.style.width = '100%';
-        progressBar.style.transition = 'width 0.3s ease';
-    }, 300);
+        progressContainer.style.width = '100%';
+    }, 1000);
 }
 
-function updateVolumeUI(volume) {
-    const percent = volume * 100;
-    const trackHeight = volumeTrack.offsetHeight;
-    const filledHeight = trackHeight * volume;
-    
-    volumeFilled.style.height = filledHeight + 'px';
-    volumeSlider.style.bottom = (filledHeight - 8) + 'px'; // 8 is half of slider height
-    volumeValue.textContent = Math.round(percent) + '%';
+function updateVolumeDisplay(volume) {
+    const percent = Math.round(volume * 100);
+    const heightPercent = percent;
+    volumeBarFilled.style.height = heightPercent + '%';
+    volumePercentage.textContent = percent + '%';
 }
 
 function setVolume(volume) {
     Howler.volume(volume);
-    updateVolumeUI(volume);
+    updateVolumeDisplay(volume);
+}
+
+function calculateVolumeFromPosition(clientY) {
+    const rect = volumeBarTrack.getBoundingClientRect();
+    const position = (rect.bottom - clientY) / rect.height;
+    return Math.max(0, Math.min(1, position));
 }
 
 let Player = function (playlist) {
@@ -317,6 +305,9 @@ let Player = function (playlist) {
     // 预加载当前歌曲时长
     this.preloadDuration(playlist[this.index], this.index);
 
+    // 初始化音量显示
+    updateVolumeDisplay(Howler.volume());
+
     playlist.forEach((song, index) => {
         let div = document.createElement('div');
         div.className = 'list-song';
@@ -327,9 +318,6 @@ let Player = function (playlist) {
     });
     document.querySelector('#list-song-' + playNum).style.backgroundColor = 'rgba(255, 255, 255, 0.1)';
     this.updateModeButton(); 
-    
-    // 初始化音量
-    updateVolumeUI(Howler.volume());
 };
 
 Player.prototype = {
@@ -732,11 +720,6 @@ Player.prototype = {
         }
     },
 
-    volume: function (val) {
-        Howler.volume(val);
-        updateVolumeUI(val);
-    },
-
     seek: function (per) {
         const sound = this.playlist[this.index].howl;
         const currentIndex = this.index;
@@ -981,32 +964,21 @@ postBtn.addEventListener('click', () => player.togglePost());
 waveBtn.addEventListener('click', () => player.toggleWave());
 modeBtn.addEventListener('click', () => player.toggleMode());
 
-// 音量控制事件处理
-volumeBtn.addEventListener('click', (e) => {
-    e.stopPropagation();
-    if (isVolumePopupVisible) {
-        hideVolumePopup();
-    } else {
-        showVolumePopup();
+// 音量控制事件监听器
+volumeBtn.addEventListener('mouseenter', showVolumePopup);
+volumeBtn.addEventListener('mouseleave', hideVolumePopup);
+volumePopup.addEventListener('mouseenter', showVolumePopup);
+volumePopup.addEventListener('mouseleave', hideVolumePopup);
+
+// 音量条点击事件
+volumeBarTrack.addEventListener('click', (e) => {
+    if (!isVolumeDragging) {
+        const volume = calculateVolumeFromPosition(e.clientY);
+        setVolume(volume);
     }
 });
 
-// 点击其他地方隐藏音量控制
-document.addEventListener('click', (e) => {
-    if (isVolumePopupVisible && !volumeBtn.contains(e.target)) {
-        hideVolumePopup();
-    }
-});
-
-// 音量条交互
-volumeTrack.addEventListener('click', (e) => {
-    const rect = volumeTrack.getBoundingClientRect();
-    const percent = 1 - (e.clientY - rect.top) / rect.height;
-    const volume = Math.max(0, Math.min(1, percent));
-    setVolume(volume);
-});
-
-// 音量滑块拖动
+// 音量条拖动事件
 const startVolumeDrag = (e) => {
     isVolumeDragging = true;
     document.body.style.cursor = 'grabbing';
@@ -1021,10 +993,8 @@ const startVolumeDrag = (e) => {
 const onVolumeDrag = (e) => {
     if (!isVolumeDragging) return;
     const clientY = e.type.includes('touch') ? e.touches[0].clientY : e.clientY;
-    const rect = volumeTrack.getBoundingClientRect();
-    let percent = 1 - (clientY - rect.top) / rect.height;
-    percent = Math.max(0, Math.min(1, percent));
-    setVolume(percent);
+    const volume = calculateVolumeFromPosition(clientY);
+    setVolume(volume);
 };
 
 const endVolumeDrag = () => {
@@ -1037,24 +1007,12 @@ const endVolumeDrag = () => {
     window.removeEventListener('touchend', endVolumeDrag);
 };
 
-volumeSlider.addEventListener('mousedown', startVolumeDrag);
-volumeSlider.addEventListener('touchstart', startVolumeDrag, { passive: false });
+volumeBarTrack.addEventListener('mousedown', startVolumeDrag);
+volumeBarTrack.addEventListener('touchstart', startVolumeDrag, { passive: false });
 
-// 鼠标悬停控制
-volumePopup.addEventListener('mouseenter', () => {
-    if (volumePopupTimeout) {
-        clearTimeout(volumePopupTimeout);
-        volumePopupTimeout = null;
-    }
+lyricBtn.addEventListener('click', () => {
+    lyricContainer.style.display = (lyricContainer.style.display === 'none' || !lyricContainer.style.display) ? 'block' : 'none';
 });
-
-volumePopup.addEventListener('mouseleave', hideVolumePopup);
-
-playlistBtn.addEventListener('click', () => player.togglePlaylist());
-playlist.addEventListener('click', () => player.togglePlaylist());
-postBtn.addEventListener('click', () => player.togglePost());
-waveBtn.addEventListener('click', () => player.toggleWave());
-modeBtn.addEventListener('click', () => player.toggleMode());
 
 document.addEventListener('keyup', e => {
     if (!player) return;
@@ -1064,18 +1022,7 @@ document.addEventListener('keyup', e => {
     else if (e.key === "l" || e.key === "L") { player.togglePlaylist(); }
     else if (e.key === "p" || e.key === "P") { player.togglePost(); }
     else if (e.key === "w" || e.key === "W") { player.toggleWave(); }
-    else if (e.key === "v" || e.key === "V") { 
-        // 音量快捷键现在控制音量弹出
-        if (isVolumePopupVisible) {
-            hideVolumePopup();
-        } else {
-            showVolumePopup();
-        }
-    }
-});
-
-lyricBtn.addEventListener('click', () => {
-    lyricContainer.style.display = (lyricContainer.style.display === 'none' || !lyricContainer.style.display) ? 'block' : 'none';
+    else if (e.key === "v" || e.key === "V") { showVolumePopup(); }
 });
 
 window.addEventListener('beforeunload', () => {
