@@ -257,15 +257,15 @@ function updateLyricDisplay(lyrics, currentIndex) {
 // 音量控制相关函数
 function showVolumePopup() {
     clearTimeout(volumeHideTimeout);
-    volumePopup.style.display = 'flex';
+    volumePopup.classList.add('show');
     progressContainer.style.width = '89%';
 }
 
 function hideVolumePopup() {
     volumeHideTimeout = setTimeout(() => {
-        volumePopup.style.display = 'none';
+        volumePopup.classList.remove('show');
         progressContainer.style.width = '100%';
-    }, 300); // 缩短隐藏延迟到300ms
+    }, 300); // 缩短延迟时间到300ms
 }
 
 function updateVolumeDisplay(volume) {
