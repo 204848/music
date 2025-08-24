@@ -358,9 +358,9 @@ body {
 
 #progress-bar {
   flex-grow: 1;
-  height: 6px; /* 轨道高度 */
+  height: 8px; /* 稍粗一点的轨道高度 */
   background-color: rgba(255, 255, 255, 0.3); /* 未填充部分颜色 */
-  border-radius: 3px; /* 轻微圆角 */
+  border-radius: 4px; /* 轻微圆角 */
   position: relative;
   cursor: pointer;
   touch-action: none; /* 防止拖动时页面滚动 */
@@ -370,7 +370,7 @@ body {
   height: 100%;
   width: 0%; /* 初始宽度为0 */
   background-color: rgba(255, 255, 255, 0.8); /* 已填充部分颜色 */
-  border-radius: 3px;
+  border-radius: 4px;
   position: absolute;
   top: 0;
   left: 0;
@@ -406,93 +406,86 @@ body {
   flex-shrink: 0; /* 防止被挤压 */
 }
 
-/* --- 新增音量控制样式 --- */
+/* --- 新的音量控制条 --- */
 .volume-control {
   position: absolute;
   right: 5%;
-  bottom: 100px; /* 位于进度条上方 */
-  display: none;
+  bottom: 85px; /* 在音量按钮上方 */
+  width: 30px;
+  height: 150px;
   z-index: 30;
-  pointer-events: none;
+  display: none;
+  transform-origin: bottom center;
+  animation: volumeSlideUp 0.2s ease-out;
 }
 
-.volume-bar-container {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  pointer-events: auto;
+@keyframes volumeSlideUp {
+  from {
+    transform: translateY(20px) scale(0.9);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0) scale(1);
+    opacity: 1;
+  }
 }
 
-.volume-bar-track {
-  width: 8px;
-  height: 120px;
-  background-color: #606060;
-  border-radius: 4px;
+.volume-track {
+  width: 100%;
+  height: 100%;
   position: relative;
+  background-color: #606060; /* 未填充部分颜色 */
+  border-radius: 15px; /* 胶囊形 */
   overflow: hidden;
-  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
 }
 
-.volume-bar-track::before {
-  content: '';
-  position: absolute;
-  top: -4px;
-  left: -4px;
-  width: 16px;
-  height: 16px;
-  background-color: #606060;
-  border-radius: 50%;
-}
-
-.volume-bar-track::after {
-  content: '';
-  position: absolute;
-  bottom: -4px;
-  left: -4px;
-  width: 16px;
-  height: 16px;
-  background-color: #606060;
-  border-radius: 50%;
-}
-
-.volume-bar-fill {
+.volume-fill {
   position: absolute;
   bottom: 0;
   left: 0;
   width: 100%;
-  height: 100%;
-  background-color: #FFFFFF;
-  border-radius: 4px 4px 0 0;
-  transform-origin: bottom;
+  height: 100%; /* 初始全满 */
+  background-color: #FFFFFF; /* 已填充部分颜色 */
+  border-radius: 15px; /* 与主轨道一致 */
+  border-bottom-left-radius: 15px;
+  border-bottom-right-radius: 15px;
   transition: height 0.1s ease;
 }
 
-.volume-slider {
+.volume-thumb {
   position: absolute;
-  bottom: 0;
-  left: 50%;
-  transform: translate(-50%, 50%);
-  width: 16px;
-  height: 16px;
+  width: 24px;
+  height: 24px;
   background-color: #FFFFFF;
   border-radius: 50%;
+  left: 50%;
+  transform: translateX(-50%);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
   cursor: grab;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
   z-index: 2;
+  transition: transform 0.1s ease;
 }
 
-.volume-slider:active {
+.volume-thumb:active {
+  transform: translateX(-50%) scale(1.1);
   cursor: grabbing;
-  transform: translate(-50%, 50%) scale(1.2);
 }
 
 .volume-level-display {
-  margin-top: 8px;
+  position: absolute;
+  top: -30px;
+  left: 50%;
+  transform: translateX(-50%);
   color: #FFFFFF;
   font-size: 14px;
-  text-align: center;
+  font-weight: bold;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
   min-width: 30px;
-  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.33);
+  text-align: center;
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 10px;
+  padding: 2px 8px;
 }
 
 /* --- 其他元素 --- */
@@ -574,27 +567,6 @@ body {
   z-index: -1; /* 保持在背景层 */
 }
 
-/* 保留原有的 #volume 元素但隐藏，以防JS中还有引用 */
-#volume {
-  display: none !important;
-}
-
-.bar {
-  display: none;
-}
-
-#barEmpty {
-  display: none;
-}
-
-#barFull {
-  display: none;
-}
-
-#sliderBtn {
-  display: none;
-}
-
 .fadeout {
   animation: fadeout 0.5s;
 }
@@ -650,6 +622,11 @@ body {
   #postBtn { left: calc(5% + 80px); }
   #waveBtn { right: calc(5% + 50px); }
   #volumeBtn { right: 5%; }
+  #lyricBtn {
+    right: calc(5% + 120px);
+    top: calc(50% - 80px);
+  }
+  
   #lyricContainer { font-size: 16px; max-height: 150px; padding: 5px 0; margin-top: 10px; }
   #track { font-size: 28px; }
   #artist { font-size: 16px; }
@@ -664,16 +641,11 @@ body {
     margin-left: 10px;
   }
   #progress-bar {
-    height: 5px;
+    height: 6px;
   }
   #progress-slider {
     width: 14px;
     height: 14px;
-  }
-  
-  #lyricBtn {
-    right: calc(5% + 120px);
-    top: calc(50% - 80px);
   }
   
   .lyric-line {
@@ -712,39 +684,10 @@ body {
     transform: translateY(24px);
   }
   
-  /* 手机端音量控制样式 */
+  /* 调整音量控制条在移动端的位置 */
   .volume-control {
     right: 5%;
-    bottom: 130px;
-  }
-  
-  .volume-bar-track {
-    width: 6px;
-    height: 100px;
-  }
-  
-  .volume-bar-track::before {
-    top: -3px;
-    left: -3px;
-    width: 12px;
-    height: 12px;
-  }
-  
-  .volume-bar-track::after {
-    bottom: -3px;
-    left: -3px;
-    width: 12px;
-    height: 12px;
-  }
-  
-  .volume-slider {
-    width: 14px;
-    height: 14px;
-  }
-  
-  .volume-level-display {
-    font-size: 12px;
-    margin-top: 6px;
+    bottom: 150px; /* 移动端按钮位置更高 */
   }
   
   /* 确保移动端歌词完整显示 */
