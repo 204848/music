@@ -53,6 +53,8 @@
     <div class="btn" id="volumeBtn" title="音量调节"></div>
   </div>
 
+  <!-- 移除旧的 #progressBar 和 #progress -->
+
   <!-- 新增：标准底部进度条容器 -->
   <div id="progress-container">
     <div id="progress-bar">
@@ -71,13 +73,11 @@
     <div id="list"></div>
   </div>
 
-  <!-- 新增：音量调节控件（替代原有的 #volume） -->
+  <!-- 新的音量调节条 -->
   <div id="volume-control" class="volume-control">
-    <div class="volume-bar-container">
-      <div class="volume-bar-track">
-        <div class="volume-bar-fill"></div>
-        <div class="volume-slider"></div>
-      </div>
+    <div class="volume-track">
+      <div class="volume-fill"></div>
+      <div class="volume-thumb"></div>
       <div class="volume-level-display">100</div>
     </div>
   </div>
