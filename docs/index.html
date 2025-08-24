@@ -50,7 +50,17 @@
     <div class="btn" id="modeBtn" title="顺序播放"></div>
     <div class="btn" id="postBtn" title="简介/本人的话"></div>
     <div class="btn" id="waveBtn" title="节奏条开关"></div>
-    <div class="btn" id="volumeBtn" title="音量调节"></div>
+    <div class="btn volume-btn-container" id="volumeBtnContainer" title="音量调节">
+      <div class="btn" id="volumeBtn"></div>
+      <!-- 音量控制条容器 -->
+      <div class="volume-control-container">
+        <div class="volume-control-track">
+          <div class="volume-control-fill"></div>
+          <div class="volume-control-thumb"></div>
+          <div class="volume-control-value">100</div>
+        </div>
+      </div>
+    </div>
   </div>
 
   <!-- 新增：标准底部进度条容器 -->
@@ -69,15 +79,6 @@
 
   <div id="playlist">
     <div id="list"></div>
-  </div>
-
-  <!-- 新的音量控制条 -->
-  <div id="volume-control" class="volume-control">
-    <div class="volume-track">
-      <div class="volume-fill"></div>
-      <div class="volume-thumb"></div>
-      <div class="volume-level-display">100</div>
-    </div>
   </div>
 
   <script src="howler.min.js"></script>
