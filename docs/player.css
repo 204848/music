@@ -329,6 +329,61 @@ body {
   z-index: 30;
 }
 
+#volume-popup {
+  position: absolute;
+  bottom: 50px;
+  right: -10px;
+  width: 40px;
+  height: 150px;
+  background: rgba(0, 0, 0, 0.7);
+  border-radius: 20px;
+  padding: 15px 10px;
+  box-sizing: border-box;
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  z-index: 35;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+}
+
+.volume-bar-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  height: 100%;
+  width: 100%;
+}
+
+.volume-bar-track {
+  width: 8px;
+  height: 100px;
+  background-color: #606060;
+  border-radius: 4px;
+  position: relative;
+  overflow: hidden;
+  margin-bottom: 10px;
+}
+
+.volume-bar-filled {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: #FFFFFF;
+  border-radius: 4px;
+  transition: height 0.1s ease;
+}
+
+.volume-percentage {
+  color: #FFFFFF;
+  font-size: 12px;
+  font-weight: bold;
+  text-align: center;
+}
+
 #lyricBtn {
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Cpath fill='%23fff' d='M512 128v320c0 26.5-21.5 48-48 48H48c-26.5 0-48-21.5-48-48V128c0-26.5 21.5-48 48-48h416c26.5 0 48 21.5 48 48zM192 384v-96h-64v96h64zm128-96v192h64V288h-64zm128 0v64h64v-64h-64z'/%3E%3C/svg%3E");
   width: 35px;
@@ -356,6 +411,7 @@ body {
   box-sizing: border-box;
   z-index: 20;
   /* 确保进度条容器在正确层级 */
+  transition: width 0.3s ease;
 }
 
 #progress-bar {
@@ -406,93 +462,6 @@ body {
   white-space: nowrap; /* 防止换行 */
   text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.33);
   flex-shrink: 0; /* 防止被挤压 */
-}
-
-/* --- 音量调节弹出层样式 --- */
-.volume-popup {
-  position: absolute;
-  bottom: 50px;
-  right: -15px;
-  width: 40px;
-  height: 150px;
-  background-color: rgba(0, 0, 0, 0.7);
-  border-radius: 20px;
-  display: none;
-  flex-direction: column;
-  align-items: center;
-  justify-content: flex-end;
-  padding: 15px 0;
-  box-sizing: border-box;
-  z-index: 100;
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
-}
-
-.volume-bar-container {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  width: 100%;
-  height: 100%;
-}
-
-.volume-track {
-  position: relative;
-  width: 6px;
-  height: 100px;
-  background-color: #606060;
-  border-radius: 3px;
-  overflow: hidden;
-  margin-bottom: 10px;
-}
-
-.volume-filled {
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background-color: #FFFFFF;
-  border-radius: 3px;
-  transition: height 0.1s ease;
-}
-
-.volume-slider {
-  position: absolute;
-  width: 16px;
-  height: 16px;
-  background-color: #FFFFFF;
-  border-radius: 50%;
-  bottom: 0;
-  left: 50%;
-  transform: translate(-50%, 50%);
-  cursor: grab;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
-  transition: transform 0.1s ease;
-  z-index: 2;
-}
-
-.volume-slider:active {
-  transform: translate(-50%, 50%) scale(1.2);
-  cursor: grabbing;
-}
-
-.volume-value {
-  color: #FFFFFF;
-  font-size: 12px;
-  font-weight: bold;
-  text-align: center;
-  min-width: 30px;
-}
-
-/* 进度条动画 */
-#progress-bar {
-  transition: width 0.3s ease;
-}
-
-#progress-filled {
-  transition: width 0.1s ease;
 }
 
 /* --- 其他元素 --- */
@@ -699,12 +668,14 @@ body {
   }
   
   /* 手机端音量条调整 */
-  .volume-popup {
+  #volume-popup {
+    right: -5px;
+    width: 35px;
     height: 120px;
-    bottom: 45px;
   }
   
-  .volume-track {
+  .volume-bar-track {
+    width: 6px;
     height: 80px;
   }
 }
