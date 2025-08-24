@@ -14,7 +14,7 @@ const VISUALIZATION_OPACITY = 0.5;
 // ==========================================================
 
 // Cache references to DOM elements
-let elms = ['track', 'artist', 'timer', 'duration', 'post', 'playBtn', 'pauseBtn', 'prevBtn', 'nextBtn', 'playlistBtn', 'postBtn', 'waveBtn', 'volumeBtn', 'waveCanvas', 'loading', 'playlist', 'list', 'lyricBtn', 'lyricContainer', 'modeBtn'];
+let elms = ['track', 'artist', 'timer', 'duration', 'post', 'playBtn', 'pauseBtn', 'prevBtn', 'nextBtn', 'playlistBtn', 'postBtn', 'waveBtn', 'volumeBtn', 'waveCanvas', 'loading', 'playlist', 'list', 'volume', 'barEmpty', 'barFull', 'sliderBtn', 'lyricBtn', 'lyricContainer', 'modeBtn'];
 elms.forEach(function (elm) {
     window[elm] = document.getElementById(elm);
 });
@@ -27,15 +27,27 @@ const progressSlider = document.getElementById('progress-slider');
 const currentTimeDisplay = document.getElementById('progress-current-time');
 const durationDisplay = document.getElementById('progress-duration');
 
-// 新增的音量控制元素
-const volumeControl = document.querySelector('.volume-control');
-const volumeTrack = document.querySelector('.volume-track');
-const volumeFill = document.querySelector('.volume-fill');
-const volumeThumb = document.querySelector('.volume-thumb');
-const volumeLevelDisplay = document.querySelector('.volume-level-display');
-
 const bgLayer1 = document.getElementById('bg-layer1');
 const bgLayer2 = document.getElementById('bg-layer2');
+
+// 新增音量控制条元素
+const volumeControl = document.createElement('div');
+volumeControl.id = 'volume-control';
+volumeControl.className = 'volume-control';
+document.body.appendChild(volumeControl);
+
+volumeControl.innerHTML = `
+  <div class="volume-track">
+    <div class="volume-fill"></div>
+    <div class="volume-thumb"></div>
+    <div class="volume-level-display">100</div>
+  </div>
+`;
+
+const volumeTrack = volumeControl.querySelector('.volume-track');
+const volumeFill = volumeControl.querySelector('.volume-fill');
+const volumeThumb = volumeControl.querySelector('.volume-thumb');
+const volumeLevelDisplay = volumeControl.querySelector('.volume-level-display');
 
 // 新增歌词元素引用
 const lyricLines = {
@@ -251,6 +263,34 @@ function updateLyricDisplay(lyrics, currentIndex) {
     }, 150);
 }
 
+// 音量控制相关函数
+function updateVolumeUI(volume) {
+    const percent = volume;
+    const trackHeight = volumeTrack.offsetHeight;
+    const fillHeight = trackHeight * percent;
+    const thumbPosition = trackHeight - fillHeight;
+    
+    volumeFill.style.height = `${fillHeight}px`;
+    volumeThumb.style.bottom = `${thumbPosition - 3}px`; // 3px是thumb高度的一半
+    volumeLevelDisplay.textContent = Math.round(percent * 100);
+}
+
+function setVolume(percent) {
+    percent = Math.max(0, Math.min(1, percent));
+    Howler.volume(percent);
+    updateVolumeUI(percent);
+    
+    // 保存音量到本地存储
+    localStorage.setItem('playerVolume', percent);
+}
+
+// 初始化音量
+function initVolume() {
+    const savedVolume = localStorage.getItem('playerVolume');
+    const initialVolume = savedVolume !== null ? parseFloat(savedVolume) : 1.0;
+    setVolume(initialVolume);
+}
+
 let Player = function (playlist) {
     this.playlist = playlist;
     this.index = playNum;
@@ -281,8 +321,8 @@ let Player = function (playlist) {
     document.querySelector('#list-song-' + playNum).style.backgroundColor = 'rgba(255, 255, 255, 0.1)';
     this.updateModeButton(); 
     
-    // 初始化音量显示
-    this.updateVolumeDisplay(Howler.volume());
+    // 初始化音量
+    initVolume();
 };
 
 Player.prototype = {
@@ -685,24 +725,6 @@ Player.prototype = {
         }
     },
 
-    // 更新音量设置和显示
-    setVolume: function(val) {
-        Howler.volume(val);
-        this.updateVolumeDisplay(val);
-    },
-
-    // 更新音量显示
-    updateVolumeDisplay: function(val) {
-        const percent = val * 100;
-        const volumeHeight = volumeTrack.offsetHeight;
-        const fillHeight = (percent / 100) * volumeHeight;
-        const thumbPosition = volumeHeight - fillHeight;
-        
-        volumeFill.style.height = fillHeight + 'px';
-        volumeThumb.style.bottom = thumbPosition + 'px';
-        volumeLevelDisplay.textContent = Math.round(percent);
-    },
-
     seek: function (per) {
         const sound = this.playlist[this.index].howl;
         const currentIndex = this.index;
@@ -836,14 +858,8 @@ Player.prototype = {
             if (!player.drawId) player.drawId = requestAnimationFrame(player.draw.bind(player));
         }
     },
-    // 切换音量控制显示/隐藏
-    toggleVolumeControl: function () { 
-        const isVisible = volumeControl.style.display === 'block';
-        volumeControl.style.display = isVisible ? 'none' : 'block';
-        if (!isVisible) {
-            // 显示时更新音量显示
-            this.updateVolumeDisplay(Howler.volume());
-        }
+    toggleVolume: function () { 
+        volumeControl.classList.toggle('show');
     },
     formatTime: function (secs) { let minutes = Math.floor(secs / 60) || 0; let seconds = (secs - minutes * 60) || 0; return `${minutes}:${(seconds < 10 ? '0' : '')}${seconds}`; }
 };
@@ -954,23 +970,12 @@ playlistBtn.addEventListener('click', () => player.togglePlaylist());
 playlist.addEventListener('click', () => player.togglePlaylist());
 postBtn.addEventListener('click', () => player.togglePost());
 waveBtn.addEventListener('click', () => player.toggleWave());
-volumeBtn.addEventListener('click', () => player.toggleVolumeControl());
+volumeBtn.addEventListener('click', () => player.toggleVolume());
 modeBtn.addEventListener('click', () => player.toggleMode());
 
 // 音量控制条事件处理
 let isVolumeDragging = false;
 
-// 点击音量轨道调节音量
-volumeTrack.addEventListener('click', (e) => {
-    if (!isVolumeDragging) {
-        const rect = volumeTrack.getBoundingClientRect();
-        const percent = 1 - ((e.clientY - rect.top) / rect.height);
-        const volume = Math.max(0, Math.min(1, percent));
-        player.setVolume(volume);
-    }
-});
-
-// 音量滑块拖拽处理
 const startVolumeDrag = (e) => {
     isVolumeDragging = true;
     document.body.style.cursor = 'grabbing';
@@ -984,11 +989,13 @@ const startVolumeDrag = (e) => {
 
 const onVolumeDrag = (e) => {
     if (!isVolumeDragging) return;
+    
     const clientY = e.type.includes('touch') ? e.touches[0].clientY : e.clientY;
     const rect = volumeTrack.getBoundingClientRect();
-    let percent = 1 - ((clientY - rect.top) / rect.height);
+    let percent = (rect.bottom - clientY) / rect.height;
     percent = Math.max(0, Math.min(1, percent));
-    player.setVolume(percent);
+    
+    setVolume(percent);
 };
 
 const endVolumeDrag = () => {
@@ -1001,28 +1008,23 @@ const endVolumeDrag = () => {
     window.removeEventListener('touchend', endVolumeDrag);
 };
 
-volumeThumb.addEventListener('mousedown', startVolumeDrag);
-volumeThumb.addEventListener('touchstart', startVolumeDrag, { passive: false });
-
-// 点击音量控制外部区域隐藏
-document.addEventListener('click', (e) => {
-    if (volumeControl.style.display === 'block' && 
-        !volumeControl.contains(e.target) && 
-        e.target !== volumeBtn) {
-        volumeControl.style.display = 'none';
+// 音量控制条点击事件
+volumeTrack.addEventListener('click', (e) => {
+    if (!isVolumeDragging) {
+        const rect = volumeTrack.getBoundingClientRect();
+        let percent = (rect.bottom - e.clientY) / rect.height;
+        percent = Math.max(0, Math.min(1, percent));
+        setVolume(percent);
     }
 });
 
-document.addEventListener('keyup', e => {
-    if (!player) return;
-    if (e.key === ' ' || e.key === "MediaPlayPause") { pauseBtn.style.display === 'block' ? player.pause() : player.play(); }
-    else if (e.key === "MediaTrackNext") { player.skip('next'); }
-    else if (e.key === "MediaTrackPrevious") { player.skip('prev'); }
-    else if (e.key === "l" || e.key === "L") { player.togglePlaylist(); }
-    else if (e.key === "p" || e.key === "P") { player.togglePost(); }
-    else if (e.key === "w" || e.key === "W") { player.toggleWave(); }
-    else if (e.key === "v" || e.key === "V") { 
-        player.toggleVolumeControl(); 
+volumeThumb.addEventListener('mousedown', startVolumeDrag);
+volumeThumb.addEventListener('touchstart', startVolumeDrag, { passive: false });
+
+// 点击其他地方关闭音量控制条
+document.addEventListener('click', (e) => {
+    if (!volumeControl.contains(e.target) && e.target !== volumeBtn) {
+        volumeControl.classList.remove('show');
     }
 });
 
