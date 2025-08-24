@@ -13,7 +13,7 @@ elms.forEach(function (elm) {
     window[elm] = document.getElementById(elm);
 });
 
-// 新增的底部进度条元素
+// 进度条元素
 const progressContainer = document.getElementById('progress-container');
 const progressBar = document.getElementById('progress-bar');
 const progressFilled = document.getElementById('progress-filled');
@@ -24,14 +24,15 @@ const durationDisplay = document.getElementById('progress-duration');
 const bgLayer1 = document.getElementById('bg-layer1');
 const bgLayer2 = document.getElementById('bg-layer2');
 
-// 音量控制条元素
-const volumeBtnContainer = document.getElementById('volumeBtnContainer');
-const volumeControlTrack = document.querySelector('.volume-control-track');
-const volumeControlFill = document.querySelector('.volume-control-fill');
-const volumeControlThumb = document.querySelector('.volume-control-thumb');
-const volumeControlValue = document.querySelector('.volume-control-value');
+// 音量控制元素
+const volumeBtn = document.getElementById('volumeBtn');
+const volumePopup = document.getElementById('volumePopup');
+const volumeTrack = document.getElementById('volumeTrack');
+const volumeFill = document.getElementById('volumeFill');
+const volumeThumb = document.getElementById('volumeThumb');
+const volumeValue = document.getElementById('volumeValue');
 
-// 歌词元素引用
+// 歌词元素
 const lyricLines = {
     prev2: document.querySelector('.prev-line-2'),
     prev1: document.querySelector('.prev-line-1'),
@@ -51,13 +52,13 @@ let pendingSeekPercent = null;
 let preloadedDurations = {};
 let preloadedLyrics = {};
 
-// 背景轮询与缓存相关变量
+// 背景轮询变量
 let backgroundInterval = null;
 let currentBgIndex = 0;
 let activeBgLayer = 1;
 let currentImageCache = [];
 
-// SVG 图标 Data URIs
+// SVG 图标
 const modeIcons = {
     list: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Cpath fill='%23fff' d='M0 128c0-17.7 14.3-32 32-32H480c17.7 0 32 14.3 32 32s-14.3 32-32 32H32c-17.7 0-32-14.3-32-32zm0 256c0-17.7 14.3-32 32-32H480c17.7 0 32 14.3 32 32s-14.3 32-32 32H32c-17.7 0-32-14.3-32-32zM0 256c0-17.7 14.3-32 32-32H480c17.7 0 32 14.3 32 32s-14.3 32-32 32H32c-17.7 0-32-14.3-32-32z'/%3E%3C/svg%3E",
     shuffle: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Cpath fill='%23fff' d='M403.8 34.4c12-5 25.7-2.2 34.9 6.9l64 64c6 6 9.4 14.1 9.4 22.6s-3.4 16.6-9.4 22.6l-64 64c-9.2 9.2-22.9 11.9-34.9 6.9s-19.8-16.6-19.8-29.6V160H352c-10.1 0-19.6 4.7-25.6 12.8L284 229.3 244 176l31.2-41.6C293.3 110.2 321.8 96 352 96h32V64c0-12.9 7.8-24.6 19.8-29.6zM164 282.7L204 336l-31.2 41.6C154.7 401.8 126.2 416 96 416H32c-17.7 0-32-14.3-32-32s14.3-32 32-32H96c10.1 0 19.6-4.7 25.6-12.8L164 282.7zm274.6 188c-9.2 9.2-22.9 11.9-34.9 6.9s-19.8-16.6-19.8-29.6V416H352c-30.2 0-58.7-14.2-76.8-38.4L121.6 172.8c-6-8.1-15.5-12.8-25.6-12.8H32c-17.7 0-32-14.3-32-32s14.3-32 32-32H96c30.2 0 58.7 14.2 76.8 38.4l153.6 204.8c6 8.1 15.5 12.8 25.6 12.8h32V320c0-12.9 7.8-24.6 19.8-29.6s25.7-2.2 34.9 6.9l64 64c6 6 9.4 14.1 9.4 22.6s-3.4 16.6-9.4 22.6l-64 64z'/%3E%3C/svg%3E",
@@ -236,13 +237,13 @@ function updateLyricDisplay(lyrics, currentIndex) {
 // 音量控制相关函数
 function updateVolumeUI(volume) {
     const percent = volume;
-    const trackHeight = volumeControlTrack.offsetHeight;
+    const trackHeight = volumeTrack.offsetHeight;
     const fillHeight = trackHeight * percent;
     const thumbPosition = trackHeight - fillHeight;
     
-    volumeControlFill.style.height = `${fillHeight}px`;
-    volumeControlThumb.style.bottom = `${thumbPosition - 3}px`;
-    volumeControlValue.textContent = Math.round(percent * 100);
+    volumeFill.style.height = `${fillHeight}px`;
+    volumeThumb.style.bottom = `${thumbPosition - 3}px`;
+    volumeValue.textContent = Math.round(percent * 100);
 }
 
 function setVolume(percent) {
@@ -912,7 +913,7 @@ const onVolumeDrag = (e) => {
     if (!isVolumeDragging) return;
     
     const clientY = e.type.includes('touch') ? e.touches[0].clientY : e.clientY;
-    const rect = volumeControlTrack.getBoundingClientRect();
+    const rect = volumeTrack.getBoundingClientRect();
     let percent = (rect.bottom - clientY) / rect.height;
     percent = Math.max(0, Math.min(1, percent));
     
@@ -930,17 +931,17 @@ const endVolumeDrag = () => {
 };
 
 // 音量控制条点击事件
-volumeControlTrack.addEventListener('click', (e) => {
+volumeTrack.addEventListener('click', (e) => {
     if (!isVolumeDragging) {
-        const rect = volumeControlTrack.getBoundingClientRect();
+        const rect = volumeTrack.getBoundingClientRect();
         let percent = (rect.bottom - e.clientY) / rect.height;
         percent = Math.max(0, Math.min(1, percent));
         setVolume(percent);
     }
 });
 
-volumeControlThumb.addEventListener('mousedown', startVolumeDrag);
-volumeControlThumb.addEventListener('touchstart', startVolumeDrag, { passive: false });
+volumeThumb.addEventListener('mousedown', startVolumeDrag);
+volumeThumb.addEventListener('touchstart', startVolumeDrag, { passive: false });
 
 lyricBtn.addEventListener('click', () => {
     lyricContainer.style.display = (lyricContainer.style.display === 'none' || !lyricContainer.style.display) ? 'block' : 'none';
