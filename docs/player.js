@@ -2,18 +2,24 @@ let media = "https://music.1357924680liu.dpdns.org/media/";
 
 // ==========================================================
 // == 可配置项 ==
+// 背景图轮播的切换间隔时间（单位：毫秒）。例如：5000 代表 5 秒
 const BACKGROUND_SLIDESHOW_INTERVAL = 5000;
+
+// 音频可视化灵敏度 (0.0 - 1.0, 值越小越不敏感/平缓, 值越大越敏感/激烈)
+// * 建议值范围: 0.3 (非常平缓) 到 0.8 (比较激烈)
 const VISUALIZATION_SENSITIVITY = 0.5; 
+
+// 音频可视化透明度 (0.0 - 1.0)
 const VISUALIZATION_OPACITY = 0.5; 
 // ==========================================================
 
 // Cache references to DOM elements
-let elms = ['track', 'artist', 'timer', 'duration', 'post', 'playBtn', 'pauseBtn', 'prevBtn', 'nextBtn', 'playlistBtn', 'postBtn', 'waveBtn', 'waveCanvas', 'loading', 'playlist', 'list', 'lyricBtn', 'lyricContainer', 'modeBtn'];
+let elms = ['track', 'artist', 'timer', 'duration', 'post', 'playBtn', 'pauseBtn', 'prevBtn', 'nextBtn', 'playlistBtn', 'postBtn', 'waveBtn', 'volumeBtn', 'waveCanvas', 'loading', 'playlist', 'list', 'lyricBtn', 'lyricContainer', 'modeBtn'];
 elms.forEach(function (elm) {
     window[elm] = document.getElementById(elm);
 });
 
-// 进度条元素
+// 新增的底部进度条元素
 const progressContainer = document.getElementById('progress-container');
 const progressBar = document.getElementById('progress-bar');
 const progressFilled = document.getElementById('progress-filled');
@@ -21,18 +27,18 @@ const progressSlider = document.getElementById('progress-slider');
 const currentTimeDisplay = document.getElementById('progress-current-time');
 const durationDisplay = document.getElementById('progress-duration');
 
+// 音量控制相关元素
+const volumePopup = document.querySelector('#volumePopup');
+const volumeTrack = document.getElementById('volumeTrack');
+const volumeFilled = document.getElementById('volumeFilled');
+const volumeSlider = document.getElementById('volumeSlider');
+const volumeValue = document.getElementById('volumeValue');
+const volumeBtn = document.getElementById('volumeBtn');
+
 const bgLayer1 = document.getElementById('bg-layer1');
 const bgLayer2 = document.getElementById('bg-layer2');
 
-// 音量控制元素
-const volumeBtn = document.getElementById('volumeBtn');
-const volumePopup = document.getElementById('volumePopup');
-const volumeTrack = document.getElementById('volumeTrack');
-const volumeFill = document.getElementById('volumeFill');
-const volumeThumb = document.getElementById('volumeThumb');
-const volumeValue = document.getElementById('volumeValue');
-
-// 歌词元素
+// 新增歌词元素引用
 const lyricLines = {
     prev2: document.querySelector('.prev-line-2'),
     prev1: document.querySelector('.prev-line-1'),
@@ -46,19 +52,24 @@ let playNum = 0;
 let requestJson = "memp.json";
 let currentLyrics = [];
 let lyricInterval = null;
-let lastLyricIndex = -1;
+let lastLyricIndex = -1; // 用于跟踪当前歌词索引
 let isSeeking = false;
-let pendingSeekPercent = null;
-let preloadedDurations = {};
-let preloadedLyrics = {};
+let pendingSeekPercent = null; // 用于存储等待播放时的seek位置
+let preloadedDurations = {}; // 缓存预加载的时长
+let preloadedLyrics = {}; // 缓存预加载的歌词
 
-// 背景轮询变量
+// 背景轮询与缓存相关变量
 let backgroundInterval = null;
 let currentBgIndex = 0;
 let activeBgLayer = 1;
 let currentImageCache = [];
 
-// SVG 图标
+// 音量控制相关变量
+let isVolumeDragging = false;
+let volumePopupTimeout = null;
+let isVolumePopupVisible = false;
+
+// SVG 图标 Data URIs
 const modeIcons = {
     list: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Cpath fill='%23fff' d='M0 128c0-17.7 14.3-32 32-32H480c17.7 0 32 14.3 32 32s-14.3 32-32 32H32c-17.7 0-32-14.3-32-32zm0 256c0-17.7 14.3-32 32-32H480c17.7 0 32 14.3 32 32s-14.3 32-32 32H32c-17.7 0-32-14.3-32-32zM0 256c0-17.7 14.3-32 32-32H480c17.7 0 32 14.3 32 32s-14.3 32-32 32H32c-17.7 0-32-14.3-32-32z'/%3E%3C/svg%3E",
     shuffle: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Cpath fill='%23fff' d='M403.8 34.4c12-5 25.7-2.2 34.9 6.9l64 64c6 6 9.4 14.1 9.4 22.6s-3.4 16.6-9.4 22.6l-64 64c-9.2 9.2-22.9 11.9-34.9 6.9s-19.8-16.6-19.8-29.6V160H352c-10.1 0-19.6 4.7-25.6 12.8L284 229.3 244 176l31.2-41.6C293.3 110.2 321.8 96 352 96h32V64c0-12.9 7.8-24.6 19.8-29.6zM164 282.7L204 336l-31.2 41.6C154.7 401.8 126.2 416 96 416H32c-17.7 0-32-14.3-32-32s14.3-32 32-32H96c10.1 0 19.6-4.7 25.6-12.8L164 282.7zm274.6 188c-9.2 9.2-22.9 11.9-34.9 6.9s-19.8-16.6-19.8-29.6V416H352c-30.2 0-58.7-14.2-76.8-38.4L121.6 172.8c-6-8.1-15.5-12.8-25.6-12.8H32c-17.7 0-32-14.3-32-32s14.3-32 32-32H96c30.2 0 58.7 14.2 76.8 38.4l153.6 204.8c6 8.1 15.5 12.8 25.6 12.8h32V320c0-12.9 7.8-24.6 19.8-29.6s25.7-2.2 34.9 6.9l64 64c6 6 9.4 14.1 9.4 22.6s-3.4 16.6-9.4 22.6l-64 64z'/%3E%3C/svg%3E",
@@ -164,10 +175,13 @@ function parseSRT(srtText) {
 function getCurrentLyricIndex(time, lyrics) {
     if (!lyrics || lyrics.length === 0) return -1;
     
+    // 修复：即使没有00:00时间戳，也能正确找到第一句歌词
     if (time < lyrics[0].time) {
+        // 如果时间在第一句歌词之前，显示第一句歌词
         return 0;
     }
     
+    // 二分查找优化性能
     let left = 0;
     let right = lyrics.length - 1;
     let result = -1;
@@ -182,15 +196,18 @@ function getCurrentLyricIndex(time, lyrics) {
         }
     }
     
+    // 确保当前时间在歌词的时间范围内
     if (result >= 0 && time < (lyrics[result].end || Infinity)) {
         return result;
     }
     
+    // 如果找不到匹配的歌词，返回最后一个歌词的索引
     return Math.max(0, result);
 }
 
 function updateLyricDisplay(lyrics, currentIndex) {
     if (!lyrics || lyrics.length === 0) {
+        // 无歌词时显示提示
         lyricLines.prev2.textContent = '';
         lyricLines.prev1.textContent = '';
         lyricLines.current.textContent = '暂无歌词';
@@ -199,12 +216,14 @@ function updateLyricDisplay(lyrics, currentIndex) {
         return;
     }
     
+    // 为歌词切换添加动画效果
     const prev2El = lyricLines.prev2;
     const prev1El = lyricLines.prev1;
     const currentEl = lyricLines.current;
     const next1El = lyricLines.next1;
     const next2El = lyricLines.next2;
     
+    // 添加淡出效果
     prev2El.style.opacity = '0';
     prev1El.style.opacity = '0';
     currentEl.style.opacity = '0';
@@ -212,20 +231,24 @@ function updateLyricDisplay(lyrics, currentIndex) {
     next2El.style.opacity = '0';
     
     setTimeout(() => {
+        // 确保currentIndex在有效范围内
         const index = Math.max(0, Math.min(currentIndex, lyrics.length - 1));
         
+        // 更新5句歌词显示
         prev2El.textContent = (index >= 2) ? lyrics[index - 2].text : '';
         prev1El.textContent = (index >= 1) ? lyrics[index - 1].text : '';
         currentEl.textContent = (index >= 0) ? lyrics[index].text : '';
         next1El.textContent = (index < lyrics.length - 1) ? lyrics[index + 1].text : '';
         next2El.textContent = (index < lyrics.length - 2) ? lyrics[index + 2].text : '';
         
+        // 添加淡入效果和变换效果（垂直平滑滚动、渐渐清晰、渐渐变大）
         prev2El.style.opacity = index >= 2 ? '0.7' : '0';
         prev1El.style.opacity = index >= 1 ? '0.7' : '0';
         currentEl.style.opacity = '1';
         next1El.style.opacity = index < lyrics.length - 1 ? '0.7' : '0';
         next2El.style.opacity = index < lyrics.length - 2 ? '0.7' : '0';
         
+        // 重置变换
         prev2El.style.transform = index >= 2 ? 'translateY(-32px)' : 'translateY(0)';
         prev1El.style.transform = index >= 1 ? 'translateY(-16px)' : 'translateY(0)';
         currentEl.style.transform = 'scale(1.05)';
@@ -235,31 +258,44 @@ function updateLyricDisplay(lyrics, currentIndex) {
 }
 
 // 音量控制相关函数
+function showVolumePopup() {
+    if (volumePopupTimeout) {
+        clearTimeout(volumePopupTimeout);
+        volumePopupTimeout = null;
+    }
+    
+    volumePopup.style.display = 'flex';
+    isVolumePopupVisible = true;
+    
+    // 缩短进度条
+    progressBar.style.width = '89%';
+    progressBar.style.transition = 'width 0.3s ease';
+}
+
+function hideVolumePopup() {
+    volumePopupTimeout = setTimeout(() => {
+        volumePopup.style.display = 'none';
+        isVolumePopupVisible = false;
+        
+        // 恢复进度条长度
+        progressBar.style.width = '100%';
+        progressBar.style.transition = 'width 0.3s ease';
+    }, 300);
+}
+
 function updateVolumeUI(volume) {
-    const percent = volume;
+    const percent = volume * 100;
     const trackHeight = volumeTrack.offsetHeight;
-    const fillHeight = trackHeight * percent;
-    const thumbPosition = trackHeight - fillHeight;
+    const filledHeight = trackHeight * volume;
     
-    volumeFill.style.height = `${fillHeight}px`;
-    volumeThumb.style.bottom = `${thumbPosition - 3}px`;
-    volumeValue.textContent = Math.round(percent * 100);
+    volumeFilled.style.height = filledHeight + 'px';
+    volumeSlider.style.bottom = (filledHeight - 8) + 'px'; // 8 is half of slider height
+    volumeValue.textContent = Math.round(percent) + '%';
 }
 
-function setVolume(percent) {
-    percent = Math.max(0, Math.min(1, percent));
-    Howler.volume(percent);
-    updateVolumeUI(percent);
-    
-    // 保存音量到本地存储
-    localStorage.setItem('playerVolume', percent);
-}
-
-// 初始化音量
-function initVolume() {
-    const savedVolume = localStorage.getItem('playerVolume');
-    const initialVolume = savedVolume !== null ? parseFloat(savedVolume) : 1.0;
-    setVolume(initialVolume);
+function setVolume(volume) {
+    Howler.volume(volume);
+    updateVolumeUI(volume);
 }
 
 let Player = function (playlist) {
@@ -278,6 +314,7 @@ let Player = function (playlist) {
     document.title = `${playlist[this.index].title} - Gmemp`;
     this.loadLyric(playlist[this.index].lyric || null);
 
+    // 预加载当前歌曲时长
     this.preloadDuration(playlist[this.index], this.index);
 
     playlist.forEach((song, index) => {
@@ -291,7 +328,8 @@ let Player = function (playlist) {
     document.querySelector('#list-song-' + playNum).style.backgroundColor = 'rgba(255, 255, 255, 0.1)';
     this.updateModeButton(); 
     
-    initVolume();
+    // 初始化音量
+    updateVolumeUI(Howler.volume());
 };
 
 Player.prototype = {
@@ -301,21 +339,27 @@ Player.prototype = {
         let data = this.playlist[index];
         let sound;
 
+        // 清除之前的定时器
         if (lyricInterval) clearInterval(lyricInterval);
         lastLyricIndex = -1;
 
+        // 如果是新track，重置进度条
         if (isNewTrack) {
             this.resetProgressBar();
         }
 
+        // 修复：背景轮播控制
         if (!isNewTrack && this.isSlideshowRunning) {
+            // 继续播放且有背景轮播，保持轮播运行
             if (!backgroundInterval && data.howl && data.howl.playing()) {
                 this.startBackgroundSlideshow(data.pic, false);
             }
         } else if (isNewTrack) {
+            // 新歌曲，重新设置背景
             this.setBackground(data.pic, true);
         }
 
+        // 修复：避免重复创建sound对象
         if (data.howl && data.howl.state() !== 'unloaded') {
             sound = data.howl;
         } else {
@@ -326,7 +370,9 @@ Player.prototype = {
                     requestAnimationFrame(this.step.bind(this));
                     pauseBtn.style.display = 'block'; playBtn.style.display = 'none'; loading.style.display = 'none';
                     
+                    // 启动歌词更新定时器（更新频率改为80ms）
                     lyricInterval = setInterval(() => {
+                        // 只有在非拖动状态下才更新歌词
                         if (!isSeeking) {
                             const pos = sound.seek();
                             const lyrics = preloadedLyrics[index] || currentLyrics;
@@ -341,12 +387,14 @@ Player.prototype = {
 
                     this.setupVisualization(sound);
                     
+                    // 处理等待的seek操作
                     if (pendingSeekPercent !== null) {
                         sound.seek(sound.duration() * pendingSeekPercent);
                         this.setPositionUI(sound.duration() * pendingSeekPercent, sound.duration());
                         pendingSeekPercent = null;
                     }
                     
+                    // 确保背景轮播在播放时运行
                     if (this.isSlideshowRunning && !backgroundInterval) {
                         this.startBackgroundSlideshow(data.pic, false);
                     }
@@ -354,6 +402,7 @@ Player.prototype = {
                 onload: () => { 
                     loading.style.display = 'none'; 
                     this.updateDurationDisplays(sound.duration());
+                    // 缓存时长
                     preloadedDurations[index] = sound.duration();
                 },
                 onend: () => { this.playNextTrack(); },
@@ -374,6 +423,7 @@ Player.prototype = {
             });
         }
         
+        // 修复：只有在没有播放时才调用play()
         if (!sound.playing()) {
             sound.play();
         }
@@ -390,7 +440,7 @@ Player.prototype = {
             if(document.querySelector('#list-song-' + playNum)) { document.querySelector('#list-song-' + playNum).style.backgroundColor = ''; }
             document.querySelector('#list-song-' + index).style.backgroundColor = 'rgba(255, 255, 255, 0.1)';
             playNum = index;
-            this.loadLyric(data.lyric || null);
+            this.loadLyric(data.lyric || null); // 修复：确保每次切换歌曲都重新加载歌词
             if ('mediaSession' in navigator) this.updateMediaSession(data);
             this.setupVisualization(sound); 
         }
@@ -406,20 +456,24 @@ Player.prototype = {
     },
 
     resetProgressBar: function() {
+        // 重置进度条到0
         progressFilled.style.width = '0%';
         progressSlider.style.left = '0%';
         currentTimeDisplay.innerHTML = '0:00';
         timer.innerHTML = '0:00';
+        // 重置缓存的seek位置
         pendingSeekPercent = null;
     },
 
     preloadDuration: function(data, index) {
         if (preloadedDurations[index]) {
+            // 已经缓存了时长，直接更新显示
             this.updateDurationDisplays(preloadedDurations[index]);
             return;
         }
 
         if (data.howl && data.howl.state() === 'loaded') {
+            // 如果已经创建过sound对象且已加载，直接使用
             setTimeout(() => {
                 if (data.howl.duration()) {
                     const duration = data.howl.duration();
@@ -428,6 +482,7 @@ Player.prototype = {
                 }
             }, 100);
         } else if (!data.howl) {
+            // 创建临时sound对象来获取时长
             const tempSound = new Howl({
                 src: [media + data.mp3],
                 html5: isMobile(),
@@ -435,13 +490,14 @@ Player.prototype = {
                     const duration = tempSound.duration();
                     preloadedDurations[index] = duration;
                     this.updateDurationDisplays(duration);
-                    tempSound.unload();
+                    tempSound.unload(); // 卸载临时对象
                 },
                 onloaderror: () => {
                     console.log("预加载时长失败: " + data.title);
                 }
             });
         } else {
+            // 已有sound对象但未加载，等待加载完成
             const checkDuration = () => {
                 if (data.howl.state() === 'loaded' && data.howl.duration()) {
                     const duration = data.howl.duration();
@@ -551,10 +607,11 @@ Player.prototype = {
     },
     
     setBackground: function(picData, forceReset = false) {
+        // 清除之前的背景轮播
         if (backgroundInterval) clearInterval(backgroundInterval);
         backgroundInterval = null;
         currentImageCache = [];
-        currentBgIndex = 0;
+        currentBgIndex = 0; // 重置背景索引
         
         if (Array.isArray(picData) && picData.length > 1) {
             this.isSlideshowRunning = true;
@@ -564,12 +621,14 @@ Player.prototype = {
             bgLayer2.style.opacity = 0;
             activeBgLayer = 1;
             
+            // 预加载所有图片
             picData.forEach(picName => {
                 const img = new Image();
                 img.src = media + encodeURI(picName);
                 currentImageCache.push(img);
             });
             
+            // 如果当前正在播放，启动背景轮播
             const currentSong = this.playlist[this.index];
             if (currentSong && currentSong.howl && currentSong.howl.playing()) {
                 this.startBackgroundSlideshow(picData, forceReset);
@@ -586,11 +645,14 @@ Player.prototype = {
     },
     
     startBackgroundSlideshow: function(images, resetIndex = true) {
+        // 确保只启动一个轮播定时器
         if (backgroundInterval) clearInterval(backgroundInterval);
         
         if (resetIndex) currentBgIndex = 0;
         
+        // 确保图片已预加载
         if (currentImageCache.length === 0) {
+            // 重新预加载图片
             images.forEach(picName => {
                 const img = new Image();
                 img.src = media + encodeURI(picName);
@@ -670,6 +732,11 @@ Player.prototype = {
         }
     },
 
+    volume: function (val) {
+        Howler.volume(val);
+        updateVolumeUI(val);
+    },
+
     seek: function (per) {
         const sound = this.playlist[this.index].howl;
         const currentIndex = this.index;
@@ -679,29 +746,38 @@ Player.prototype = {
             if (sound.playing()) {
                 const duration = sound.duration();
                 sound.seek(duration * per);
+                // 立即更新UI
                 const seek = duration * per;
                 this.setPositionUI(seek, duration);
+                // 立即更新歌词（使用当前歌曲的歌词）
                 this.updateLyricAtTime(seek, currentIndex);
             } else {
+                // 如果没有播放，保存seek位置等待播放时使用
                 pendingSeekPercent = per;
+                // 立即更新UI显示
                 const duration = sound.duration() || cachedDuration;
                 if (duration && !isNaN(duration) && isFinite(duration)) {
                     const seek = duration * per;
                     this.setPositionUI(seek, duration);
+                    // 立即更新歌词（使用当前歌曲的歌词）
                     this.updateLyricAtTime(seek, currentIndex);
                 }
             }
         } else {
+            // 如果还没有创建sound对象，保存seek位置
             pendingSeekPercent = per;
+            // 更新UI显示（使用缓存的时长信息）
             if (cachedDuration && !isNaN(cachedDuration) && isFinite(cachedDuration)) {
                 const seek = cachedDuration * per;
                 this.setPositionUI(seek, cachedDuration);
+                // 立即更新歌词（使用当前歌曲的歌词）
                 this.updateLyricAtTime(seek, currentIndex);
             }
         }
     },
 
     updateLyricAtTime: function(time, index) {
+        // 实时更新歌词显示（确保使用正确歌曲的歌词）
         const data = this.playlist[index];
         const lyrics = preloadedLyrics[index] || currentLyrics;
         if (lyrics && lyrics.length > 0) {
@@ -715,6 +791,7 @@ Player.prototype = {
         const formattedSeek = this.formatTime(Math.floor(seek));
         const formattedDuration = duration && isFinite(duration) ? this.formatTime(Math.floor(duration)) : '0:00';
         
+        // 更新左侧当前时间
         if (timer.innerHTML !== formattedSeek) {
             timer.innerHTML = formattedSeek;
         }
@@ -722,6 +799,7 @@ Player.prototype = {
             currentTimeDisplay.innerHTML = formattedSeek;
         }
         
+        // 更新右侧总时间
         if (duration && isFinite(duration)) {
             const formattedTotal = this.formatTime(Math.floor(duration));
             if (duration.innerHTML !== formattedTotal) {
@@ -732,6 +810,7 @@ Player.prototype = {
             }
         }
         
+        // 更新进度条
         if (duration && isFinite(duration) && duration > 0) {
             const percent = (seek / duration) * 100;
             progressFilled.style.width = percent + '%';
@@ -744,6 +823,7 @@ Player.prototype = {
         if (!sound) return;
         let seek = sound.seek() || 0;
         let durationVal = sound.duration();
+        // 只有在非拖动状态下才自动更新进度条
         if (!isSeeking) {
             this.setPositionUI(seek, durationVal);
         }
@@ -757,14 +837,15 @@ Player.prototype = {
         if (!filename) {
             currentLyrics = []; 
             preloadedLyrics[currentIndex] = [];
-            updateLyricDisplay([], -1);
+            updateLyricDisplay([], -1); // 清空歌词显示
             return;
         }
         
+        // 修复：每次切换歌曲都重新加载歌词，不管是否已缓存
         const ext = filename.toLowerCase().split('.').pop();
         fetch(media + encodeURI(filename)).then(r => r.text()).then(text => {
             const parsedLyrics = (ext === 'srt') ? parseSRT(text) : (ext === 'lrc') ? parseLRC(text) : [];
-            preloadedLyrics[currentIndex] = parsedLyrics;
+            preloadedLyrics[currentIndex] = parsedLyrics; // 缓存歌词
             currentLyrics = parsedLyrics;
             
             const sound = this.playlist[currentIndex].howl;
@@ -775,7 +856,7 @@ Player.prototype = {
         }).catch(() => {
             preloadedLyrics[currentIndex] = [];
             currentLyrics = []; 
-            updateLyricDisplay([], -1);
+            updateLyricDisplay([], -1); // 清空歌词显示
         });
     },
 
@@ -798,7 +879,7 @@ pauseBtn.addEventListener('click', () => player.pause());
 prevBtn.addEventListener('click', () => player.skip('prev'));
 nextBtn.addEventListener('click', () => player.skip('next'));
 
-// 进度条事件处理
+// 新的进度条事件处理
 const startSeek = (e) => {
     isSeeking = true;
     progressSlider.classList.add('active');
@@ -808,7 +889,7 @@ const startSeek = (e) => {
     window.addEventListener('touchmove', onSeek, { passive: false });
     window.addEventListener('touchend', endSeek);
     e.preventDefault();
-    onSeek(e);
+    onSeek(e); // 立即更新位置
 };
 
 const onSeek = (e) => {
@@ -818,9 +899,11 @@ const onSeek = (e) => {
     let percent = (clientX - rect.left) / rect.width;
     percent = Math.max(0, Math.min(1, percent));
     
+    // 实时更新UI
     progressFilled.style.width = (percent * 100) + '%';
     progressSlider.style.left = (percent * 100) + '%';
     
+    // 实时更新时间显示（无论是否播放）
     const currentIndex = player.index;
     const sound = player.playlist[currentIndex].howl;
     const cachedDuration = preloadedDurations[currentIndex];
@@ -842,6 +925,7 @@ const onSeek = (e) => {
             currentTimeDisplay.innerHTML = formattedSeek;
         }
         
+        // 实时更新歌词（使用当前歌曲的歌词）
         const data = player.playlist[currentIndex];
         const lyrics = preloadedLyrics[currentIndex] || currentLyrics;
         if (lyrics && lyrics.length > 0) {
@@ -862,10 +946,12 @@ const endSeek = () => {
     window.removeEventListener('touchmove', onSeek);
     window.removeEventListener('touchend', endSeek);
     
+    // 执行实际的seek操作
     const rect = progressBar.getBoundingClientRect();
     const percent = (event.clientX - rect.left) / rect.width;
     player.seek(Math.max(0, Math.min(1, percent)));
     
+    // seek完成后重新启动歌词更新
     setTimeout(() => {
         if (player && player.playlist[player.index].howl && player.playlist[player.index].howl.playing()) {
             const sound = player.playlist[player.index].howl;
@@ -895,9 +981,32 @@ postBtn.addEventListener('click', () => player.togglePost());
 waveBtn.addEventListener('click', () => player.toggleWave());
 modeBtn.addEventListener('click', () => player.toggleMode());
 
-// 音量控制条事件处理
-let isVolumeDragging = false;
+// 音量控制事件处理
+volumeBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    if (isVolumePopupVisible) {
+        hideVolumePopup();
+    } else {
+        showVolumePopup();
+    }
+});
 
+// 点击其他地方隐藏音量控制
+document.addEventListener('click', (e) => {
+    if (isVolumePopupVisible && !volumeBtn.contains(e.target)) {
+        hideVolumePopup();
+    }
+});
+
+// 音量条交互
+volumeTrack.addEventListener('click', (e) => {
+    const rect = volumeTrack.getBoundingClientRect();
+    const percent = 1 - (e.clientY - rect.top) / rect.height;
+    const volume = Math.max(0, Math.min(1, percent));
+    setVolume(volume);
+});
+
+// 音量滑块拖动
 const startVolumeDrag = (e) => {
     isVolumeDragging = true;
     document.body.style.cursor = 'grabbing';
@@ -911,12 +1020,10 @@ const startVolumeDrag = (e) => {
 
 const onVolumeDrag = (e) => {
     if (!isVolumeDragging) return;
-    
     const clientY = e.type.includes('touch') ? e.touches[0].clientY : e.clientY;
     const rect = volumeTrack.getBoundingClientRect();
-    let percent = (rect.bottom - clientY) / rect.height;
+    let percent = 1 - (clientY - rect.top) / rect.height;
     percent = Math.max(0, Math.min(1, percent));
-    
     setVolume(percent);
 };
 
@@ -930,18 +1037,42 @@ const endVolumeDrag = () => {
     window.removeEventListener('touchend', endVolumeDrag);
 };
 
-// 音量控制条点击事件
-volumeTrack.addEventListener('click', (e) => {
-    if (!isVolumeDragging) {
-        const rect = volumeTrack.getBoundingClientRect();
-        let percent = (rect.bottom - e.clientY) / rect.height;
-        percent = Math.max(0, Math.min(1, percent));
-        setVolume(percent);
+volumeSlider.addEventListener('mousedown', startVolumeDrag);
+volumeSlider.addEventListener('touchstart', startVolumeDrag, { passive: false });
+
+// 鼠标悬停控制
+volumePopup.addEventListener('mouseenter', () => {
+    if (volumePopupTimeout) {
+        clearTimeout(volumePopupTimeout);
+        volumePopupTimeout = null;
     }
 });
 
-volumeThumb.addEventListener('mousedown', startVolumeDrag);
-volumeThumb.addEventListener('touchstart', startVolumeDrag, { passive: false });
+volumePopup.addEventListener('mouseleave', hideVolumePopup);
+
+playlistBtn.addEventListener('click', () => player.togglePlaylist());
+playlist.addEventListener('click', () => player.togglePlaylist());
+postBtn.addEventListener('click', () => player.togglePost());
+waveBtn.addEventListener('click', () => player.toggleWave());
+modeBtn.addEventListener('click', () => player.toggleMode());
+
+document.addEventListener('keyup', e => {
+    if (!player) return;
+    if (e.key === ' ' || e.key === "MediaPlayPause") { pauseBtn.style.display === 'block' ? player.pause() : player.play(); }
+    else if (e.key === "MediaTrackNext") { player.skip('next'); }
+    else if (e.key === "MediaTrackPrevious") { player.skip('prev'); }
+    else if (e.key === "l" || e.key === "L") { player.togglePlaylist(); }
+    else if (e.key === "p" || e.key === "P") { player.togglePost(); }
+    else if (e.key === "w" || e.key === "W") { player.toggleWave(); }
+    else if (e.key === "v" || e.key === "V") { 
+        // 音量快捷键现在控制音量弹出
+        if (isVolumePopupVisible) {
+            hideVolumePopup();
+        } else {
+            showVolumePopup();
+        }
+    }
+});
 
 lyricBtn.addEventListener('click', () => {
     lyricContainer.style.display = (lyricContainer.style.display === 'none' || !lyricContainer.style.display) ? 'block' : 'none';
@@ -951,11 +1082,14 @@ window.addEventListener('beforeunload', () => {
    if (player && player.drawId) {
        cancelAnimationFrame(player.drawId);
    }
+   // 清理背景轮播
    if (backgroundInterval) clearInterval(backgroundInterval);
 });
 
+// 处理控制台错误信息
 window.addEventListener('error', (e) => {
     if (e.message && e.message.includes('Unchecked runtime.lastError')) {
+        // 忽略Chrome扩展相关的错误
         return;
     }
     console.error('An error occurred:', e.error);
