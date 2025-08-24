@@ -265,7 +265,7 @@ function hideVolumePopup() {
     volumeHideTimeout = setTimeout(() => {
         volumePopup.style.display = 'none';
         progressContainer.style.width = '100%';
-    }, 1000);
+    }, 300); // 缩短隐藏延迟到300ms
 }
 
 function updateVolumeDisplay(volume) {
