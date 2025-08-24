@@ -331,13 +331,13 @@ body {
 
 #volume-popup {
   position: absolute;
-  bottom: 70px;
-  right: -41%;
-  width: 30px;
-  height: 120px;
-  background: rgba(0, 0, 0, 0.8);
-  border-radius: 15px;
-  padding: 10px 5px;
+  bottom: 60px;
+  right: -20px;
+  width: 40px;
+  height: 150px;
+  background: rgba(0, 0, 0, 0.85);
+  border-radius: 20px;
+  padding: 15px 10px;
   box-sizing: border-box;
   display: none;
   flex-direction: column;
@@ -347,7 +347,14 @@ body {
   -webkit-backdrop-filter: blur(15px);
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
   border: 1px solid rgba(255, 255, 255, 0.1);
-  transform: translateX(50%);
+  transition: opacity 0.2s ease, transform 0.2s ease;
+  transform: translateY(10px);
+}
+
+#volume-popup.show {
+  display: flex;
+  opacity: 1;
+  transform: translateY(0);
 }
 
 .volume-bar-container {
@@ -359,14 +366,14 @@ body {
 }
 
 .volume-bar-track {
-  width: 6px;
-  height: 80px;
+  width: 8px;
+  height: 100px;
   background-color: rgba(96, 96, 96, 0.6);
-  border-radius: 3px;
+  border-radius: 4px;
   position: relative;
   overflow: hidden;
-  margin-bottom: 8px;
-  cursor: pointer;
+  margin-bottom: 10px;
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.3);
 }
 
 .volume-bar-filled {
@@ -375,15 +382,15 @@ body {
   left: 0;
   width: 100%;
   height: 100%;
-  background: linear-gradient(to top, #ffffff, #e0e0e0);
-  border-radius: 3px;
+  background: linear-gradient(to top, #ffffff, #f0f0f0);
+  border-radius: 4px;
   transition: height 0.1s ease;
-  box-shadow: 0 0 2px rgba(255, 255, 255, 0.3);
+  box-shadow: 0 0 8px rgba(255, 255, 255, 0.2);
 }
 
 .volume-percentage {
   color: #FFFFFF;
-  font-size: 10px;
+  font-size: 12px;
   font-weight: bold;
   text-align: center;
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
@@ -432,32 +439,35 @@ body {
 #progress-filled {
   height: 100%;
   width: 0%; /* 初始宽度为0 */
-  background-color: rgba(255, 255, 255, 0.8); /* 已填充部分颜色 */
+  background: linear-gradient(to right, rgba(255, 255, 255, 0.8), rgba(255, 255, 255, 0.9));
   border-radius: 3px;
   position: absolute;
   top: 0;
   left: 0;
   z-index: 1;
+  box-shadow: 0 0 8px rgba(255, 255, 255, 0.3);
 }
 
 #progress-slider {
   width: 16px; /* 滑块宽度 */
   height: 16px; /* 滑块高度 */
-  background-color: #ffffff; /* 滑块颜色 */
+  background: #ffffff;
   border-radius: 50%; /* 圆形 */
   position: absolute;
   top: 50%;
   left: 0%;
   transform: translate(-50%, -50%); /* 精确居中于轨道 */
   z-index: 2;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3); /* 阴影增加立体感 */
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
   cursor: grab;
-  transition: transform 0.1s ease; /* 按下时的缩放动画 */
+  transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  border: 2px solid rgba(255, 255, 255, 0.2);
 }
 
 #progress-slider:active {
   cursor: grabbing;
-  transform: translate(-50%, -50%) scale(1.2); /* 按下时放大 */
+  transform: translate(-50%, -50%) scale(1.3);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
 }
 
 #progress-time-display {
@@ -674,18 +684,18 @@ body {
   
   /* 手机端音量条调整 */
   #volume-popup {
-    right: -35%;
-    width: 25px;
-    height: 100px;
-    bottom: 65px;
+    right: -15px;
+    width: 35px;
+    height: 120px;
+    bottom: 55px;
   }
   
   .volume-bar-track {
-    width: 5px;
-    height: 70px;
+    width: 6px;
+    height: 80px;
   }
   
-  .volume-percentage {
-    font-size: 9px;
+  #volumeBtn {
+    right: 5%;
   }
 }
