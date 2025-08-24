@@ -14,7 +14,7 @@ const VISUALIZATION_OPACITY = 0.5;
 // ==========================================================
 
 // Cache references to DOM elements
-let elms = ['track', 'artist', 'timer', 'duration', 'post', 'playBtn', 'pauseBtn', 'prevBtn', 'nextBtn', 'playlistBtn', 'postBtn', 'waveBtn', 'volumeBtn', 'waveCanvas', 'loading', 'playlist', 'list', 'volume', 'barEmpty', 'barFull', 'sliderBtn', 'lyricBtn', 'lyricContainer', 'modeBtn'];
+let elms = ['track', 'artist', 'timer', 'duration', 'post', 'playBtn', 'pauseBtn', 'prevBtn', 'nextBtn', 'playlistBtn', 'postBtn', 'waveBtn', 'volumeBtn', 'waveCanvas', 'loading', 'playlist', 'list', 'lyricBtn', 'lyricContainer', 'modeBtn'];
 elms.forEach(function (elm) {
     window[elm] = document.getElementById(elm);
 });
@@ -27,15 +27,15 @@ const progressSlider = document.getElementById('progress-slider');
 const currentTimeDisplay = document.getElementById('progress-current-time');
 const durationDisplay = document.getElementById('progress-duration');
 
+// 新增的音量控制元素
+const volumeControl = document.querySelector('.volume-control');
+const volumeTrack = document.querySelector('.volume-track');
+const volumeFill = document.querySelector('.volume-fill');
+const volumeThumb = document.querySelector('.volume-thumb');
+const volumeLevelDisplay = document.querySelector('.volume-level-display');
+
 const bgLayer1 = document.getElementById('bg-layer1');
 const bgLayer2 = document.getElementById('bg-layer2');
-
-// 新增音量控制元素
-const volumeControl = document.getElementById('volume-control');
-const volumeBarTrack = document.querySelector('.volume-bar-track');
-const volumeBarFill = document.querySelector('.volume-bar-fill');
-const volumeSlider = document.querySelector('.volume-slider');
-const volumeLevelDisplay = document.querySelector('.volume-level-display');
 
 // 新增歌词元素引用
 const lyricLines = {
@@ -63,13 +63,10 @@ let currentBgIndex = 0;
 let activeBgLayer = 1;
 let currentImageCache = [];
 
-// 音量控制相关变量
-let isVolumeDragging = false;
-
 // SVG 图标 Data URIs
 const modeIcons = {
     list: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Cpath fill='%23fff' d='M0 128c0-17.7 14.3-32 32-32H480c17.7 0 32 14.3 32 32s-14.3 32-32 32H32c-17.7 0-32-14.3-32-32zm0 256c0-17.7 14.3-32 32-32H480c17.7 0 32 14.3 32 32s-14.3 32-32 32H32c-17.7 0-32-14.3-32-32zM0 256c0-17.7 14.3-32 32-32H480c17.7 0 32 14.3 32 32s-14.3 32-32 32H32c-17.7 0-32-14.3-32-32z'/%3E%3C/svg%3E",
-    shuffle: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Cpath fill='%23fff' d='M403.8 34.4c12-5 25.7-2.2 34.9 6.9l64 64c6 6 9.4 14.1 9.4 22.6s-3.4 16.6-9.4 22.6l-64 64c-9.2 9.2-22.9 11.9-34.9 6.9s-19.8-16.6-19.8-29.6V160H352c-10.1 0-19.6 4.7-25.6 12.8L284 229.3 244 176l31.2-41.6C293.3 110.2 321.8 96 352 96h32V64c0-12.9 7.8-24.6 19.8-29.6zM164 282.7L204 336l-31.2 41.6C154.7 401.8 126.2 416 96 416H32c-17.7 0-32-14.3-32-32s14.3-32 32-32H96c10.1 0 19.6-4.7 25.6-12.8L164 282.7zm274.6 188c-9.2 9.2-22.9 11.9-34.9 6.9s-19.8-16.6-19.8-29.6V416H352c-30.2 0-58.7-14.2-76.8-38.4L121.6 172.8c-6-8.1-15.5-12.8-25.6-12.8H32c-17.7 0-32-14.3-32-32s14.3-32 32-32H96c30.2 0 58.7 14.2 76.8 38.4l153.6 204.8c6 8.1 15.5 12.8 25.6 12.8h32V320c0-12.9 7.8-24.6 19.8-29.6s25.7-2.2 34.9-6.9l64-64c6-6 9.4-14.1 9.4-22.6s-3.4-16.6-9.4-22.6l-64-64c-9.2-9.2-22.9-11.9-34.9-6.9S320 19.1 320 32V64H160C71.6 64 0 135.6 0 224zm512 64c0-17.7-14.3-32-32-32s-32 14.3-32 32c0 53-43 96-96 96H192V352c0-12.9-7.8-24.6-19.8-29.6s-25.7-2.2-34.9 6.9l-64 64c-6 6-9.4 14.1-9.4 22.6s3.4 16.6 9.4 22.6l64 64c9.2 9.2 22.9 11.9 34.9 6.9s19.8-16.6 19.8-29.6V448H352c88.4 0 160-71.6 160-160z'/%3E%3C/svg%3E",
+    shuffle: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Cpath fill='%23fff' d='M403.8 34.4c12-5 25.7-2.2 34.9 6.9l64 64c6 6 9.4 14.1 9.4 22.6s-3.4 16.6-9.4 22.6l-64 64c-9.2 9.2-22.9 11.9-34.9 6.9s-19.8-16.6-19.8-29.6V160H352c-10.1 0-19.6 4.7-25.6 12.8L284 229.3 244 176l31.2-41.6C293.3 110.2 321.8 96 352 96h32V64c0-12.9 7.8-24.6 19.8-29.6zM164 282.7L204 336l-31.2 41.6C154.7 401.8 126.2 416 96 416H32c-17.7 0-32-14.3-32-32s14.3-32 32-32H96c10.1 0 19.6-4.7 25.6-12.8L164 282.7zm274.6 188c-9.2 9.2-22.9 11.9-34.9 6.9s-19.8-16.6-19.8-29.6V416H352c-30.2 0-58.7-14.2-76.8-38.4L121.6 172.8c-6-8.1-15.5-12.8-25.6-12.8H32c-17.7 0-32-14.3-32-32s14.3-32 32-32H96c30.2 0 58.7 14.2 76.8 38.4l153.6 204.8c6 8.1 15.5 12.8 25.6 12.8h32V320c0-12.9 7.8-24.6 19.8-29.6s25.7-2.2 34.9 6.9l64 64c6 6 9.4 14.1 9.4 22.6s-3.4 16.6-9.4 22.6l-64 64z'/%3E%3C/svg%3E",
     single: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Cpath fill='%23fff' d='M0 224c0 17.7 14.3 32 32 32s32-14.3 32-32c0-53 43-96 96-96H320v32c0 12.9 7.8 24.6 19.8 29.6s25.7 2.2 34.9-6.9l64-64c6-6 9.4-14.1 9.4-22.6s-3.4-16.6-9.4-22.6l-64-64c-9.2-9.2-22.9-11.9-34.9-6.9S320 19.1 320 32V64H160C71.6 64 0 135.6 0 224zm512 64c0-17.7-14.3-32-32-32s-32 14.3-32 32c0 53-43 96-96 96H192V352c0-12.9-7.8-24.6-19.8-29.6s-25.7-2.2-34.9 6.9l-64 64c-6 6-9.4 14.1-9.4 22.6s3.4 16.6 9.4 22.6l64 64c9.2 9.2 22.9 11.9 34.9 6.9s19.8-16.6 19.8-29.6V448H352c88.4 0 160-71.6 160-160z'/%3E%3C/svg%3E"
 };
 
@@ -283,6 +280,9 @@ let Player = function (playlist) {
     });
     document.querySelector('#list-song-' + playNum).style.backgroundColor = 'rgba(255, 255, 255, 0.1)';
     this.updateModeButton(); 
+    
+    // 初始化音量显示
+    this.updateVolumeDisplay(Howler.volume());
 };
 
 Player.prototype = {
@@ -685,6 +685,24 @@ Player.prototype = {
         }
     },
 
+    // 更新音量设置和显示
+    setVolume: function(val) {
+        Howler.volume(val);
+        this.updateVolumeDisplay(val);
+    },
+
+    // 更新音量显示
+    updateVolumeDisplay: function(val) {
+        const percent = val * 100;
+        const volumeHeight = volumeTrack.offsetHeight;
+        const fillHeight = (percent / 100) * volumeHeight;
+        const thumbPosition = volumeHeight - fillHeight;
+        
+        volumeFill.style.height = fillHeight + 'px';
+        volumeThumb.style.bottom = thumbPosition + 'px';
+        volumeLevelDisplay.textContent = Math.round(percent);
+    },
+
     seek: function (per) {
         const sound = this.playlist[this.index].howl;
         const currentIndex = this.index;
@@ -818,17 +836,14 @@ Player.prototype = {
             if (!player.drawId) player.drawId = requestAnimationFrame(player.draw.bind(player));
         }
     },
-    toggleVolume: function () { 
-        let display = (volumeControl.style.display === 'block') ? 'none' : 'block'; 
-        setTimeout(() => { 
-            volumeControl.style.display = display; 
-            // 初始化音量显示
-            if (display === 'block') {
-                const currentVolume = Math.round(Howler.volume() * 100);
-                updateVolumeUI(currentVolume);
-            }
-        }, (display === 'block') ? 0 : 500); 
-        volumeControl.className = (display === 'block') ? 'fadein' : 'fadeout'; 
+    // 切换音量控制显示/隐藏
+    toggleVolumeControl: function () { 
+        const isVisible = volumeControl.style.display === 'block';
+        volumeControl.style.display = isVisible ? 'none' : 'block';
+        if (!isVisible) {
+            // 显示时更新音量显示
+            this.updateVolumeDisplay(Howler.volume());
+        }
     },
     formatTime: function (secs) { let minutes = Math.floor(secs / 60) || 0; let seconds = (secs - minutes * 60) || 0; return `${minutes}:${(seconds < 10 ? '0' : '')}${seconds}`; }
 };
@@ -939,57 +954,57 @@ playlistBtn.addEventListener('click', () => player.togglePlaylist());
 playlist.addEventListener('click', () => player.togglePlaylist());
 postBtn.addEventListener('click', () => player.togglePost());
 waveBtn.addEventListener('click', () => player.toggleWave());
-volumeBtn.addEventListener('click', () => player.toggleVolume());
+volumeBtn.addEventListener('click', () => player.toggleVolumeControl());
 modeBtn.addEventListener('click', () => player.toggleMode());
 
-// 新增音量控制事件处理
+// 音量控制条事件处理
+let isVolumeDragging = false;
+
+// 点击音量轨道调节音量
+volumeTrack.addEventListener('click', (e) => {
+    if (!isVolumeDragging) {
+        const rect = volumeTrack.getBoundingClientRect();
+        const percent = 1 - ((e.clientY - rect.top) / rect.height);
+        const volume = Math.max(0, Math.min(1, percent));
+        player.setVolume(volume);
+    }
+});
+
+// 音量滑块拖拽处理
 const startVolumeDrag = (e) => {
     isVolumeDragging = true;
     document.body.style.cursor = 'grabbing';
-    updateVolume(e);
+    window.addEventListener('mousemove', onVolumeDrag);
+    window.addEventListener('mouseup', endVolumeDrag);
+    window.addEventListener('touchmove', onVolumeDrag, { passive: false });
+    window.addEventListener('touchend', endVolumeDrag);
     e.preventDefault();
+    onVolumeDrag(e);
 };
 
-const updateVolume = (e) => {
+const onVolumeDrag = (e) => {
     if (!isVolumeDragging) return;
-    
-    const rect = volumeBarTrack.getBoundingClientRect();
-    const clientY = e.clientY || (e.touches && e.touches[0].clientY);
-    let percent = (rect.bottom - clientY) / rect.height;
+    const clientY = e.type.includes('touch') ? e.touches[0].clientY : e.clientY;
+    const rect = volumeTrack.getBoundingClientRect();
+    let percent = 1 - ((clientY - rect.top) / rect.height);
     percent = Math.max(0, Math.min(1, percent));
-    
-    const volumeValue = Math.round(percent * 100);
-    Howler.volume(percent);
-    updateVolumeUI(volumeValue);
+    player.setVolume(percent);
 };
 
 const endVolumeDrag = () => {
+    if (!isVolumeDragging) return;
     isVolumeDragging = false;
     document.body.style.cursor = '';
+    window.removeEventListener('mousemove', onVolumeDrag);
+    window.removeEventListener('mouseup', endVolumeDrag);
+    window.removeEventListener('touchmove', onVolumeDrag);
+    window.removeEventListener('touchend', endVolumeDrag);
 };
 
-// 音量控制事件监听器
-volumeSlider.addEventListener('mousedown', startVolumeDrag);
-volumeSlider.addEventListener('touchstart', startVolumeDrag, { passive: false });
+volumeThumb.addEventListener('mousedown', startVolumeDrag);
+volumeThumb.addEventListener('touchstart', startVolumeDrag, { passive: false });
 
-document.addEventListener('mousemove', updateVolume);
-document.addEventListener('touchmove', updateVolume, { passive: false });
-
-document.addEventListener('mouseup', endVolumeDrag);
-document.addEventListener('touchend', endVolumeDrag);
-
-// 音量条点击调节
-volumeBarTrack.addEventListener('click', (e) => {
-    const rect = volumeBarTrack.getBoundingClientRect();
-    let percent = (rect.bottom - e.clientY) / rect.height;
-    percent = Math.max(0, Math.min(1, percent));
-    
-    const volumeValue = Math.round(percent * 100);
-    Howler.volume(percent);
-    updateVolumeUI(volumeValue);
-});
-
-// 点击其他区域隐藏音量控制
+// 点击音量控制外部区域隐藏
 document.addEventListener('click', (e) => {
     if (volumeControl.style.display === 'block' && 
         !volumeControl.contains(e.target) && 
@@ -998,27 +1013,18 @@ document.addEventListener('click', (e) => {
     }
 });
 
-// 更新音量UI显示
-function updateVolumeUI(value) {
-    const percent = value / 100;
-    volumeBarFill.style.height = `${value}%`;
-    volumeSlider.style.bottom = `${percent * 100}%`;
-    volumeLevelDisplay.textContent = value;
-}
-
-// 确保原有的音量控制事件也被移除（避免冲突）
-try {
-    volume.addEventListener('click', () => {});
-    barEmpty.addEventListener('click', () => {});
-    sliderBtn.addEventListener('mousedown', () => {});
-    sliderBtn.addEventListener('touchstart', () => {});
-    volume.addEventListener('mouseup', () => {});
-    volume.addEventListener('touchend', () => {});
-    volume.addEventListener('mousemove', () => {});
-    volume.addEventListener('touchmove', () => {});
-} catch(e) {
-    // 忽略错误
-}
+document.addEventListener('keyup', e => {
+    if (!player) return;
+    if (e.key === ' ' || e.key === "MediaPlayPause") { pauseBtn.style.display === 'block' ? player.pause() : player.play(); }
+    else if (e.key === "MediaTrackNext") { player.skip('next'); }
+    else if (e.key === "MediaTrackPrevious") { player.skip('prev'); }
+    else if (e.key === "l" || e.key === "L") { player.togglePlaylist(); }
+    else if (e.key === "p" || e.key === "P") { player.togglePost(); }
+    else if (e.key === "w" || e.key === "W") { player.toggleWave(); }
+    else if (e.key === "v" || e.key === "V") { 
+        player.toggleVolumeControl(); 
+    }
+});
 
 lyricBtn.addEventListener('click', () => {
     lyricContainer.style.display = (lyricContainer.style.display === 'none' || !lyricContainer.style.display) ? 'block' : 'none';
