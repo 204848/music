@@ -1,1 +1,102 @@
-WwogIHsKICAgICJ0aXRsZSI6ICLnrKwwMDDmnJ8g5LiA5ZC75aSp6I2SIiwKICAgICJhcnRpc3QiOiAi6Zi/56a5YXl5IiwKICAgICJwaWMiOiAi5LiA5ZC75aSp6I2SLmpwZyIsCiAgICAibXAzIjogIuS4gOWQu+WkqeiNki5tcDMiLAogICAgImx5cmljIjogIuS4gOWQu+WkqeiNkiAubHJjIiwKICAgICJkYXRlIjogIjIwMjXlubQwN+aciDI35Y+3IOmYtCIsCiAgICAiYXJ0aWNsZSI6ICI8cD7njrDlnKjlu7rnmoTnq5nvvIzluIzmnJvlpJrnlZnkuIvngrnnl5Xov7nvvIzov5npppbmrYzmhJ/op4nml4vlvovlj6/ku6XllabvvIzkuZ/mnInngrnlraTni6znmoTmhJ/mg4Xlh7rmnaU8L3A+PHA+77yI6L+Z5piv5Y6f6aG555uu5L2c6ICF5omA55WZ5oSf6KeJ5LiN6ZSZ55WZ5LiL5LqG77yJ6LCB5Zyo5a+75om+5aSn6Zuo5ruC5rKx5oyj6ISx6LCB55qE5oCA5oqxPC9wPjxwPuavj+WIhuavj+enkuWvueaIkemDveeul+aYr+eFjueGrDwvcD48cD7osIHlr7nosIHplJnniLHlpJrniLHlsJHkuI3pnIDopoHlho3orqHovoM8L3A+PHA+5Y+q5piv5oiR5bCx6L+Z5qC35rex54ix6L+HPC9wPiIKICB9LAogIHsKICAgICJ0aXRsZSI6ICLnrKwwMDHmnJ8g55+l5oiRIiwKICAgICJhcnRpc3QiOiAi5Zu96aOO5aCCIiwKICAgICJwaWMiOiAiaW5maW5pdHktMTg4NjE3MjEuanBnIiwKICAgICJtcDMiOiAi55+l5oiRMS5tcDMiLAogICAgImx5cmljIjogIuefpeaIkS5zcnQiLAogICAgImRhdGUiOiAiMjAyNeW5tDA35pyIMjflj7cg6Zi0IiwKICAgICJhcnRpY2xlIjogIjxwPuWYv+WYv++8jOWImuefpemBk+S4jeS5he+8jOaEn+inieS4jemUmX5+5ZSx55qE5pyJ54K55rex5oSP77yM5ZCs6LW35p2l5oy66IiS5pyNPC9wPiIKICB9LAogIHsKICAgICJ0aXRsZSI6ICLnrKwwMDLmnJ8g5aSc6Iiq5pifIiwKICAgICJhcnRpc3QiOiAi6JSh5piO5biM77yI5LiN5omN77yJIiwKICAgICJwaWMiOiAi5aSc6Iiq5pifLnBuZyIsCiAgICAibXAzIjogIuWknOiIquaYny5tcDMiLAogICAgImx5cmljIjogIuWknOiIquaYnyAubHJjIiwKICAgICJkYXRlIjogIjIwMjXlubQwN+aciDI45Y+3IOaZtCIsCiAgICAiYXJ0aWNsZSI6ICI8cD7ov5npppbmrYzmiJHnoa7lrp7llpzmrKLvvIzmiJHmr5TovoPllpzmrKLnnIvkuInkvZPvvIzkuobop6Plroflrpnnn6Xor4bvvIznnIvnnIvlroflrpnnmoTnnJ/nkIY8L3A+IgogIH0sCiAgewogICAgInRpdGxlIjogIuesrDAwM+acnyDmmbTlpKkiLAogICAgImFydGlzdCI6ICLlkajmnbDkvKYiLAogICAgInBpYyI6ICLmmbTlpKkuanBnIiwKICAgICJtcDMiOiAi5pm05aSpLm1wMyIsCiAgICAibHlyaWMiOiAi5pm05aSpLmxyYyIsCiAgICAiZGF0ZSI6ICIyMDI15bm0MDfmnIgyOOWPtyDmmbQiLAogICAgImFydGljbGUiOiAiPHA+546w5Zyo5bu655qE56uZ77yM5biM5pyb5aSa55WZ5LiL54K555eV6L+5LO+8jOi/memmluW6lOivpemDveS8muWQp++8jOaIkeS7rOePreebruWJjeWPr+iDveaYr+mZpOS6huagoeatjOWbveatjOS5i+exu+eahOacgOS8muWUseS6hueahO+8jOaEn+inieWUseeahOi/mOS4jemUme+8jOaMuuWlveeahDwvcD4iCiAgfSwKICB7CiAgICAidGl0bGUiOiAi56ysMDA05pyfIOm7keaal+ajruaelyIsCiAgICAiYXJ0aXN0IjogIu+8iOWOn+absu+8mlNjaHdhcnplciBSZWdlbu+8iS3pm7Lnv7zmmJ/ovrAiLAogICAgInBpYyI6ICLpu5Hmmpfmo67mnpcuanBnIiwKICAgICJtcDMiOiAi6buR5pqX5qOu5p6XLm1wMyIsCiAgICAibHlyaWMiOiAi6buR5pqX5qOu5p6XLmxyYyIsCiAgICAiZGF0ZSI6ICIyMDI15bm0MDfmnIgyOOWPtyDmmbQiLAogICAgImFydGljbGUiOiAiPHA+5Y+I5p2l5LqG77yM5Zac5qyi55yL5oiR55qE5LiJ5L2T77yM5LiJ5L2T5piv5oiR55uu5YmN55yL6L+H5pyA5Zac5qyi55qE5bCP6K+05LqG77yM5b6I5pyJ5rex5oSP77yM54m55Yir5piv56ug5YyX5rW377yM546w5Zyo6L+Y5piv5pqR5YGH77yM5Yid5LqM5Lmf5pyJ5pe26Ze05oqY6IW+77yM5ZOI5ZOI77yM5LuK5aSp6L+Y5aW95ZCnPC9wPiIKICB9LAogIHsKICAgICJ0aXRsZSI6ICLnrKwwMDXmnJ8g5pyA5Lyf5aSn55qE5L2c5ZOBKOmHj+WtkOWKm+WtpueJiCkiLAogICAgImFydGlzdCI6ICLljp/llLHlkajmnbDkvKbvvIznv7vllLHmta7kuJblj4HljYPpl64iLAogICAgInBpYyI6ICLjgJDmnIDkvJ/lpKfnmoTkvZzlk4HjgJHph4/lrZDlipvlrabniYguanBnIiwKICAgICJtcDMiOiAi44CQ5pyA5Lyf5aSn55qE5L2c5ZOB44CR6YeP5a2Q5Yqb5a2m54mILm1wMyIsCiAgICAibHlyaWMiOiAi44CQ5pyA5Lyf5aSn55qE5L2c5ZOB44CR6YeP5a2Q5Yqb5a2m54mILnNydCIsCiAgICAiZGF0ZSI6ICIyMDI15bm0MDfmnIgyOOWPtzIw54K5IOaZtCIsCiAgICAiYXJ0aWNsZSI6ICI8cD7kuIDlpKlO5pu055qE5oiR77yM5LuK5aSp6L+Y5Y675LqG56Kn5qGC5Zut546p77yM5Y+I5p2l55Ci56Oo6YeP5a2Q5Yqb5a2m5LqGfn7vvIzlsLHmnInngrnllpzmrKLlub/kuYnnm7jlr7norrrkuYvnsbvnmoTpoqDopobkuJbnlYzop4LnmoTkuJzopb88L3A+IgogIH0sCiAgewogICAgInRpdGxlIjogIuesrDAwNuacnyDotbfpo47kuoYo5pen54mIKSIsCiAgICAiYXJ0aXN0IjogIuS5sOi+o+akkuS5n+eUqOWIuCIsCiAgICAicGljIjogIui1t+mjjuS6hi5wbmciLAogICAgIm1wMyI6ICLotbfpo47kuoYubXAzIiwKICAgICJseXJpYyI6ICLotbfpo47kuoYubHJjIiwKICAgICJkYXRlIjogIjIwMjXlubQwN+aciDI55Y+3MTbngrkg6Zi0IiwKICAgICJhcnRpY2xlIjogIjxwPuWHhuWIneS4ieS6hu+8jOacgOWQjuS4gOS4quWIneS4reW5tOe6quS6hu+8jOWPiOW/q+WIsOS6huWIhuWIq+S6hu+8jOaDs+aDs+mCo+S6m+WQjOWtpu+8jOiZveeEtuWPquacieS4ieW5tOS9huaEn+iniei/mOaYr+avlOWwj+WtpuWNsOixoeabtOa3se+8jOabtOaciei2o+WRs++8jOiZveeEtuaIkeS7rOePreaIkOe7qeS4jeWlveS9huaYr+S5n+aciei2o+WViu+8jOS4jeS6j+S6hjwvcD48cD7luIzmnJvku6XlkI7ov5jkvJrop4HpnaLvvIznlZnmrKHnuqrlv7U8L3A+IgogIH0sCiAgewogICAgInRpdGxlIjogIuesrDAwN+acnyDpm77ph4wiLAogICAgImFydGlzdCI6ICLlp5rlha3kuIAiLAogICAgInBpYyI6ICLpm77ph4wt5aea5YWt5LiALmpwZyIsCiAgICAibXAzIjogIumbvumHjC3lp5rlha3kuIAubXAzIiwKICAgICJseXJpYyI6ICLpm77ph4wt5aea5YWt5LiALnNydCIsCiAgICAiZGF0ZSI6ICIyMDI15bm0MDjmnIgxOeWPtzIy54K5IOS4jeWIsOWkqeawlOWViuayoeW8gOWknOinhiIsCiAgICAiYXJ0aWNsZSI6ICI8cD7opoHlvIDlrabkuobllYrvvIzmnIDov5Hlj4jlnKjmg7PkuIDkupvpl67popjvvIzkuI3nn6XpgZPliY3ot6/llYrvvIzov7fojKs8L3A+PHA+5L2G5biM5pyb5Lya5pyJ5YWJ5ZCn77yM5Lmf5LiN6KaB6YKj5LmI5Y6L5oqR5ZWm77yMbygqXu+8oF4qKW8s5Lya6LWi5b6XPC9wPiIKICB9LAogIHsKICAgICJ0aXRsZSI6ICLnrKwwMDjmnJ8g5bmz5Yeh5LmL6LevIiwKICAgICJhcnRpc3QiOiAi5py05qCRIiwKICAgICJwaWMiOiBbCiAgICAgICLlubPlh6HkuYvot68xLmpwZyIsCiAgICAgICLlubPlh6HkuYvot68t5py05qCRLnBuZyIsCiAgICAgICLlubPlh6HkuYvot68yLmpwZyIKICAgIF0sCiAgICAibXAzIjogIuW5s+WHoeS5i+i3ry3mnLTmoJEubXAzIiwKICAgICJseXJpYyI6ICLlubPlh6HkuYvot68ubHJjIiwKICAgICJkYXRlIjogIjIwMjXlubQwOOaciDE55Y+3MjPngrkg5LiN5Yiw5aSp5rCU5ZWK5rKh5byA5aSc6KeGIiwKICAgICJhcnRpY2xlIjogIjxwPuiKnOa5lu+8jOeJueWIq+eahOS6uuaAu+aYr+WwkeaVsO+8jOaZruaZrumAmumAmui/h+WlveiHquW3se+8jOS4jei+nOi0n+iHquW3seWwseWlveS6hvCfmI7vvIxzZWUgeW91IHRvbW9ycm93LuODvijigKLPieKAomApbzwvcD48cD7mmI7lpKnkuZ/opoHlpb3lpb3ov4flkaLvvIzvvIhwczropoHmm7TmlrDov5nkuKrnvZHnq5nku6PnoIHmgrIpLOOEnygg4paULCDilpQgKeOEjzwvcD4iCiAgfSwKICB7CiAgICAidGl0bGUiOiAi56ysMDA55pyfIOacgOWQjuS4gOmhtSIsCiAgICAiYXJ0aXN0IjogIuaxn+ivreaZqCIsCiAgICAicGljIjogWwogICAgICAi5pyA5ZCO5LiA6aG1MS5qcGciLAogICAgICAi5pyA5ZCO5LiA6aG1Mi5qcGciLAogICAgICAi5pyA5ZCO5LiA6aG1My5qcGciCiAgICBdLAogICAgIm1wMyI6ICLmnIDlkI7kuIDpobUt5rGf6K+t5pmoLm1wMyIsCiAgICAibHlyaWMiOiAi5pyA5ZCO5LiA6aG1LmxyYyIsCiAgICAiZGF0ZSI6ICIyMDI15bm0MDjmnIgyNuWPtzIx54K5IOS4jeWIsOWkqeawlOWViuayoeW8gOWknOinhizlupTor6XmmK/mmbTlpKkiLAogICAgImFydGljbGUiOiAiPHA+6Iqc77yM5LuK5aSp5Y+I5Zyo57qg57uT5Yiw5bqV5piv5L2P5a6/6L+Y5piv6LWw6K+777yM5L2P5a6/55qE6K+d5Y+I5LiN5oOz5ZKM5ZC155qE6IiN5Y+L5Zyo5LiA6LW3Li4u6LWw6K+75Y+I6bq754Om54i25q+N77yM57qg57uTPC9wPjxwPuimgeW8gOWtpuS6hu+8jOePjeaDnOWQp++8jOacgOWQjuS4gOS4quWIneS4reW5tOe6quS6hu+8jOaJk+eul+S/neWtmOeCueeFp+eJh++8jOS9nOS4uue6quW/teS6hjwvcD48cD7mgLvlnKjmg7PmnKrmnaXopoHlubLku4DkuYjvvIzkvYblj4jop4nlvpfmsqHku4DkuYjkuovvvIzlj6/og73mnInkurrop4nlvpfmiJHpl7LvvIzlj6/nnJ/nmoTmhJ/op4nmiJHnmoTmg7Pms5XlkozliKvkurrkuI3kuIDmoLfllYoiCiAgfSwKICB7CiAgICAidGl0bGUiOiAi56ysMDEw5pyfIE1vb24gSGFsbyIsCiAgICAiYXJ0aXN0IjogIkFtYUxlZSIsCiAgICAicGljIjogIk1vb24gSGFsby1BbWFMZWUuanBnIiwKICAgICJtcDMiOiAiTW9vbiBIYWxvLUFtYUxlZS5tcDMiLAogICAgImx5cmljIjogIk1vb24gSGFsby1BbWFMZWUubHJjIiwKICAgICJkYXRlIjogIjIwMjXlubQxMeaciDLlj7c554K5IOmYtCIsCiAgICAiYXJ0aWNsZSI6ICI8cD7mhJ/op4noioLlpY/lpb3lkKzlk6bvvIzliJ3kuInor5XljbfmmK/nnJ/lpJrvvIzmsqHnjqnltKnkuInvvIzlj6rmmK/op4nlvpfov5npppbmrYzlpb3lkKzvvIzlj4jopoHlhpnkvZzkuJrljrvkuobvvIzmnIDov5Hov5jlpb3lkKfvvIzkuZ/orrjlkKc8L3A+PHA+5Zu+54mH6ZqP5L6/6YWN55qE5Yir5Zyo5oSPKO+/o3nilr0s77+jKeKVrSA8L3A+IgogIH0sCiAgewogICAgInRpdGxlIjogIuesrDAxMeacnyDlho3po57ooYwt6YCD6LeR6K6h5YiSIiwKICAgICJhcnRpc3QiOiAi5pyq55+l6Im65pyv5a62IiwKICAgICJkYXRlIjogIjIwMjblubQwMeaciDAx5Y+3IDA1OjM2IOmYtO+8nyIsCiAgICAiYXJ0aWNsZSI6ICI8cD7or7Tlrp7or53noa7lrp7om67kuYXmsqHmm7Tkuoblj6/og73mmK/mh5LlkKc8L3A+PHA+5oiR5oSf6KeJ6L+Z6aaW5q2M5peL5b6L5aW95ZCs54S25ZCO5q2M6K+N5Lmf5Y+v5Lul77yM5Zu+54mH5piv6ZqP5L6/6YWN55qE5Yir5Zyo5oSP77yM5pyA6L+R5LqL6L+Y6Juu5aSa5Yia6ICD5a6MQzEzPC9wPiIsCiAgICAibXAzIjogIuWGjemjnuihjC3pgIPot5HorqHliJIubXAzIiwKICAgICJseXJpYyI6ICLlho3po57ooYwubHJjIiwKICAgICJwaWMiOiAicHNjLmpwZyIKICB9Cl0=
+[ 
+    {
+        "title": "第000期 一吻天荒", 
+        "artist": "阿禹ayy", 
+        "pic": "一吻天荒.jpg", 
+        "mp3": "一吻天荒.mp3", 
+        "lyric": "一吻天荒 .lrc",
+        "date": "2025年07月27号 阴", 
+        "article": "<p>现在建的站，希望多留下点痕迹，这首歌感觉旋律可以啦，也有点孤独的感情出来</p><p>（这是原项目作者所留感觉不错留下了）谁在寻找大雨滂沱挣脱谁的怀抱</p><p>每分每秒对我都算是煎熬</p><p>谁对谁错爱多爱少不需要再计较</p><p>只是我就这样深爱过</p>"
+    },
+    {
+        "title": "第001期 知我", 
+        "artist": "国风堂", 
+        "pic": "infinity-18861721.jpg", 
+        "mp3": "知我1.mp3", 
+        "lyric": "知我.srt",
+        "date": "2025年07月27号 阴", 
+        "article": "<p>嘿嘿，刚知道不久，感觉不错~~唱的有点深意，听起来挺舒服</p>"
+    },
+    {
+        "title": "第002期 夜航星", 
+        "artist": "蔡明希（不才）", 
+        "pic": "夜航星.png", 
+        "mp3": "夜航星.mp3", 
+        "lyric": "夜航星 .lrc",
+        "date": "2025年07月28号 晴", 
+        "article": "<p>这首歌我确实喜欢，我比较喜欢看三体，了解宇宙知识，看看宇宙的真理</p>"
+    },
+    {
+        "title": "第003期 晴天", 
+        "artist": "周杰伦", 
+        "pic": "晴天.jpg", 
+        "mp3": "晴天.mp3", 
+        "lyric": "晴天.lrc",
+        "date": "2025年07月28号 晴", 
+        "article": "<p>现在建的站，希望多留下点痕迹,，这首应该都会吧，我们班目前可能是除了校歌国歌之类的最会唱了的，感觉唱的还不错，挺好的</p>"
+    },
+    {
+        "title": "第004期 黑暗森林", 
+        "artist": "（原曲：Schwarzer Regen）-雲翼星辰", 
+        "pic": "黑暗森林.jpg", 
+        "mp3": "黑暗森林.mp3", 
+        "lyric": "黑暗森林.lrc",
+        "date": "2025年07月28号 晴", 
+        "article": "<p>又来了，喜欢看我的三体，三体是我目前看过最喜欢的小说了，很有深意，特别是章北海，现在还是暑假，初二也有时间折腾，哈哈，今天还好吧</p>"
+    },
+    {
+        "title": "第005期 最伟大的作品(量子力学版)", 
+        "artist": "原唱周杰伦，翻唱浮世叁千问", 
+        "pic": "【最伟大的作品】量子力学版.jpg", 
+        "mp3": "【最伟大的作品】量子力学版.mp3", 
+        "lyric": "【最伟大的作品】量子力学版.srt",
+        "date": "2025年07月28号20点 晴", 
+        "article": "<p>一天N更的我，今天还去了碧桂园玩，又来琢磨量子力学了~~，就有点喜欢广义相对论之类的颠覆世界观的东西</p>"
+    },
+    {
+        "title": "第006期 起风了(旧版)", 
+        "artist": "买辣椒也用券", 
+        "pic": "起风了.png", 
+        "mp3": "起风了.mp3", 
+        "lyric": "起风了.lrc",
+        "date": "2025年07月29号16点 阴", 
+        "article": "<p>准初三了，最后一个初中年纪了，又快到了分别了，想想那些同学，虽然只有三年但感觉还是比小学印象更深，更有趣味，虽然我们班成绩不好但是也有趣啊，不亏了</p><p>希望以后还会见面，留次纪念</p>"
+    },
+    {
+        "title": "第007期 雾里",
+        "artist": "姚六一",
+        "pic": "雾里-姚六一.jpg",
+        "mp3": "雾里-姚六一.mp3",
+        "lyric": "雾里-姚六一.srt",
+        "date": "2025年08月19号22点 不到天气啊没开夜视",
+        "article": "<p>要开学了啊，最近又在想一些问题，不知道前路啊，迷茫</p><p>但希望会有光吧，也不要那么压抑啦，o(*^＠^*)o,会赢得</p>"
+    },
+    {
+        "title": "第008期 平凡之路",
+        "artist": "朴树",
+        "pic": ["平凡之路1.jpg","平凡之路-朴树.png","平凡之路2.jpg"],
+        "mp3": "平凡之路-朴树.mp3",
+        "lyric": "平凡之路.lrc",
+        "date": "2025年08月19号23点 不到天气啊没开夜视",
+        "article": "<p>芜湖，特别的人总是少数，普普通通过好自己，不辜负自己就好了😎，see you tomorrow.ヾ(•ω•`)o</p><p>明天也要好好过呢，（ps:要更新这个网站代码悲),ㄟ( ▔, ▔ )ㄏ</p>"
+    },
+    {
+        "title": "第009期 最后一页",
+        "artist": "江语晨",
+        "pic": ["最后一页1.jpg","最后一页2.jpg","最后一页3.jpg"],
+        "mp3": "最后一页-江语晨.mp3",
+        "lyric": "最后一页.lrc",
+        "date": "2025年08月26号21点 不到天气啊没开夜视,应该是晴天",
+        "article": "<p>芜，今天又在纠结到底是住宿还是走读，住宿的话又不想和吵的舍友在一起...走读又麻烦父母，纠结</p><p>要开学了，珍惜吧，最后一个初中年纪了，打算保存点照片，作为纪念了</p><p>总在想未来要干什么，但又觉得没什么事，可能有人觉得我闲，可真的感觉我的想法和别人不一样啊"
+    },
+    {
+        "title": "第010期 Moon Halo",
+        "artist": "AmaLee",
+        "pic": "Moon Halo-AmaLee.jpg",
+        "mp3": "Moon Halo-AmaLee.mp3",
+        "lyric": "Moon Halo-AmaLee.lrc",
+        "date": "2025年11月2号9点 阴",
+        "article": "<p>感觉节奏好听哦，初三试卷是真多，没玩崩三，只是觉得这首歌好听，又要写作业去了，最近还好吧，也许吧</p><p>图片随便配的别在意(￣y▽,￣)╭ </p>"
+    }
+
+]
