@@ -352,7 +352,9 @@ Player.prototype = {
             sound = data.howl;
         } else {
             sound = data.howl = new Howl({
-                src: [media + data.mp3], html5: isMobile(),
+    src: [media + data.mp3],
+    html5: true, // 强制全平台使用 HTML5 Audio，实现流式传输
+    preload: 'metadata', // 关键：只预加载元数据，不预下载整首歌
                 onplay: () => {
                     this.updateDurationDisplays(sound.duration());
                     requestAnimationFrame(this.step.bind(this));
