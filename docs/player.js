@@ -101,9 +101,10 @@ request.onload = function () {
     player = new Player(jsonData);
 };
 
-function isMobile() {
-    return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-}
+// 移除 isMobile() 函数，因为我们将全局使用 html5: true
+// function isMobile() {
+//     return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+// }
 
 function parseLRC(lrcText) {
     if (!lrcText) return [];
@@ -307,7 +308,7 @@ let Player = function (playlist) {
     if (!data.howl) {
         data.howl = new Howl({
             src: [media + data.mp3],
-            html5: isMobile(),
+            html5: true, // <--- 这里改为 true，强制所有设备使用 HTML5 Audio 模式
             preload: 'auto', // 播放前尽可能多的加载，以减少卡顿
             onloadeddata: () => { // 仅HTML5模式下触发，通常用于获取元数据后继续下载
                 console.log(`[Player Init] 歌曲 (${data.title}) 元数据/部分数据加载完成 (HTML5模式)`);
@@ -470,7 +471,7 @@ Player.prototype = {
 
             sound = data.howl = new Howl({
                 src: [media + data.mp3],
-                html5: isMobile(),
+                html5: true, // <--- 这里也改为 true
                 preload: 'auto',
                 onplay: () => {
                     console.log(`[OnPlay] 歌曲 (${data.title}) 开始播放`);
@@ -492,6 +493,7 @@ Player.prototype = {
                         }
                     }, 80);
 
+                    // 即使在HTML5模式下，只要Howler.js的AudioContext可用，就可以设置可视化
                     this.setupVisualization(sound);
 
                     if (pendingSeekPercent !== null) {
@@ -565,24 +567,6 @@ Player.prototype = {
         }
 
         // 更新UI（针对新歌曲或加载状态）
-        if (isNewTrack) {
-            track.innerHTML = data.title;
-            artist.innerHTML = data.artist;
-            document.title = `${data.title} - Gmemp`;
-            post.innerHTML = `<p><b>${data.date}</b></p>${data.article}`;
-            window.location.hash = "#" + index;
-            const ogImage = Array.isArray(data.pic) ? data.pic[0] : data.pic;
-            document.querySelector('meta[property="og:title"]').setAttribute('content', data.title);
-            document.querySelector('meta[property="og:image"]').setAttribute('content', media + encodeURI(ogImage));
-            if(document.querySelector('#list-song-' + playNum)) { document.querySelector('#list-song-' + playNum).style.backgroundColor = ''; }
-            document.querySelector('#list-song-' + index).style.backgroundColor = 'rgba(255, 255, 255, 0.1)';
-            playNum = index;
-            this.loadLyric(data.lyric || null);
-            if ('mediaSession' in navigator) this.updateMediaSession(data);
-            // setupVisualization 会在 onplay 中被调用
-        }
-
-        // 根据最新状态更新按钮和加载动画
         if (sound.state() === 'loading' || this.currentlyLoadingIndex === index) {
             this.showLoadingUI(true);
         } else if (sound.state() === 'loaded') {
@@ -637,7 +621,7 @@ Player.prototype = {
             console.log(`[Preload] 预加载下一曲元数据: ${this.playlist[nextIndex].title}`);
             this.playlist[nextIndex].howl = new Howl({
                 src: [media + this.playlist[nextIndex].mp3],
-                html5: isMobile(),
+                html5: true, // <--- 这里也改为 true
                 preload: 'metadata', // 预加载时只获取元数据
                 onloadeddata: () => {
                     // console.log(`[Preload] 预加载下一曲 (${this.playlist[nextIndex].title}) 元数据完成 (HTML5模式)`);
@@ -662,7 +646,7 @@ Player.prototype = {
             console.log(`[Preload] 预加载上一曲元数据: ${this.playlist[prevIndex].title}`);
             this.playlist[prevIndex].howl = new Howl({
                 src: [media + this.playlist[prevIndex].mp3],
-                html5: isMobile(),
+                html5: true, // <--- 这里也改为 true
                 preload: 'metadata',
                 onloadeddata: () => {
                     // console.log(`[Preload] 预加载上一曲 (${this.playlist[prevIndex].title}) 元数据完成 (HTML5模式)`);
@@ -696,6 +680,7 @@ Player.prototype = {
     },
 
     setupVisualization: function(sound) {
+        // 只有当Howler.js的AudioContext可用时才尝试可视化
         if (!Howler.usingWebAudio || !Howler.ctx) {
             console.warn("Web Audio API 不可用，无法进行可视化。");
             if (this.drawId) {
@@ -705,6 +690,7 @@ Player.prototype = {
             return;
         }
 
+        // 清理旧的分析器和媒体源
         if (this.analyser) {
             try { this.analyser.disconnect(0); } catch (e) { /* ignore */ }
         }
@@ -720,17 +706,19 @@ Player.prototype = {
 
         const howlInstance = this.playlist[this.index].howl;
 
+        // 判断当前Howl实例是否在使用HTML5 Audio
         if (howlInstance && howlInstance._webAudio === false && howlInstance._sounds.length > 0) {
-            const audioEl = howlInstance._sounds[0]._node;
+            const audioEl = howlInstance._sounds[0]._node; // 获取底层的 HTML5 Audio 元素
             if (audioEl) {
-                this.mediaSource = Howler.ctx.createMediaElementSource(audioEl);
-                this.mediaSource.connect(this.analyser);
-                this.analyser.connect(Howler.masterGain);
+                this.mediaSource = Howler.ctx.createMediaElementSource(audioEl); // 从 HTML5 Audio 元素创建 Web Audio 源
+                this.mediaSource.connect(this.analyser); // 连接到分析器
+                this.analyser.connect(Howler.masterGain); // 再将分析器连接到 Howler 的主增益，确保声音正常播放
                 console.log("可视化已连接到 HTML5 Audio 元素 (流式)。");
             } else {
                 console.warn("无法获取 HTML5 Audio 元素进行可视化。");
             }
         } else {
+            // 如果是Web Audio API模式（或HTML5模式但未能获取到audioEl），则直接连接到Howler的主增益
             Howler.masterGain.connect(this.analyser);
             console.log("可视化已连接到 Web Audio API Master Gain。");
         }
@@ -1078,10 +1066,15 @@ Player.prototype = {
                 player.drawId = null;
             }
         } else {
-            if (player && player.playlist[player.index].howl && player.playlist[player.index].howl.playing()) {
-                if (!player.drawId) player.drawId = requestAnimationFrame(player.draw.bind(player));
-            } else if (player && player.playlist[player.index].howl) {
-                player.setupVisualization(player.playlist[player.index].howl);
+            // 确保 Web Audio API 和 AudioContext 可用时才尝试重绘可视化
+            if (Howler.usingWebAudio && Howler.ctx && player && player.playlist[player.index].howl) {
+                if (player.playlist[player.index].howl.playing()) {
+                    if (!player.drawId) player.drawId = requestAnimationFrame(player.draw.bind(player));
+                } else {
+                    player.setupVisualization(player.playlist[player.index].howl);
+                }
+            } else {
+                console.warn("Web Audio API 不可用，无法开启可视化。");
             }
         }
     },
