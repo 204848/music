@@ -1,49 +1,36 @@
 // lyric-parser.js
 import { DOMElements } from './dom-elements.js';
 
-let currentLyrics = [];
 let lyricInterval = null;
 let lastLyricIndex = -1; // 用于跟踪当前歌词索引
 
-export async function loadAndParseLyric(filename, trackIndex, onLyricLoaded, currentTime = 0) {
-    if (!filename) {
-        currentLyrics = [];
-        updateLyricDisplay([], -1); // 清空歌词显示
-        onLyricLoaded(trackIndex, []);
-        return;
+// 更新：loadAndParseLyricFile 只负责从文件加载和解析，不负责存储或显示
+export async function loadAndParseLyricFile(fullFilename, currentTime = 0) {
+    if (!fullFilename) {
+        return [];
     }
 
-    const ext = filename.toLowerCase().split('.').pop();
+    const ext = fullFilename.toLowerCase().split('.').pop();
     try {
-        // 假设歌词文件与 HTML 文件在同一目录或可通过相对路径访问
-        const response = await fetch(filename);
+        const response = await fetch(fullFilename);
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
         const text = await response.text();
         const parsedLyrics = (ext === 'srt') ? parseSRT(text) : (ext === 'lrc') ? parseLRC(text) : [];
-        currentLyrics = parsedLyrics;
-        
-        // Initial update
-        const currentIndexInLyrics = getCurrentLyricIndex(currentTime, parsedLyrics);
-        updateLyricDisplay(parsedLyrics, currentIndexInLyrics);
-        lastLyricIndex = currentIndexInLyrics;
-        
-        onLyricLoaded(trackIndex, parsedLyrics);
         return parsedLyrics;
     } catch (error) {
-        console.error(`Failed to load or parse lyric file: ${filename}`, error);
-        currentLyrics = [];
-        updateLyricDisplay([], -1); // 清空歌词显示
-        onLyricLoaded(trackIndex, []);
+        console.error(`Failed to load or parse lyric file: ${fullFilename}`, error);
         return [];
     }
 }
 
-export function startLyricInterval(getCurrentTimeFn) {
+// 更新：startLyricInterval 接受一个函数来获取当前歌词数组
+export function startLyricInterval(getCurrentTimeFn, getCurrentLyricsFn) {
     if (lyricInterval) clearInterval(lyricInterval);
     lyricInterval = setInterval(() => {
         const pos = getCurrentTimeFn();
+        const currentLyrics = getCurrentLyricsFn(); // 从回调中获取当前歌词
         const currentIndex = getCurrentLyricIndex(pos, currentLyrics);
         if (currentIndex !== lastLyricIndex) {
             updateLyricDisplay(currentLyrics, currentIndex);
@@ -56,9 +43,10 @@ export function stopLyricInterval() {
     if (lyricInterval) clearInterval(lyricInterval);
 }
 
-export function updateLyricDisplayAtTime(time) {
-    const currentIndexInLyrics = getCurrentLyricIndex(time, currentLyrics);
-    updateLyricDisplay(currentLyrics, currentIndexInLyrics);
+// 更新：updateLyricDisplayAtTime 接受一个歌词数组参数
+export function updateLyricDisplayAtTime(time, lyricsToDisplay) {
+    const currentIndexInLyrics = getCurrentLyricIndex(time, lyricsToDisplay);
+    updateLyricDisplay(lyricsToDisplay, currentIndexInLyrics);
     lastLyricIndex = currentIndexInLyrics;
 }
 
@@ -123,9 +111,6 @@ function parseSRT(srtText) {
             i++;
         }
         if (text) result.push({ time: start, end, text });
-        // The original SRT parsing in Howler.js example did not handle the blank line explicitly,
-        // but skipping it here makes sense for typical SRT format.
-        // Ensure to advance past the blank line before next subtitle entry
         while (i < lines.length && lines[i].trim() === '') {
             i++;
         }
@@ -157,6 +142,7 @@ function getCurrentLyricIndex(time, lyrics) {
     return Math.max(0, result);
 }
 
+// 更新：updateLyricDisplay 接受一个歌词数组参数
 function updateLyricDisplay(lyrics, currentIndex) {
     const lyricLines = DOMElements.lyricLines;
 
