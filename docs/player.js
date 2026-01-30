@@ -352,9 +352,7 @@ Player.prototype = {
             sound = data.howl;
         } else {
             sound = data.howl = new Howl({
-    src: [media + data.mp3],
-    html5: true, // 强制全平台使用 HTML5 Audio，实现流式传输
-    preload: 'metadata', // 关键：只预加载元数据，不预下载整首歌
+                src: [media + data.mp3], html5: true,
                 onplay: () => {
                     this.updateDurationDisplays(sound.duration());
                     requestAnimationFrame(this.step.bind(this));
@@ -443,6 +441,7 @@ Player.prototype = {
             loading.style.display = 'block'; playBtn.style.display = 'none'; pauseBtn.style.display = 'none'; 
         }
         this.index = index;
+        this.preloadAdjacentTracks(this.index);
     },
 
     resetProgressBar: function() {
@@ -454,6 +453,48 @@ Player.prototype = {
         // 重置缓存的seek位置
         pendingSeekPercent = null;
     },
+
+    preloadAdjacentTracks: function(currentTrackIndex) {
+    const nextIndex = (currentTrackIndex + 1) % this.playlist.length;
+    const prevIndex = (currentTrackIndex - 1 + this.playlist.length) % this.playlist.length;
+
+    // 预加载下一曲 (如果Howl实例还未创建)
+    if (!this.playlist[nextIndex].howl) {
+        this.playlist[nextIndex].howl = new Howl({
+            src: [media + this.playlist[nextIndex].mp3],
+            html5: true,
+            preload: 'metadata',
+            onloadeddata: () => {
+                console.log(`预加载下一曲元数据: ${this.playlist[nextIndex].title}`);
+                if (!preloadedDurations[nextIndex] && this.playlist[nextIndex].howl.duration()) {
+                    preloadedDurations[nextIndex] = this.playlist[nextIndex].howl.duration();
+                }
+            },
+            onloaderror: (id, err) => {
+                console.error(`预加载下一曲失败 (${this.playlist[nextIndex].title}):`, err);
+            }
+        });
+    }
+
+    // 预加载上一曲 (可选，优先级低于下一曲)
+    if (!this.playlist[prevIndex].howl) {
+        this.playlist[prevIndex].howl = new Howl({
+            src: [media + this.playlist[prevIndex].mp3],
+            html5: true,
+            preload: 'metadata',
+            onloadeddata: () => {
+                console.log(`预加载上一曲元数据: ${this.playlist[prevIndex].title}`);
+                if (!preloadedDurations[prevIndex] && this.playlist[prevIndex].howl.duration()) {
+                    preloadedDurations[prevIndex] = this.playlist[prevIndex].howl.duration();
+                }
+            },
+            onloaderror: (id, err) => {
+                console.error(`预加载上一曲失败 (${this.playlist[prevIndex].title}):`, err);
+            }
+        });
+    }
+},
+
 
     preloadDuration: function(data, index) {
         if (preloadedDurations[index]) {
@@ -475,7 +516,7 @@ Player.prototype = {
             // 创建临时sound对象来获取时长
             const tempSound = new Howl({
                 src: [media + data.mp3],
-                html5: isMobile(),
+                html5: true,
                 onload: () => {
                     const duration = tempSound.duration();
                     preloadedDurations[index] = duration;
