@@ -53,7 +53,7 @@
     <div class="btn" id="volumeBtn" title="音量调节">
       <div id="volume-popup" class="volume-popup">
         <div class="volume-bar-container">
-          <div id="volume-bar-track" class="volume-bar-track">
+          <div id="volume-bar-track" class="volume-bar-track"> <!-- Make sure this has an ID -->
             <div id="volume-bar-filled" class="volume-bar-filled"></div>
           </div>
           <div id="volume-percentage" class="volume-percentage">100%</div>
@@ -80,7 +80,9 @@
     <div id="list"></div>
   </div>
 
+  <!-- howler.min.js 必须在任何依赖它的模块之前加载，并且作为普通脚本加载 -->
   <script src="howler.min.js"></script>
-  <script src="player.js"></script>
+  <!-- 你的模块，作为 ES Module 加载 -->
+  <script type="module" src="main.js"></script>
 </body>
 </html>
