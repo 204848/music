@@ -280,6 +280,7 @@ let Player = function (playlist) {
     this.playbackMode = 'list';
     this.mediaSource = null;
     this.currentlyLoadingIndex = -1; // 新增：记录当前正在加载的歌曲索引
+    this.isPlayerReady = false; // 新增：标记播放器是否已完成初始加载
 
     // --- 加载优先级调整开始 ---
     // 1. 设置当前歌曲的基本信息和OG标签，确保最快显示
@@ -300,63 +301,66 @@ let Player = function (playlist) {
 
     // 4. 初始化当前歌曲的Howl实例并开始预加载 'auto' 级别的数据
     this.currentlyLoadingIndex = this.index; // 设置当前正在加载的索引
+    this.showLoadingUI(true); // 显示加载动画和隐藏按钮
+    console.log(`[Player Init] 开始加载歌曲: ${data.title}`);
+
     if (!data.howl) {
         data.howl = new Howl({
             src: [media + data.mp3],
             html5: isMobile(),
             preload: 'auto', // 播放前尽可能多的加载，以减少卡顿
             onloadeddata: () => { // 仅HTML5模式下触发，通常用于获取元数据后继续下载
-                console.log(`当前歌曲 (${data.title}) 元数据/部分数据加载完成 (HTML5模式)`);
+                console.log(`[Player Init] 歌曲 (${data.title}) 元数据/部分数据加载完成 (HTML5模式)`);
                 this.updateDurationDisplays(data.howl.duration());
                 preloadedDurations[this.index] = data.howl.duration();
             },
             onload: () => { // Web Audio API 和 HTML5 模式都会触发，表示已准备好播放
-                console.log(`当前歌曲 (${data.title}) 完全加载完成`);
+                console.log(`[Player Init] 歌曲 (${data.title}) 完全加载完成`);
                 this.updateDurationDisplays(data.howl.duration());
                 preloadedDurations[this.index] = data.howl.duration();
                 this.currentlyLoadingIndex = -1; // 加载完成
-                // 如果当前正好在加载此歌曲且用户点击了播放但还未开始，则启动
-                if (loading.style.display === 'block' && !data.howl.playing()) {
-                    playBtn.style.display = 'block';
-                    pauseBtn.style.display = 'none';
-                    loading.style.display = 'none';
-                }
+                this.isPlayerReady = true; // 播放器准备就绪
+                this.showLoadingUI(false); // 隐藏加载动画
+                this.updatePlayPauseButtons(false); // 显示播放按钮
+
+                // 如果用户在加载完成前点击了播放，这里会自动触发播放
+                // 但为了避免在Player构造函数中自动播放，我们让用户点击Play
             },
             onloaderror: (id, err) => {
-                console.error(`当前歌曲 (${data.title}) 加载失败:`, err);
+                console.error(`[Player Init] 歌曲 (${data.title}) 加载失败:`, err);
                 this.currentlyLoadingIndex = -1; // 加载失败
-                // 恢复播放按钮，隐藏加载动画
-                playBtn.style.display = 'block';
-                pauseBtn.style.display = 'none';
-                loading.style.display = 'none';
+                this.isPlayerReady = true; // 播放器准备就绪 (虽然是失败状态)
+                this.showLoadingUI(false); // 隐藏加载动画
+                this.updatePlayPauseButtons(false); // 显示播放按钮
             }
         });
     } else {
         // 如果Howl实例已经存在，确保其 preload 状态是 'auto'
         if (data.howl.state() === 'loaded') {
+            console.log(`[Player Init] 歌曲 (${data.title}) 已加载`);
             this.updateDurationDisplays(data.howl.duration());
             preloadedDurations[this.index] = data.howl.duration();
             this.currentlyLoadingIndex = -1; // 已经是加载完成状态
+            this.isPlayerReady = true;
+            this.showLoadingUI(false);
+            this.updatePlayPauseButtons(false);
         } else if (data.howl.state() === 'loading') {
-            // 如果还在加载中，等待其完成
+            console.log(`[Player Init] 歌曲 (${data.title}) 正在加载中`);
             data.howl.once('load', () => {
+                console.log(`[Player Init] 歌曲 (${data.title}) 等待加载完成`);
                 this.updateDurationDisplays(data.howl.duration());
                 preloadedDurations[this.index] = data.howl.duration();
                 this.currentlyLoadingIndex = -1;
-                 // 如果当前正好在加载此歌曲且用户点击了播放但还未开始，则启动
-                if (loading.style.display === 'block' && !data.howl.playing()) {
-                    playBtn.style.display = 'block';
-                    pauseBtn.style.display = 'none';
-                    loading.style.display = 'none';
-                }
+                this.isPlayerReady = true;
+                this.showLoadingUI(false);
+                this.updatePlayPauseButtons(false);
             });
             data.howl.once('loaderror', (id, err) => {
-                console.error(`当前歌曲 (${data.title}) 预加载失败:`, err);
+                console.error(`[Player Init] 歌曲 (${data.title}) 等待加载失败:`, err);
                 this.currentlyLoadingIndex = -1;
-                // 恢复播放按钮，隐藏加载动画
-                playBtn.style.display = 'block';
-                pauseBtn.style.display = 'none';
-                loading.style.display = 'none';
+                this.isPlayerReady = true;
+                this.showLoadingUI(false);
+                this.updatePlayPauseButtons(false);
             });
         }
     }
@@ -381,30 +385,52 @@ let Player = function (playlist) {
 };
 
 Player.prototype = {
+    // 辅助函数：显示/隐藏加载动画
+    showLoadingUI: function(show) {
+        loading.style.display = show ? 'block' : 'none';
+        if (show) {
+            playBtn.style.display = 'none';
+            pauseBtn.style.display = 'none';
+        }
+    },
+
+    // 辅助函数：更新播放/暂停按钮状态
+    updatePlayPauseButtons: function(isPlaying) {
+        if (isPlaying) {
+            playBtn.style.display = 'none';
+            pauseBtn.style.display = 'block';
+        } else {
+            playBtn.style.display = 'block';
+            pauseBtn.style.display = 'none';
+        }
+        loading.style.display = 'none'; // 确保在按钮显示时加载动画隐藏
+    },
+
     play: function (index) {
         const isNewTrack = (typeof index === 'number' && index !== this.index);
         index = typeof index === 'number' ? index : this.index;
         let data = this.playlist[index];
         let sound;
 
+        console.log(`[Play] 尝试播放歌曲: ${data.title}, 索引: ${index}, isNewTrack: ${isNewTrack}`);
+
         // 清除之前的定时器
         if (lyricInterval) clearInterval(lyricInterval);
         lastLyricIndex = -1;
 
-        // 如果是新track，重置进度条
+        // 如果是新track，重置进度条和旧歌曲状态
         if (isNewTrack) {
             this.resetProgressBar();
-            // 如果切换了歌曲，停止旧歌曲的Howl实例
             if (this.playlist[this.index] && this.playlist[this.index].howl) {
                 this.playlist[this.index].howl.stop();
             }
-            // 确保旧歌曲的可视化被清理
             if (this.drawId) {
                 cancelAnimationFrame(this.drawId);
                 this.drawId = null;
             }
         }
 
+        // 背景轮播处理
         if (!isNewTrack && this.isSlideshowRunning) {
             if (!backgroundInterval && data.howl && data.howl.playing()) {
                 this.startBackgroundSlideshow(data.pic, false);
@@ -413,51 +439,46 @@ Player.prototype = {
             this.setBackground(data.pic, true);
         }
 
-        // --- 避免重复请求音频文件：如果Howl实例已经存在且加载中或已加载，则直接使用 ---
+        // --- Howl实例管理和加载逻辑 ---
         if (data.howl && data.howl.state() !== 'unloaded') {
             sound = data.howl;
-            // 确保预加载模式为 'auto'
-            if (sound._preload !== 'auto') {
-                // 如果是 HTML5 模式，需要重新 load 才能改变 preload 行为
-                // 但 Howler.js 没有直接更改 preload 的 API，通常是重新创建 Howl
-                // 对于已有的 Howl 实例，通常不会重新设置 preload
-                // 为了简化，我们假设 preload 在创建时就已设置好
-            }
+            console.log(`[Play] 歌曲 (${data.title}) 现有Howl实例状态: ${sound.state()}`);
 
             if (sound.state() === 'loading') {
-                loading.style.display = 'block';
-                playBtn.style.display = 'none';
-                pauseBtn.style.display = 'none';
+                this.showLoadingUI(true); // 显示加载动画
                 this.currentlyLoadingIndex = index; // 更新当前正在加载的索引
-                // 监听加载完成事件，完成后再播放
                 sound.once('load', () => {
-                    loading.style.display = 'none';
-                    if (this.index === index && !sound.playing()) { // 确保是当前歌曲且未播放
+                    console.log(`[Play] 歌曲 (${data.title}) 加载完成并自动播放`);
+                    this.currentlyLoadingIndex = -1; // 加载完成
+                    if (this.index === index && !sound.playing()) {
                         sound.play(); // 加载完成立即播放
                     }
                 });
                 sound.once('loaderror', (id, err) => {
-                    console.error(`播放歌曲 (${data.title}) 失败:`, err);
-                    loading.style.display = 'none';
-                    playBtn.style.display = 'block';
-                    pauseBtn.style.display = 'none';
+                    console.error(`[Play] 歌曲 (${data.title}) 加载失败:`, err);
                     this.currentlyLoadingIndex = -1;
+                    this.showLoadingUI(false);
+                    this.updatePlayPauseButtons(false); // 显示播放按钮
                 });
                 return; // 等待加载完成再播放
             }
         } else {
-            // 如果Howl实例不存在或已卸载，则创建新的
+            // Howl实例不存在或已卸载，创建新的
+            console.log(`[Play] 创建新的Howl实例: ${data.title}`);
             this.currentlyLoadingIndex = index; // 设置当前正在加载的索引
+            this.showLoadingUI(true); // 显示加载动画
+
             sound = data.howl = new Howl({
                 src: [media + data.mp3],
                 html5: isMobile(),
-                preload: 'auto', // 播放时可以设置为auto，确保更快的启动和更少卡顿
+                preload: 'auto',
                 onplay: () => {
+                    console.log(`[OnPlay] 歌曲 (${data.title}) 开始播放`);
                     this.updateDurationDisplays(sound.duration());
                     if (!isSeeking) {
                          requestAnimationFrame(this.step.bind(this));
                     }
-                    pauseBtn.style.display = 'block'; playBtn.style.display = 'none'; loading.style.display = 'none';
+                    this.updatePlayPauseButtons(true); // 显示暂停按钮
 
                     lyricInterval = setInterval(() => {
                         if (!isSeeking) {
@@ -483,29 +504,36 @@ Player.prototype = {
                     }
                 },
                 onload: () => {
-                    loading.style.display = 'none';
+                    console.log(`[OnLoad] 歌曲 (${data.title}) 加载完成`);
+                    this.currentlyLoadingIndex = -1; // 加载完成
                     this.updateDurationDisplays(sound.duration());
                     preloadedDurations[index] = sound.duration();
-                    this.currentlyLoadingIndex = -1; // 加载完成
-                    // 在这里触发播放，因为可能是在等待onload后才播放
-                    if (this.index === index && !sound.playing()) { // 确保是当前歌曲且未播放
+                    // 如果当前歌曲已加载完成但未播放，且是用户点击播放的当前歌曲，则播放
+                    if (this.index === index && !sound.playing()) {
                          sound.play();
                     }
                 },
-                onend: () => { this.playNextTrack(); },
+                onend: () => {
+                    console.log(`[OnEnd] 歌曲 (${data.title}) 播放结束`);
+                    this.playNextTrack();
+                },
                 onpause: () => {
+                    console.log(`[OnPause] 歌曲 (${data.title}) 暂停`);
                     if (lyricInterval) clearInterval(lyricInterval);
                     if (this.drawId) {
                         cancelAnimationFrame(this.drawId);
                         this.drawId = null;
                     }
+                    this.updatePlayPauseButtons(false); // 显示播放按钮
                 },
                 onstop: () => {
+                    console.log(`[OnStop] 歌曲 (${data.title}) 停止`);
                     if (lyricInterval) clearInterval(lyricInterval);
                     if (this.drawId) {
                         cancelAnimationFrame(this.drawId);
                         this.drawId = null;
                     }
+                    this.updatePlayPauseButtons(false); // 显示播放按钮
                 },
                 onseek: () => {
                     const pos = sound.seek();
@@ -518,23 +546,25 @@ Player.prototype = {
                     }
                 },
                 onloaderror: (id, err) => {
-                    console.error(`加载歌曲 (${data.title}) 失败:`, err);
-                    loading.style.display = 'none';
-                    playBtn.style.display = 'block';
-                    pauseBtn.style.display = 'none';
+                    console.error(`[OnLoadError] 歌曲 (${data.title}) 加载失败:`, err);
                     this.currentlyLoadingIndex = -1;
+                    this.showLoadingUI(false);
+                    this.updatePlayPauseButtons(false); // 显示播放按钮
                 }
             });
-            // 立即开始加载
-            sound.load(); // Howler.js 默认在创建后立即加载，但显式调用更明确
-            loading.style.display = 'block'; playBtn.style.display = 'none'; pauseBtn.style.display = 'none';
+            // 立即开始加载（如果Howl未自动加载）
+            if (sound.state() === 'unloaded') {
+                sound.load();
+            }
         }
 
-        // 如果声音已经加载完成，并且没有在播放，就播放它
+        // 如果歌曲已加载完成且未在播放，则播放
         if (sound.state() === 'loaded' && !sound.playing()) {
+            console.log(`[Play] 歌曲 (${data.title}) 已加载，开始播放`);
             sound.play();
         }
 
+        // 更新UI（针对新歌曲或加载状态）
         if (isNewTrack) {
             track.innerHTML = data.title;
             artist.innerHTML = data.artist;
@@ -552,26 +582,15 @@ Player.prototype = {
             // setupVisualization 会在 onplay 中被调用
         }
 
-        // 根据当前加载状态更新UI
-        if (this.currentlyLoadingIndex === index) {
-            loading.style.display = 'block';
-            playBtn.style.display = 'none';
-            pauseBtn.style.display = 'none';
+        // 根据最新状态更新按钮和加载动画
+        if (sound.state() === 'loading' || this.currentlyLoadingIndex === index) {
+            this.showLoadingUI(true);
         } else if (sound.state() === 'loaded') {
-            loading.style.display = 'none';
-            if (sound.playing()) {
-                playBtn.style.display = 'none';
-                pauseBtn.style.display = 'block';
-            } else {
-                playBtn.style.display = 'block';
-                pauseBtn.style.display = 'none';
-            }
-        } else {
-            // 如果不是当前加载的，也不是已加载的，可能是发生了错误或者状态不明确
-            console.warn(`Unexpected sound state for ${data.title}: ${sound.state()}`);
-            loading.style.display = 'none';
-            playBtn.style.display = 'block';
-            pauseBtn.style.display = 'none';
+            this.showLoadingUI(false);
+            this.updatePlayPauseButtons(sound.playing());
+        } else { // unloaded, or error
+            this.showLoadingUI(false);
+            this.updatePlayPauseButtons(false);
         }
 
         this.index = index;
@@ -615,48 +634,50 @@ Player.prototype = {
 
         // 预加载下一曲 (如果Howl实例还未创建且不是当前正在加载的歌曲)
         if (!this.playlist[nextIndex].howl && nextIndex !== this.currentlyLoadingIndex) {
+            console.log(`[Preload] 预加载下一曲元数据: ${this.playlist[nextIndex].title}`);
             this.playlist[nextIndex].howl = new Howl({
                 src: [media + this.playlist[nextIndex].mp3],
                 html5: isMobile(),
                 preload: 'metadata', // 预加载时只获取元数据
                 onloadeddata: () => {
-                    console.log(`预加载下一曲 (${this.playlist[nextIndex].title}) 元数据完成 (HTML5模式)`);
+                    // console.log(`[Preload] 预加载下一曲 (${this.playlist[nextIndex].title}) 元数据完成 (HTML5模式)`);
                     if (!preloadedDurations[nextIndex] && this.playlist[nextIndex].howl.duration()) {
                         preloadedDurations[nextIndex] = this.playlist[nextIndex].howl.duration();
                     }
                 },
                 onload: () => {
-                    console.log(`预加载下一曲 (${this.playlist[nextIndex].title}) 加载完成`);
+                    // console.log(`[Preload] 预加载下一曲 (${this.playlist[nextIndex].title}) 加载完成`);
                     if (!preloadedDurations[nextIndex] && this.playlist[nextIndex].howl.duration()) {
                         preloadedDurations[nextIndex] = this.playlist[nextIndex].howl.duration();
                     }
                 },
                 onloaderror: (id, err) => {
-                    console.error(`预加载下一曲失败 (${this.playlist[nextIndex].title}):`, err);
+                    console.error(`[Preload] 预加载下一曲失败 (${this.playlist[nextIndex].title}):`, err);
                 }
             });
         }
 
         // 预加载上一曲 (可选，优先级低于下一曲)
         if (!this.playlist[prevIndex].howl && prevIndex !== this.currentlyLoadingIndex) {
+            console.log(`[Preload] 预加载上一曲元数据: ${this.playlist[prevIndex].title}`);
             this.playlist[prevIndex].howl = new Howl({
                 src: [media + this.playlist[prevIndex].mp3],
                 html5: isMobile(),
                 preload: 'metadata',
                 onloadeddata: () => {
-                    console.log(`预加载上一曲 (${this.playlist[prevIndex].title}) 元数据完成 (HTML5模式)`);
+                    // console.log(`[Preload] 预加载上一曲 (${this.playlist[prevIndex].title}) 元数据完成 (HTML5模式)`);
                     if (!preloadedDurations[prevIndex] && this.playlist[prevIndex].howl.duration()) {
                         preloadedDurations[prevIndex] = this.playlist[prevIndex].howl.duration();
                     }
                 },
                  onload: () => {
-                    console.log(`预加载上一曲 (${this.playlist[prevIndex].title}) 加载完成`);
+                    // console.log(`[Preload] 预加载上一曲 (${this.playlist[prevIndex].title}) 加载完成`);
                     if (!preloadedDurations[prevIndex] && this.playlist[prevIndex].howl.duration()) {
                         preloadedDurations[prevIndex] = this.playlist[prevIndex].howl.duration();
                     }
                 },
                 onloaderror: (id, err) => {
-                    console.error(`预加载上一曲失败 (${this.playlist[prevIndex].title}):`, err);
+                    console.error(`[Preload] 预加载上一曲失败 (${this.playlist[prevIndex].title}):`, err);
                 }
             });
         }
@@ -861,9 +882,8 @@ Player.prototype = {
                 this.drawId = null;
             }
         }
-        playBtn.style.display = 'block';
-        pauseBtn.style.display = 'none';
-        loading.style.display = 'none'; // 确保暂停时隐藏加载动画
+        this.updatePlayPauseButtons(false); // 确保显示播放按钮
+        console.log(`[Pause] 歌曲 (${this.playlist[this.index].title}) 已暂停`);
     },
 
     skip: function (direction) {
@@ -887,7 +907,8 @@ Player.prototype = {
     },
 
     skipTo: function (index) {
-        const sound = this.playlist[this.index].howl;
+        const currentData = this.playlist[this.index];
+        const sound = currentData.howl;
         if (sound) {
             sound.stop();
             if (this.drawId) {
@@ -1060,7 +1081,6 @@ Player.prototype = {
             if (player && player.playlist[player.index].howl && player.playlist[player.index].howl.playing()) {
                 if (!player.drawId) player.drawId = requestAnimationFrame(player.draw.bind(player));
             } else if (player && player.playlist[player.index].howl) {
-                // 如果没有播放，但有howl实例，重新 setupVisualization 以便在播放时启动
                 player.setupVisualization(player.playlist[player.index].howl);
             }
         }
@@ -1069,7 +1089,13 @@ Player.prototype = {
 };
 
 // Event Listeners
-playBtn.addEventListener('click', () => player.play());
+playBtn.addEventListener('click', () => {
+    if (player && player.isPlayerReady) { // 只有当播放器完成初始加载后才响应点击
+        player.play();
+    } else {
+        console.warn("播放器尚未准备就绪，无法播放。");
+    }
+});
 pauseBtn.addEventListener('click', () => player.pause());
 prevBtn.addEventListener('click', () => player.skip('prev'));
 nextBtn.addEventListener('click', () => player.skip('next'));
@@ -1229,7 +1255,7 @@ lyricBtn.addEventListener('click', () => {
 
 document.addEventListener('keyup', e => {
     if (!player) return;
-    if (e.key === ' ' || e.key === "MediaPlayPause") { pauseBtn.style.display === 'block' ? player.pause() : player.play(); }
+    if (e.key === ' ' || e.key === "MediaPlayPause") { player.playlist[player.index].howl && player.playlist[player.index].howl.playing() ? player.pause() : player.play(); }
     else if (e.key === "MediaTrackNext") { player.skip('next'); }
     else if (e.key === "MediaTrackPrevious") { player.skip('prev'); }
     else if (e.key === "l" || e.key === "L") { player.togglePlaylist(); }
