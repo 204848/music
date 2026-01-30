@@ -7,10 +7,10 @@ const BACKGROUND_SLIDESHOW_INTERVAL = 5000;
 
 // 音频可视化灵敏度 (0.0 - 1.0, 值越小越不敏感/平缓, 值越大越敏感/激烈)
 // * 建议值范围: 0.3 (非常平缓) 到 0.8 (比较激烈)
-const VISUALIZATION_SENSITIVITY = 0.5; 
+const VISUALIZATION_SENSITIVITY = 0.5;
 
 // 音频可视化透明度 (0.0 - 1.0)
-const VISUALIZATION_OPACITY = 0.5; 
+const VISUALIZATION_OPACITY = 0.5;
 // ==========================================================
 
 // Cache references to DOM elements
@@ -171,18 +171,18 @@ function parseSRT(srtText) {
 
 function getCurrentLyricIndex(time, lyrics) {
     if (!lyrics || lyrics.length === 0) return -1;
-    
+
     // 修复：即使没有00:00时间戳，也能正确找到第一句歌词
     if (time < lyrics[0].time) {
         // 如果时间在第一句歌词之前，显示第一句歌词
         return 0;
     }
-    
+
     // 二分查找优化性能
     let left = 0;
     let right = lyrics.length - 1;
     let result = -1;
-    
+
     while (left <= right) {
         const mid = Math.floor((left + right) / 2);
         if (lyrics[mid].time <= time) {
@@ -192,12 +192,12 @@ function getCurrentLyricIndex(time, lyrics) {
             right = mid - 1;
         }
     }
-    
+
     // 确保当前时间在歌词的时间范围内
     if (result >= 0 && time < (lyrics[result].end || Infinity)) {
         return result;
     }
-    
+
     // 如果找不到匹配的歌词，返回最后一个歌词的索引
     return Math.max(0, result);
 }
@@ -212,39 +212,39 @@ function updateLyricDisplay(lyrics, currentIndex) {
         lyricLines.next2.textContent = '';
         return;
     }
-    
+
     // 为歌词切换添加动画效果
     const prev2El = lyricLines.prev2;
     const prev1El = lyricLines.prev1;
     const currentEl = lyricLines.current;
     const next1El = lyricLines.next1;
     const next2El = lyricLines.next2;
-    
+
     // 添加淡出效果
     prev2El.style.opacity = '0';
     prev1El.style.opacity = '0';
     currentEl.style.opacity = '0';
     next1El.style.opacity = '0';
     next2El.style.opacity = '0';
-    
+
     setTimeout(() => {
         // 确保currentIndex在有效范围内
         const index = Math.max(0, Math.min(currentIndex, lyrics.length - 1));
-        
+
         // 更新5句歌词显示
         prev2El.textContent = (index >= 2) ? lyrics[index - 2].text : '';
         prev1El.textContent = (index >= 1) ? lyrics[index - 1].text : '';
         currentEl.textContent = (index >= 0) ? lyrics[index].text : '';
         next1El.textContent = (index < lyrics.length - 1) ? lyrics[index + 1].text : '';
         next2El.textContent = (index < lyrics.length - 2) ? lyrics[index + 2].text : '';
-        
+
         // 添加淡入效果和变换效果（垂直平滑滚动、渐渐清晰、渐渐变大）
         prev2El.style.opacity = index >= 2 ? '0.7' : '0';
         prev1El.style.opacity = index >= 1 ? '0.7' : '0';
         currentEl.style.opacity = '1';
         next1El.style.opacity = index < lyrics.length - 1 ? '0.7' : '0';
         next2El.style.opacity = index < lyrics.length - 2 ? '0.7' : '0';
-        
+
         // 重置变换
         prev2El.style.transform = index >= 2 ? 'translateY(-32px)' : 'translateY(0)';
         prev1El.style.transform = index >= 1 ? 'translateY(-16px)' : 'translateY(0)';
@@ -293,18 +293,65 @@ let Player = function (playlist) {
     this.playbackMode = 'list';
     this.mediaSource = null; // 用于存储 MediaElementSourceNode 实例
 
-    track.innerHTML = playlist[this.index].title;
-    artist.innerHTML = playlist[this.index].artist;
-    this.setBackground(playlist[this.index].pic, true);
-    post.innerHTML = `<p><b>${playlist[this.index].date}</b></p>${playlist[this.index].article}`;
-    const initialPic = Array.isArray(playlist[this.index].pic) ? playlist[this.index].pic[0] : playlist[this.index].pic;
-    document.querySelector('meta[property="og:image"]').setAttribute('content', media + encodeURI(initialPic));
-    document.querySelector('meta[property="og:title"]').setAttribute('content', playlist[this.index].title);
-    document.title = `${playlist[this.index].title} - Gmemp`;
-    this.loadLyric(playlist[this.index].lyric || null);
+    // --- 加载优先级调整开始 ---
+    // 1. 设置当前歌曲的基本信息和OG标签，确保最快显示
+    let data = playlist[this.index];
+    track.innerHTML = data.title;
+    artist.innerHTML = data.artist;
+    document.title = `${data.title} - Gmemp`;
+    post.innerHTML = `<p><b>${data.date}</b></p>${data.article}`;
+    const initialPicForOG = Array.isArray(data.pic) ? data.pic[0] : data.pic;
+    document.querySelector('meta[property="og:image"]').setAttribute('content', media + encodeURI(initialPicForOG));
+    document.querySelector('meta[property="og:title"]').setAttribute('content', data.title);
 
-    // 预加载当前歌曲时长
-    this.preloadDuration(playlist[this.index], this.index);
+    // 2. 立即加载当前歌曲的背景图片（所有图片如果有多张）
+    this.setBackground(data.pic, true);
+
+    // 3. 立即加载当前歌曲的歌词
+    this.loadLyric(data.lyric || null);
+
+    // 4. 初始化Howl实例并预加载当前歌曲元数据和时长
+    // 这里不再使用临时Howl，而是直接创建用于播放的Howl实例
+    if (!data.howl) {
+        data.howl = new Howl({
+            src: [media + data.mp3],
+            html5: isMobile(), // 保持为 isMobile()
+            preload: 'metadata', // 确保先获取元数据
+            onloadeddata: () => { // 只有在HTML5模式下触发
+                console.log(`当前歌曲 (${data.title}) 元数据加载完成 (HTML5模式)`);
+                this.updateDurationDisplays(data.howl.duration());
+                preloadedDurations[this.index] = data.howl.duration();
+            },
+            onload: () => { // Web Audio API 和 HTML5 都会触发
+                console.log(`当前歌曲 (${data.title}) 加载完成`);
+                this.updateDurationDisplays(data.howl.duration());
+                preloadedDurations[this.index] = data.howl.duration();
+                // 如果是第一次加载且启用了可视化，可以尝试setupVisualization
+                if (!this.analyser && this.playlist[this.index].howl.playing()) {
+                     this.setupVisualization(this.playlist[this.index].howl);
+                }
+            },
+            onloaderror: (id, err) => {
+                console.error(`当前歌曲 (${data.title}) 加载失败:`, err);
+            }
+        });
+    } else {
+        // 如果已经存在Howl实例（例如从预加载而来），确保其加载状态
+        if (data.howl.state() === 'loaded') {
+            this.updateDurationDisplays(data.howl.duration());
+            preloadedDurations[this.index] = data.howl.duration();
+        } else if (data.howl.state() === 'loading') {
+            // 如果还在加载中，等待其完成
+            data.howl.once('load', () => {
+                this.updateDurationDisplays(data.howl.duration());
+                preloadedDurations[this.index] = data.howl.duration();
+            });
+            data.howl.once('loaderror', (id, err) => {
+                console.error(`当前歌曲 (${data.title}) 预加载失败:`, err);
+            });
+        }
+    }
+    // --- 加载优先级调整结束 ---
 
     // 初始化音量显示
     updateVolumeDisplay(Howler.volume());
@@ -318,8 +365,8 @@ let Player = function (playlist) {
         list.appendChild(div);
     });
     document.querySelector('#list-song-' + playNum).style.backgroundColor = 'rgba(255, 255, 255, 0.1)';
-    this.updateModeButton(); 
-    
+    this.updateModeButton();
+
     // 在播放器初始化时预加载相邻曲目
     this.preloadAdjacentTracks(this.index);
 };
@@ -338,41 +385,60 @@ Player.prototype = {
         // 如果是新track，重置进度条
         if (isNewTrack) {
             this.resetProgressBar();
+            // 如果切换了歌曲，停止旧歌曲的Howl实例
+            if (this.playlist[this.index] && this.playlist[this.index].howl) {
+                this.playlist[this.index].howl.stop();
+            }
         }
 
-        // 修复：背景轮播控制
+        // 修复：背景轮播控制 (保留)
         if (!isNewTrack && this.isSlideshowRunning) {
-            // 继续播放且有背景轮播，保持轮播运行
             if (!backgroundInterval && data.howl && data.howl.playing()) {
                 this.startBackgroundSlideshow(data.pic, false);
             }
         } else if (isNewTrack) {
-            // 新歌曲，重新设置背景
             this.setBackground(data.pic, true);
         }
 
-        // 修复：避免重复创建sound对象
+        // --- 避免重复请求音频文件：如果Howl实例已经存在且加载中或已加载，则直接使用 ---
         if (data.howl && data.howl.state() !== 'unloaded') {
             sound = data.howl;
+            if (sound.state() === 'loading') {
+                loading.style.display = 'block';
+                playBtn.style.display = 'none';
+                pauseBtn.style.display = 'none';
+                // 监听加载完成事件，完成后再播放
+                sound.once('load', () => {
+                    loading.style.display = 'none';
+                    if (!sound.playing()) { // 避免在等待加载时用户点了多次play
+                        sound.play();
+                    }
+                });
+                sound.once('loaderror', (id, err) => {
+                    console.error(`播放歌曲 (${data.title}) 失败:`, err);
+                    loading.style.display = 'none';
+                    playBtn.style.display = 'block';
+                });
+                return; // 等待加载完成再播放
+            }
         } else {
+            // 如果Howl实例不存在或已卸载，则创建新的
             sound = data.howl = new Howl({
-                src: [media + data.mp3], html5: isMobile(), // 保持为 isMobile()
+                src: [media + data.mp3],
+                html5: isMobile(), // 保持为 isMobile()
+                preload: 'auto', // 播放时可以设置为auto，确保更快的启动和更少卡顿
                 onplay: () => {
                     this.updateDurationDisplays(sound.duration());
-                    // 确保只有在非seek状态下才启动动画循环
                     if (!isSeeking) {
                          requestAnimationFrame(this.step.bind(this));
                     }
                     pauseBtn.style.display = 'block'; playBtn.style.display = 'none'; loading.style.display = 'none';
-                    
-                    // 启动歌词更新定时器（更新频率改为80ms）
+
                     lyricInterval = setInterval(() => {
-                        // 只有在非拖动状态下才更新歌词
                         if (!isSeeking) {
                             const pos = sound.seek();
                             const lyrics = preloadedLyrics[index] || currentLyrics;
                             const currentIndex = getCurrentLyricIndex(pos, lyrics);
-                            
                             if (currentIndex !== lastLyricIndex) {
                                 updateLyricDisplay(lyrics, currentIndex);
                                 lastLyricIndex = currentIndex;
@@ -381,57 +447,58 @@ Player.prototype = {
                     }, 80);
 
                     this.setupVisualization(sound);
-                    
-                    // 处理等待的seek操作
+
                     if (pendingSeekPercent !== null) {
                         sound.seek(sound.duration() * pendingSeekPercent);
                         this.setPositionUI(sound.duration() * pendingSeekPercent, sound.duration());
                         pendingSeekPercent = null;
                     }
-                    
-                    // 确保背景轮播在播放时运行
                     if (this.isSlideshowRunning && !backgroundInterval) {
                         this.startBackgroundSlideshow(data.pic, false);
                     }
                 },
-                onload: () => { 
-                    loading.style.display = 'none'; 
+                onload: () => {
+                    loading.style.display = 'none';
                     this.updateDurationDisplays(sound.duration());
-                    // 缓存时长
                     preloadedDurations[index] = sound.duration();
+                    // 在这里触发播放，因为可能是在等待onload后才播放
+                    if (!sound.playing() && this.index === index) { // 确保是当前歌曲且未播放
+                         sound.play();
+                    }
                 },
                 onend: () => { this.playNextTrack(); },
-                onpause: () => { 
-                    if (lyricInterval) clearInterval(lyricInterval); 
-                    // 在暂停时停止可视化循环
+                onpause: () => {
+                    if (lyricInterval) clearInterval(lyricInterval);
                     if (this.drawId) {
                         cancelAnimationFrame(this.drawId);
                         this.drawId = null;
                     }
                 },
-                onstop: () => { 
-                    if (lyricInterval) clearInterval(lyricInterval); 
-                    // 在停止时停止可视化循环
+                onstop: () => {
+                    if (lyricInterval) clearInterval(lyricInterval);
                     if (this.drawId) {
                         cancelAnimationFrame(this.drawId);
                         this.drawId = null;
                     }
                 },
-                onseek: () => { 
-                    const pos = sound.seek(); 
+                onseek: () => {
+                    const pos = sound.seek();
                     const lyrics = preloadedLyrics[index] || currentLyrics;
                     const currentIndex = getCurrentLyricIndex(pos, lyrics);
                     updateLyricDisplay(lyrics, currentIndex);
                     lastLyricIndex = currentIndex;
-                    // seek完成时，如果正在播放，确保 step 循环在运行
                     if (sound.playing() && !isSeeking) {
-                        requestAnimationFrame(this.step.bind(this)); 
+                        requestAnimationFrame(this.step.bind(this));
                     }
+                },
+                onloaderror: (id, err) => {
+                    console.error(`加载歌曲 (${data.title}) 失败:`, err);
+                    loading.style.display = 'none';
+                    playBtn.style.display = 'block';
                 }
             });
         }
-        
-        // 修复：只有在没有播放时才调用play()
+
         if (!sound.playing()) {
             sound.play();
         }
@@ -448,78 +515,59 @@ Player.prototype = {
             if(document.querySelector('#list-song-' + playNum)) { document.querySelector('#list-song-' + playNum).style.backgroundColor = ''; }
             document.querySelector('#list-song-' + index).style.backgroundColor = 'rgba(255, 255, 255, 0.1)';
             playNum = index;
-            this.loadLyric(data.lyric || null); // 修复：确保每次切换歌曲都重新加载歌词
+            this.loadLyric(data.lyric || null);
             if ('mediaSession' in navigator) this.updateMediaSession(data);
-            this.setupVisualization(sound); 
+            this.setupVisualization(sound);
         }
 
-        if (sound.state() === 'loaded') { 
-            loading.style.display = 'none'; 
+        if (sound.state() === 'loaded') {
+            loading.style.display = 'none';
             this.updateDurationDisplays(sound.duration());
             preloadedDurations[index] = sound.duration();
-        } else { 
-            loading.style.display = 'block'; playBtn.style.display = 'none'; pauseBtn.style.display = 'none'; 
+        } else if (sound.state() === 'loading') {
+            loading.style.display = 'block'; playBtn.style.display = 'none'; pauseBtn.style.display = 'none';
+        } else { // unloaded state, should be handled by the new Howl creation logic above
+            console.warn(`Howl state is unexpected for ${data.title}: ${sound.state()}`);
+            loading.style.display = 'block'; playBtn.style.display = 'none'; pauseBtn.style.display = 'none';
         }
         this.index = index;
-        // 在播放新曲后调用预加载
         this.preloadAdjacentTracks(this.index);
     },
 
     resetProgressBar: function() {
-        // 重置进度条到0
         progressFilled.style.width = '0%';
         progressSlider.style.left = '0%';
         currentTimeDisplay.innerHTML = '0:00';
         timer.innerHTML = '0:00';
-        // 重置缓存的seek位置
         pendingSeekPercent = null;
     },
 
+    // 优化后的 preloadDuration 不再创建临时Howl，而是依赖Player构造函数或play方法创建的Howl实例
+    // 并且不再需要手动调用，因为Howl实例已在构造函数或play方法中创建并负责加载时长
+    // 此函数可以被移除或简化
     preloadDuration: function(data, index) {
+        // 由于Player构造函数和play方法现在负责创建Howl实例和加载时长
+        // 这个函数主要用于确保 durationDisplays 被更新，而不是启动加载
         if (preloadedDurations[index]) {
-            // 已经缓存了时长，直接更新显示
             this.updateDurationDisplays(preloadedDurations[index]);
             return;
         }
 
         if (data.howl && data.howl.state() === 'loaded') {
-            // 如果已经创建过sound对象且已加载，直接使用
-            setTimeout(() => {
-                if (data.howl.duration()) {
-                    const duration = data.howl.duration();
-                    preloadedDurations[index] = duration;
-                    this.updateDurationDisplays(duration);
-                }
-            }, 100);
-        } else if (!data.howl) {
-            // 创建临时sound对象来获取时长
-            const tempSound = new Howl({
-                src: [media + data.mp3],
-                html5: isMobile(), // 保持为 isMobile()
-                preload: 'metadata', // 只加载元数据，减少资源占用
-                onload: () => {
-                    const duration = tempSound.duration();
-                    preloadedDurations[index] = duration;
-                    this.updateDurationDisplays(duration);
-                    tempSound.unload(); // 卸载临时对象
-                },
-                onloaderror: () => {
-                    console.log("预加载时长失败: " + data.title);
-                }
+            const duration = data.howl.duration();
+            preloadedDurations[index] = duration;
+            this.updateDurationDisplays(duration);
+        } else if (data.howl && data.howl.state() === 'loading') {
+            data.howl.once('load', () => {
+                const duration = data.howl.duration();
+                preloadedDurations[index] = duration;
+                this.updateDurationDisplays(duration);
             });
-        } else {
-            // 已有sound对象但未加载，等待加载完成
-            const checkDuration = () => {
-                if (data.howl.state() === 'loaded' && data.howl.duration()) {
-                    const duration = data.howl.duration();
-                    preloadedDurations[index] = duration;
-                    this.updateDurationDisplays(duration);
-                } else {
-                    setTimeout(checkDuration, 100);
-                }
-            };
-            checkDuration();
+            data.howl.once('loaderror', () => {
+                console.log(`Failed to get duration for ${data.title} during preload.`);
+            });
         }
+        // else: Howl instance not yet created, will be handled by play() or initial Player construction
     },
 
     preloadAdjacentTracks: function(currentTrackIndex) {
@@ -530,8 +578,8 @@ Player.prototype = {
         if (!this.playlist[nextIndex].howl) {
             this.playlist[nextIndex].howl = new Howl({
                 src: [media + this.playlist[nextIndex].mp3],
-                html5: isMobile(), // 与主播放器保持一致
-                preload: 'metadata', // 只加载元数据
+                html5: isMobile(),
+                preload: 'metadata', // 预加载时只获取元数据
                 onloadeddata: () => {
                     console.log(`预加载下一曲元数据: ${this.playlist[nextIndex].title}`);
                     if (!preloadedDurations[nextIndex] && this.playlist[nextIndex].howl.duration()) {
@@ -548,8 +596,8 @@ Player.prototype = {
         if (!this.playlist[prevIndex].howl) {
             this.playlist[prevIndex].howl = new Howl({
                 src: [media + this.playlist[prevIndex].mp3],
-                html5: isMobile(), // 与主播放器保持一致
-                preload: 'metadata', // 只加载元数据
+                html5: isMobile(),
+                preload: 'metadata',
                 onloadeddata: () => {
                     console.log(`预加载上一曲元数据: ${this.playlist[prevIndex].title}`);
                     if (!preloadedDurations[prevIndex] && this.playlist[prevIndex].howl.duration()) {
@@ -566,8 +614,8 @@ Player.prototype = {
     updateDurationDisplays: function(duration) {
         if (duration && !isNaN(duration) && isFinite(duration)) {
             const formattedDuration = this.formatTime(Math.round(duration));
-            if (duration.innerHTML !== formattedDuration) {
-                duration.innerHTML = formattedDuration;
+            if (window.duration.innerHTML !== formattedDuration) { // 使用 window.duration
+                window.duration.innerHTML = formattedDuration;
             }
             if (durationDisplay.innerHTML !== formattedDuration) {
                 durationDisplay.innerHTML = formattedDuration;
@@ -577,7 +625,6 @@ Player.prototype = {
 
     setupVisualization: function(sound) {
         if (!Howler.usingWebAudio || !Howler.ctx) {
-            // 如果没有Web Audio API，则无法进行可视化
             console.warn("Web Audio API 不可用，无法进行可视化。");
             if (this.drawId) {
                 cancelAnimationFrame(this.drawId);
@@ -586,17 +633,11 @@ Player.prototype = {
             return;
         }
 
-        // 清理之前的Analyser连接
         if (this.analyser) {
-            try {
-                this.analyser.disconnect(0);
-            } catch (e) { /* ignore */ }
+            try { this.analyser.disconnect(0); } catch (e) { /* ignore */ }
         }
-        // 清理之前的MediaElementSourceNode连接
         if (this.mediaSource) {
-            try {
-                this.mediaSource.disconnect(0);
-            } catch (e) { /* ignore */ }
+            try { this.mediaSource.disconnect(0); } catch (e) { /* ignore */ }
             this.mediaSource = null;
         }
 
@@ -607,47 +648,40 @@ Player.prototype = {
 
         const howlInstance = this.playlist[this.index].howl;
 
-        // 检查当前 Howl 实例是否是 HTML5 模式
-        // Howler._webAudio 属性决定是否尝试使用 Web Audio API
         if (howlInstance && howlInstance._webAudio === false && howlInstance._sounds.length > 0) {
-            // 如果是 HTML5 模式，sound._node 是实际的 <audio> 元素
-            const audioEl = howlInstance._sounds[0]._node; // 获取内部的 <audio> 元素
+            const audioEl = howlInstance._sounds[0]._node;
             if (audioEl) {
-                // 创建 MediaElementSourceNode 并连接到 Analyser
                 this.mediaSource = Howler.ctx.createMediaElementSource(audioEl);
                 this.mediaSource.connect(this.analyser);
-                // 将Analyser连接到Howler的masterGain，以确保声音仍能输出
-                this.analyser.connect(Howler.masterGain);
+                this.analyser.connect(Howler.masterGain); // 将Analyser连接到Howler的masterGain
                 console.log("可视化已连接到 HTML5 Audio 元素 (流式)。");
             } else {
                 console.warn("无法获取 HTML5 Audio 元素进行可视化。");
             }
         } else {
-            // 否则，是 Web Audio API 模式 (默认行为)，直接连接 Howler.masterGain
             Howler.masterGain.connect(this.analyser);
             console.log("可视化已连接到 Web Audio API Master Gain。");
         }
-        
-        // 确保可视化循环启动
+
         if (!this.drawId) {
             this.drawId = requestAnimationFrame(this.draw.bind(this));
         }
     },
-    
+
     draw: function() {
-        if (!this.analyser || waveCanvas.style.display === 'none') { // 增加对 waveCanvas 显示状态的检查
+        if (!this.analyser || waveCanvas.style.display === 'none') {
             this.drawId = null;
             return;
         }
         let W = window.innerWidth, H = window.innerHeight;
         waveCanvas.width = W; waveCanvas.height = H;
-        
+
         this.analyser.getByteFrequencyData(this.dataArray);
         const canvasCtx = waveCanvas.getContext("2d");
         canvasCtx.clearRect(0, 0, W, H);
-        
+
         canvasCtx.fillStyle = `rgba(255,255,255,${VISUALIZATION_OPACITY})`;
-        
+
         const barWidth = (W / this.bufferLength) * 2.5;
         let barHeight;
         let x = 0;
@@ -666,7 +700,7 @@ Player.prototype = {
             this.skip('next');
         }
     },
-    
+
     updateMediaSession: function(data) {
         if (!('mediaSession' in navigator)) return;
         const coverPic = Array.isArray(data.pic) ? data.pic[0] : data.pic;
@@ -698,66 +732,59 @@ Player.prototype = {
         };
         img.src = media + encodeURI(coverPic);
     },
-    
+
+    // 优化后的 setBackground
     setBackground: function(picData, forceReset = false) {
-        // 清除之前的背景轮播
         if (backgroundInterval) clearInterval(backgroundInterval);
         backgroundInterval = null;
-        currentImageCache = [];
-        currentBgIndex = 0; // 重置背景索引
         
+        // Always reset image cache if forceReset or new picData is provided
+        if (forceReset || !currentImageCache || currentImageCache.length === 0 || !picData || !Array.isArray(picData)) {
+            currentImageCache = [];
+            currentBgIndex = 0;
+            const imagesToPreload = Array.isArray(picData) ? picData : [picData];
+            imagesToPreload.forEach(picName => {
+                const img = new Image();
+                img.src = media + encodeURI(picName); // Trigger browser cache
+                currentImageCache.push(img);
+            });
+        }
+
         if (Array.isArray(picData) && picData.length > 1) {
             this.isSlideshowRunning = true;
-            const firstImageUrl = `url('${media}${encodeURI(picData[0])}')`;
-            bgLayer1.style.backgroundImage = firstImageUrl;
+            // Use directly preloaded image objects
+            const firstImageSrc = currentImageCache[0] ? currentImageCache[0].src : `url('${media}${encodeURI(picData[0])}')`;
+            bgLayer1.style.backgroundImage = `url('${firstImageSrc}')`;
             bgLayer1.style.opacity = 1;
             bgLayer2.style.opacity = 0;
             activeBgLayer = 1;
-            
-            // 预加载所有图片
-            picData.forEach(picName => {
-                const img = new Image();
-                img.src = media + encodeURI(picName);
-                currentImageCache.push(img);
-            });
-            
-            // 如果当前正在播放，启动背景轮播
+
             const currentSong = this.playlist[this.index];
             if (currentSong && currentSong.howl && currentSong.howl.playing()) {
-                this.startBackgroundSlideshow(picData, forceReset);
+                this.startBackgroundSlideshow(picData, false);
             }
         } else {
             this.isSlideshowRunning = false;
-            const singlePic = Array.isArray(picData) ? picData[0] : picData;
-            const imageUrl = `url('${media}${encodeURI(singlePic)}')`;
-            bgLayer1.style.backgroundImage = imageUrl;
+            const singlePicSrc = currentImageCache[0] ? currentImageCache[0].src : `url('${media}${encodeURI(Array.isArray(picData) ? picData[0] : picData)}')`;
+            bgLayer1.style.backgroundImage = `url('${singlePicSrc}')`;
             bgLayer1.style.opacity = 1;
             bgLayer2.style.opacity = 0;
             activeBgLayer = 1;
         }
     },
-    
+
     startBackgroundSlideshow: function(images, resetIndex = true) {
-        // 确保只启动一个轮播定时器
         if (backgroundInterval) clearInterval(backgroundInterval);
         
         if (resetIndex) currentBgIndex = 0;
         
-        // 确保图片已预加载
+        // Ensure image cache is ready, if not, re-init (shouldn't happen with optimized setBackground)
         if (currentImageCache.length === 0) {
-            // 重新预加载图片
             images.forEach(picName => {
                 const img = new Image();
                 img.src = media + encodeURI(picName);
                 currentImageCache.push(img);
             });
-        }
-        
-        const initialImage = currentImageCache[currentBgIndex];
-        if(initialImage) {
-            const currentActiveLayer = (activeBgLayer === 1) ? bgLayer1 : bgLayer2;
-            currentActiveLayer.style.backgroundImage = `url('${initialImage.src}')`;
-            currentActiveLayer.style.opacity = 1;
         }
         
         const changeImage = () => {
@@ -768,6 +795,7 @@ Player.prototype = {
             if(nextImage) {
                 let nextLayer = (activeBgLayer === 1) ? bgLayer2 : bgLayer1;
                 let currentLayer = (activeBgLayer === 1) ? bgLayer1 : bgLayer2;
+                // Directly use src from Image object, which should be cached
                 nextLayer.style.backgroundImage = `url('${nextImage.src}')`;
                 currentLayer.style.opacity = 0;
                 nextLayer.style.opacity = 1;
@@ -782,7 +810,6 @@ Player.prototype = {
         const sound = this.playlist[this.index].howl;
         if (sound) {
             sound.pause();
-            // 确保在暂停时也停止了动画循环
             if (this.drawId) {
                 cancelAnimationFrame(this.drawId);
                 this.drawId = null;
@@ -805,7 +832,7 @@ Player.prototype = {
         } else {
             if (direction === 'next') {
                 index = (this.index + 1) % this.playlist.length;
-            } else { 
+            } else {
                 index = (this.index - 1 + this.playlist.length) % this.playlist.length;
             }
         }
@@ -816,26 +843,24 @@ Player.prototype = {
         const sound = this.playlist[this.index].howl;
         if (sound) {
             sound.stop();
-            // 在停止时也要清理可视化循环
             if (this.drawId) {
                 cancelAnimationFrame(this.drawId);
                 this.drawId = null;
             }
         }
-        // 重置进度条到0，清除所有计时器
         this.resetProgressBar();
         if (lyricInterval) clearInterval(lyricInterval);
         lastLyricIndex = -1;
         this.play(index);
     },
-    
+
     toggleMode: function() {
         if (this.playbackMode === 'list') this.playbackMode = 'shuffle';
         else if (this.playbackMode === 'shuffle') this.playbackMode = 'single';
         else this.playbackMode = 'list';
         this.updateModeButton();
     },
-    
+
     updateModeButton: function() {
         if (modeBtn) {
             modeBtn.style.backgroundImage = `url("${modeIcons[this.playbackMode]}")`;
@@ -847,43 +872,34 @@ Player.prototype = {
         const sound = this.playlist[this.index].howl;
         const currentIndex = this.index;
         const cachedDuration = preloadedDurations[currentIndex];
-        
+
         if (sound) {
             if (sound.playing()) {
                 const duration = sound.duration();
                 sound.seek(duration * per);
-                // 立即更新UI
                 const seekTime = duration * per;
                 this.setPositionUI(seekTime, duration);
-                // 立即更新歌词（使用当前歌曲的歌词）
                 this.updateLyricAtTime(seekTime, currentIndex);
             } else {
-                // 如果没有播放，保存seek位置等待播放时使用
                 pendingSeekPercent = per;
-                // 立即更新UI显示（使用缓存的时长信息）
                 const duration = sound.duration() || cachedDuration;
                 if (duration && !isNaN(duration) && isFinite(duration)) {
                     const seekTime = duration * per;
                     this.setPositionUI(seekTime, duration);
-                    // 立即更新歌词（使用当前歌曲的歌词）
                     this.updateLyricAtTime(seekTime, currentIndex);
                 }
             }
         } else {
-            // 如果还没有创建sound对象，保存seek位置
             pendingSeekPercent = per;
-            // 更新UI显示（使用缓存的时长信息）
             if (cachedDuration && !isNaN(cachedDuration) && isFinite(cachedDuration)) {
                 const seekTime = cachedDuration * per;
                 this.setPositionUI(seekTime, cachedDuration);
-                // 立即更新歌词（使用当前歌曲的歌词）
                 this.updateLyricAtTime(seekTime, currentIndex);
             }
         }
     },
 
     updateLyricAtTime: function(time, index) {
-        // 实时更新歌词显示（确保使用正确歌曲的歌词）
         const lyrics = preloadedLyrics[index] || currentLyrics;
         if (lyrics && lyrics.length > 0) {
             const currentIndex = getCurrentLyricIndex(time, lyrics);
@@ -895,27 +911,24 @@ Player.prototype = {
     setPositionUI: function(seek, duration) {
         const formattedSeek = this.formatTime(Math.floor(seek));
         const formattedDuration = duration && isFinite(duration) ? this.formatTime(Math.floor(duration)) : '0:00';
-        
-        // 更新左侧当前时间
+
         if (timer.innerHTML !== formattedSeek) {
             timer.innerHTML = formattedSeek;
         }
         if (currentTimeDisplay.innerHTML !== formattedSeek) {
             currentTimeDisplay.innerHTML = formattedSeek;
         }
-        
-        // 更新右侧总时间
+
         if (duration && isFinite(duration)) {
             const formattedTotal = this.formatTime(Math.floor(duration));
-            if (duration.innerHTML !== formattedTotal) {
-                duration.innerHTML = formattedTotal;
+            if (window.duration.innerHTML !== formattedTotal) { // 使用 window.duration
+                window.duration.innerHTML = formattedTotal;
             }
             if (durationDisplay.innerHTML !== formattedTotal) {
                 durationDisplay.innerHTML = formattedTotal;
             }
         }
-        
-        // 更新进度条
+
         if (duration && isFinite(duration) && duration > 0) {
             const percent = (seek / duration) * 100;
             progressFilled.style.width = percent + '%';
@@ -925,35 +938,33 @@ Player.prototype = {
 
     step: function () {
         const sound = this.playlist[this.index].howl;
-        if (!sound || !sound.playing() || isSeeking) { // 增加 isSeeking 判断
-            // 如果暂停、停止或正在seek，则停止动画帧更新
-            this.drawId = null; // 确保停止 draw 循环
+        if (!sound || !sound.playing() || isSeeking) {
+            this.drawId = null;
             return;
         }
         let seek = sound.seek() || 0;
         let durationVal = sound.duration();
-        
+
         this.setPositionUI(seek, durationVal);
-        
+
         requestAnimationFrame(this.step.bind(this));
     },
 
     loadLyric: function (filename) {
         const currentIndex = this.index;
         if (!filename) {
-            currentLyrics = []; 
+            currentLyrics = [];
             preloadedLyrics[currentIndex] = [];
-            updateLyricDisplay([], -1); // 清空歌词显示
+            updateLyricDisplay([], -1);
             return;
         }
-        
-        // 修复：每次切换歌曲都重新加载歌词，不管是否已缓存
+
         const ext = filename.toLowerCase().split('.').pop();
         fetch(media + encodeURI(filename)).then(r => r.text()).then(text => {
             const parsedLyrics = (ext === 'srt') ? parseSRT(text) : (ext === 'lrc') ? parseLRC(text) : [];
-            preloadedLyrics[currentIndex] = parsedLyrics; // 缓存歌词
+            preloadedLyrics[currentIndex] = parsedLyrics;
             currentLyrics = parsedLyrics;
-            
+
             const sound = this.playlist[currentIndex].howl;
             const pos = sound ? sound.seek() : 0;
             const currentIndexInLyrics = getCurrentLyricIndex(pos, parsedLyrics);
@@ -961,35 +972,33 @@ Player.prototype = {
             lastLyricIndex = currentIndexInLyrics;
         }).catch(() => {
             preloadedLyrics[currentIndex] = [];
-            currentLyrics = []; 
-            updateLyricDisplay([], -1); // 清空歌词显示
+            currentLyrics = [];
+            updateLyricDisplay([], -1);
         });
     },
 
-    togglePlaylist: function () { 
-        let display = (playlist.style.display === 'block') ? 'none' : 'block'; 
-        setTimeout(() => { 
-            playlist.style.display = display; 
-            if (display === 'block') { 
-                // 确保滚动到当前播放歌曲
+    togglePlaylist: function () {
+        let display = (playlist.style.display === 'block') ? 'none' : 'block';
+        setTimeout(() => {
+            playlist.style.display = display;
+            if (display === 'block') {
                 const currentSongElement = document.querySelector('#list-song-' + playNum);
                 if (currentSongElement) {
-                    list.scrollTop = currentSongElement.offsetTop - list.offsetHeight / 2; 
+                    list.scrollTop = currentSongElement.offsetTop - list.offsetHeight / 2;
                 }
-            } 
-        }, (display === 'block') ? 0 : 500); 
-        playlist.className = (display === 'block') ? 'fadein' : 'fadeout'; 
+            }
+        }, (display === 'block') ? 0 : 500);
+        playlist.className = (display === 'block') ? 'fadein' : 'fadeout';
     },
     togglePost: function () { post.style.display = (post.style.display == "none") ? "block" : "none"; },
     toggleWave: function () {
         waveCanvas.style.display = (waveCanvas.style.display == "none") ? "block" : "none";
-        // 如果可视化被禁用，清理 requestAnimationFrame
         if (waveCanvas.style.display == "none") {
             if (player && player.drawId) {
                 cancelAnimationFrame(player.drawId);
                 player.drawId = null;
             }
-        } else { // 如果可视化被启用，且歌曲正在播放，则重新启动
+        } else {
             if (player && player.playlist[player.index].howl && player.playlist[player.index].howl.playing()) {
                 if (!player.drawId) player.drawId = requestAnimationFrame(player.draw.bind(player));
             }
@@ -1004,7 +1013,6 @@ pauseBtn.addEventListener('click', () => player.pause());
 prevBtn.addEventListener('click', () => player.skip('prev'));
 nextBtn.addEventListener('click', () => player.skip('next'));
 
-// 新的进度条事件处理
 const startSeek = (e) => {
     isSeeking = true;
     progressSlider.classList.add('active');
@@ -1014,7 +1022,7 @@ const startSeek = (e) => {
     window.addEventListener('touchmove', onSeek, { passive: false });
     window.addEventListener('touchend', endSeek);
     e.preventDefault();
-    onSeek(e); // 立即更新位置
+    onSeek(e);
 };
 
 const onSeek = (e) => {
@@ -1023,23 +1031,21 @@ const onSeek = (e) => {
     const rect = progressBar.getBoundingClientRect();
     let percent = (clientX - rect.left) / rect.width;
     percent = Math.max(0, Math.min(1, percent));
-    
-    // 实时更新UI
+
     progressFilled.style.width = (percent * 100) + '%';
     progressSlider.style.left = (percent * 100) + '%';
-    
-    // 实时更新时间显示（无论是否播放）
+
     const currentIndex = player.index;
     const sound = player.playlist[currentIndex].howl;
     const cachedDuration = preloadedDurations[currentIndex];
-    
+
     let duration = null;
     if (sound && sound.duration()) {
         duration = sound.duration();
     } else if (cachedDuration) {
         duration = cachedDuration;
     }
-    
+
     if (duration && !isNaN(duration) && isFinite(duration)) {
         const seekTime = duration * percent;
         const formattedSeek = player.formatTime(Math.floor(seekTime));
@@ -1049,8 +1055,7 @@ const onSeek = (e) => {
         if (currentTimeDisplay.innerHTML !== formattedSeek) {
             currentTimeDisplay.innerHTML = formattedSeek;
         }
-        
-        // 实时更新歌词（使用当前歌曲的歌词）
+
         const lyrics = preloadedLyrics[currentIndex] || currentLyrics;
         if (lyrics && lyrics.length > 0) {
             const currentIndexInLyrics = getCurrentLyricIndex(seekTime, lyrics);
@@ -1060,30 +1065,25 @@ const onSeek = (e) => {
     }
 };
 
-const endSeek = (event) => { // 接收 event 对象
+const endSeek = (event) => {
     if (!isSeeking) return;
-    
-    // 执行实际的seek操作前，获取最终的百分比
-    const clientX = event.type.includes('touch') ? event.changedTouches[0].clientX : event.clientX; // 使用 changedTouches 或 event.clientX
+
+    const clientX = event.type.includes('touch') ? event.changedTouches[0].clientX : event.clientX;
     const rect = progressBar.getBoundingClientRect();
     let percent = (clientX - rect.left) / rect.width;
     percent = Math.max(0, Math.min(1, percent));
 
-    // 先执行实际的seek，等待Howler内部处理
-    player.seek(percent); // player.seek 内部会更新 UI
+    player.seek(percent);
 
-    // 清理事件监听器
     window.removeEventListener('mousemove', onSeek);
     window.removeEventListener('mouseup', endSeek);
     window.removeEventListener('touchmove', onSeek);
     window.removeEventListener('touchend', endSeek);
 
-    // 最后设置isSeeking为false，并恢复光标
     isSeeking = false;
     progressSlider.classList.remove('active');
     document.body.style.cursor = '';
-    
-    // seek完成后重新启动歌词更新和 step 循环（如果正在播放）
+
     setTimeout(() => {
         if (player && player.playlist[player.index].howl && player.playlist[player.index].howl.playing()) {
             const sound = player.playlist[player.index].howl;
@@ -1092,10 +1092,9 @@ const endSeek = (event) => { // 接收 event 对象
             const currentIndex = getCurrentLyricIndex(pos, lyrics);
             updateLyricDisplay(lyrics, currentIndex);
             lastLyricIndex = currentIndex;
-            // 确保 step 循环在播放时运行
             requestAnimationFrame(player.step.bind(player));
         }
-    }, 50); // 稍微延迟，确保Howler内部seek完成
+    }, 50);
 };
 
 progressSlider.addEventListener('mousedown', startSeek);
@@ -1104,15 +1103,15 @@ progressSlider.addEventListener('touchstart', startSeek, { passive: false });
 progressBar.addEventListener('click', (e) => {
     if (!isSeeking) {
         const rect = progressBar.getBoundingClientRect();
-        const clientX = e.clientX; // 从点击事件获取 clientX
+        const clientX = e.clientX;
         const percent = (clientX - rect.left) / rect.width;
         player.seek(Math.max(0, Math.min(1, percent)));
     }
 });
 
 playlistBtn.addEventListener('click', () => player.togglePlaylist());
-playlist.addEventListener('click', (e) => { // 增加对点击事件的判断，避免点击歌曲列表时关闭整个列表
-    if (e.target === playlist) { // 只有点击到灰色背景时才关闭
+playlist.addEventListener('click', (e) => {
+    if (e.target === playlist) {
         player.togglePlaylist();
     }
 });
@@ -1120,13 +1119,11 @@ postBtn.addEventListener('click', () => player.togglePost());
 waveBtn.addEventListener('click', () => player.toggleWave());
 modeBtn.addEventListener('click', () => player.toggleMode());
 
-// 音量控制事件监听器
 volumeBtn.addEventListener('mouseenter', showVolumePopup);
 volumeBtn.addEventListener('mouseleave', hideVolumePopup);
 volumePopup.addEventListener('mouseenter', showVolumePopup);
 volumePopup.addEventListener('mouseleave', hideVolumePopup);
 
-// 音量条点击事件
 volumeBarTrack.addEventListener('click', (e) => {
     if (!isVolumeDragging) {
         const volume = calculateVolumeFromPosition(e.clientY);
@@ -1134,7 +1131,6 @@ volumeBarTrack.addEventListener('click', (e) => {
     }
 });
 
-// 音量条拖动事件
 const startVolumeDrag = (e) => {
     isVolumeDragging = true;
     document.body.style.cursor = 'grabbing';
@@ -1185,14 +1181,11 @@ window.addEventListener('beforeunload', () => {
    if (player && player.drawId) {
        cancelAnimationFrame(player.drawId);
    }
-   // 清理背景轮播
    if (backgroundInterval) clearInterval(backgroundInterval);
 });
 
-// 处理控制台错误信息
 window.addEventListener('error', (e) => {
     if (e.message && e.message.includes('Unchecked runtime.lastError')) {
-        // 忽略Chrome扩展相关的错误
         return;
     }
     console.error('An error occurred:', e.error);
