@@ -172,13 +172,10 @@ function parseSRT(srtText) {
 function getCurrentLyricIndex(time, lyrics) {
     if (!lyrics || lyrics.length === 0) return -1;
 
-    // 修复：即使没有00:00时间戳，也能正确找到第一句歌词
     if (time < lyrics[0].time) {
-        // 如果时间在第一句歌词之前，显示第一句歌词
         return 0;
     }
 
-    // 二分查找优化性能
     let left = 0;
     let right = lyrics.length - 1;
     let result = -1;
@@ -193,18 +190,15 @@ function getCurrentLyricIndex(time, lyrics) {
         }
     }
 
-    // 确保当前时间在歌词的时间范围内
     if (result >= 0 && time < (lyrics[result].end || Infinity)) {
         return result;
     }
 
-    // 如果找不到匹配的歌词，返回最后一个歌词的索引
     return Math.max(0, result);
 }
 
 function updateLyricDisplay(lyrics, currentIndex) {
     if (!lyrics || lyrics.length === 0) {
-        // 无歌词时显示提示
         lyricLines.prev2.textContent = '';
         lyricLines.prev1.textContent = '';
         lyricLines.current.textContent = '暂无歌词';
@@ -213,14 +207,12 @@ function updateLyricDisplay(lyrics, currentIndex) {
         return;
     }
 
-    // 为歌词切换添加动画效果
     const prev2El = lyricLines.prev2;
     const prev1El = lyricLines.prev1;
     const currentEl = lyricLines.current;
     const next1El = lyricLines.next1;
     const next2El = lyricLines.next2;
 
-    // 添加淡出效果
     prev2El.style.opacity = '0';
     prev1El.style.opacity = '0';
     currentEl.style.opacity = '0';
@@ -228,24 +220,20 @@ function updateLyricDisplay(lyrics, currentIndex) {
     next2El.style.opacity = '0';
 
     setTimeout(() => {
-        // 确保currentIndex在有效范围内
         const index = Math.max(0, Math.min(currentIndex, lyrics.length - 1));
 
-        // 更新5句歌词显示
         prev2El.textContent = (index >= 2) ? lyrics[index - 2].text : '';
         prev1El.textContent = (index >= 1) ? lyrics[index - 1].text : '';
         currentEl.textContent = (index >= 0) ? lyrics[index].text : '';
         next1El.textContent = (index < lyrics.length - 1) ? lyrics[index + 1].text : '';
         next2El.textContent = (index < lyrics.length - 2) ? lyrics[index + 2].text : '';
 
-        // 添加淡入效果和变换效果（垂直平滑滚动、渐渐清晰、渐渐变大）
         prev2El.style.opacity = index >= 2 ? '0.7' : '0';
         prev1El.style.opacity = index >= 1 ? '0.7' : '0';
         currentEl.style.opacity = '1';
         next1El.style.opacity = index < lyrics.length - 1 ? '0.7' : '0';
         next2El.style.opacity = index < lyrics.length - 2 ? '0.7' : '0';
 
-        // 重置变换
         prev2El.style.transform = index >= 2 ? 'translateY(-32px)' : 'translateY(0)';
         prev1El.style.transform = index >= 1 ? 'translateY(-16px)' : 'translateY(0)';
         currentEl.style.transform = 'scale(1.05)';
@@ -254,7 +242,6 @@ function updateLyricDisplay(lyrics, currentIndex) {
     }, 150);
 }
 
-// 音量控制相关函数
 function showVolumePopup() {
     clearTimeout(volumeHideTimeout);
     volumePopup.classList.add('show');
@@ -265,7 +252,7 @@ function hideVolumePopup() {
     volumeHideTimeout = setTimeout(() => {
         volumePopup.classList.remove('show');
         progressContainer.style.width = '100%';
-    }, 300); // 缩短延迟时间到300ms
+    }, 300);
 }
 
 function updateVolumeDisplay(volume) {
@@ -291,7 +278,8 @@ let Player = function (playlist) {
     this.index = playNum;
     this.isSlideshowRunning = false;
     this.playbackMode = 'list';
-    this.mediaSource = null; // 用于存储 MediaElementSourceNode 实例
+    this.mediaSource = null;
+    this.currentlyLoadingIndex = -1; // 新增：记录当前正在加载的歌曲索引
 
     // --- 加载优先级调整开始 ---
     // 1. 设置当前歌曲的基本信息和OG标签，确保最快显示
@@ -310,44 +298,65 @@ let Player = function (playlist) {
     // 3. 立即加载当前歌曲的歌词
     this.loadLyric(data.lyric || null);
 
-    // 4. 初始化Howl实例并预加载当前歌曲元数据和时长
-    // 这里不再使用临时Howl，而是直接创建用于播放的Howl实例
+    // 4. 初始化当前歌曲的Howl实例并开始预加载 'auto' 级别的数据
+    this.currentlyLoadingIndex = this.index; // 设置当前正在加载的索引
     if (!data.howl) {
         data.howl = new Howl({
             src: [media + data.mp3],
-            html5: isMobile(), // 保持为 isMobile()
-            preload: 'metadata', // 确保先获取元数据
-            onloadeddata: () => { // 只有在HTML5模式下触发
-                console.log(`当前歌曲 (${data.title}) 元数据加载完成 (HTML5模式)`);
+            html5: isMobile(),
+            preload: 'auto', // 播放前尽可能多的加载，以减少卡顿
+            onloadeddata: () => { // 仅HTML5模式下触发，通常用于获取元数据后继续下载
+                console.log(`当前歌曲 (${data.title}) 元数据/部分数据加载完成 (HTML5模式)`);
                 this.updateDurationDisplays(data.howl.duration());
                 preloadedDurations[this.index] = data.howl.duration();
             },
-            onload: () => { // Web Audio API 和 HTML5 都会触发
-                console.log(`当前歌曲 (${data.title}) 加载完成`);
+            onload: () => { // Web Audio API 和 HTML5 模式都会触发，表示已准备好播放
+                console.log(`当前歌曲 (${data.title}) 完全加载完成`);
                 this.updateDurationDisplays(data.howl.duration());
                 preloadedDurations[this.index] = data.howl.duration();
-                // 如果是第一次加载且启用了可视化，可以尝试setupVisualization
-                if (!this.analyser && this.playlist[this.index].howl.playing()) {
-                     this.setupVisualization(this.playlist[this.index].howl);
+                this.currentlyLoadingIndex = -1; // 加载完成
+                // 如果当前正好在加载此歌曲且用户点击了播放但还未开始，则启动
+                if (loading.style.display === 'block' && !data.howl.playing()) {
+                    playBtn.style.display = 'block';
+                    pauseBtn.style.display = 'none';
+                    loading.style.display = 'none';
                 }
             },
             onloaderror: (id, err) => {
                 console.error(`当前歌曲 (${data.title}) 加载失败:`, err);
+                this.currentlyLoadingIndex = -1; // 加载失败
+                // 恢复播放按钮，隐藏加载动画
+                playBtn.style.display = 'block';
+                pauseBtn.style.display = 'none';
+                loading.style.display = 'none';
             }
         });
     } else {
-        // 如果已经存在Howl实例（例如从预加载而来），确保其加载状态
+        // 如果Howl实例已经存在，确保其 preload 状态是 'auto'
         if (data.howl.state() === 'loaded') {
             this.updateDurationDisplays(data.howl.duration());
             preloadedDurations[this.index] = data.howl.duration();
+            this.currentlyLoadingIndex = -1; // 已经是加载完成状态
         } else if (data.howl.state() === 'loading') {
             // 如果还在加载中，等待其完成
             data.howl.once('load', () => {
                 this.updateDurationDisplays(data.howl.duration());
                 preloadedDurations[this.index] = data.howl.duration();
+                this.currentlyLoadingIndex = -1;
+                 // 如果当前正好在加载此歌曲且用户点击了播放但还未开始，则启动
+                if (loading.style.display === 'block' && !data.howl.playing()) {
+                    playBtn.style.display = 'block';
+                    pauseBtn.style.display = 'none';
+                    loading.style.display = 'none';
+                }
             });
             data.howl.once('loaderror', (id, err) => {
                 console.error(`当前歌曲 (${data.title}) 预加载失败:`, err);
+                this.currentlyLoadingIndex = -1;
+                // 恢复播放按钮，隐藏加载动画
+                playBtn.style.display = 'block';
+                pauseBtn.style.display = 'none';
+                loading.style.display = 'none';
             });
         }
     }
@@ -389,9 +398,13 @@ Player.prototype = {
             if (this.playlist[this.index] && this.playlist[this.index].howl) {
                 this.playlist[this.index].howl.stop();
             }
+            // 确保旧歌曲的可视化被清理
+            if (this.drawId) {
+                cancelAnimationFrame(this.drawId);
+                this.drawId = null;
+            }
         }
 
-        // 修复：背景轮播控制 (保留)
         if (!isNewTrack && this.isSlideshowRunning) {
             if (!backgroundInterval && data.howl && data.howl.playing()) {
                 this.startBackgroundSlideshow(data.pic, false);
@@ -403,29 +416,41 @@ Player.prototype = {
         // --- 避免重复请求音频文件：如果Howl实例已经存在且加载中或已加载，则直接使用 ---
         if (data.howl && data.howl.state() !== 'unloaded') {
             sound = data.howl;
+            // 确保预加载模式为 'auto'
+            if (sound._preload !== 'auto') {
+                // 如果是 HTML5 模式，需要重新 load 才能改变 preload 行为
+                // 但 Howler.js 没有直接更改 preload 的 API，通常是重新创建 Howl
+                // 对于已有的 Howl 实例，通常不会重新设置 preload
+                // 为了简化，我们假设 preload 在创建时就已设置好
+            }
+
             if (sound.state() === 'loading') {
                 loading.style.display = 'block';
                 playBtn.style.display = 'none';
                 pauseBtn.style.display = 'none';
+                this.currentlyLoadingIndex = index; // 更新当前正在加载的索引
                 // 监听加载完成事件，完成后再播放
                 sound.once('load', () => {
                     loading.style.display = 'none';
-                    if (!sound.playing()) { // 避免在等待加载时用户点了多次play
-                        sound.play();
+                    if (this.index === index && !sound.playing()) { // 确保是当前歌曲且未播放
+                        sound.play(); // 加载完成立即播放
                     }
                 });
                 sound.once('loaderror', (id, err) => {
                     console.error(`播放歌曲 (${data.title}) 失败:`, err);
                     loading.style.display = 'none';
                     playBtn.style.display = 'block';
+                    pauseBtn.style.display = 'none';
+                    this.currentlyLoadingIndex = -1;
                 });
                 return; // 等待加载完成再播放
             }
         } else {
             // 如果Howl实例不存在或已卸载，则创建新的
+            this.currentlyLoadingIndex = index; // 设置当前正在加载的索引
             sound = data.howl = new Howl({
                 src: [media + data.mp3],
-                html5: isMobile(), // 保持为 isMobile()
+                html5: isMobile(),
                 preload: 'auto', // 播放时可以设置为auto，确保更快的启动和更少卡顿
                 onplay: () => {
                     this.updateDurationDisplays(sound.duration());
@@ -461,8 +486,9 @@ Player.prototype = {
                     loading.style.display = 'none';
                     this.updateDurationDisplays(sound.duration());
                     preloadedDurations[index] = sound.duration();
+                    this.currentlyLoadingIndex = -1; // 加载完成
                     // 在这里触发播放，因为可能是在等待onload后才播放
-                    if (!sound.playing() && this.index === index) { // 确保是当前歌曲且未播放
+                    if (this.index === index && !sound.playing()) { // 确保是当前歌曲且未播放
                          sound.play();
                     }
                 },
@@ -495,11 +521,17 @@ Player.prototype = {
                     console.error(`加载歌曲 (${data.title}) 失败:`, err);
                     loading.style.display = 'none';
                     playBtn.style.display = 'block';
+                    pauseBtn.style.display = 'none';
+                    this.currentlyLoadingIndex = -1;
                 }
             });
+            // 立即开始加载
+            sound.load(); // Howler.js 默认在创建后立即加载，但显式调用更明确
+            loading.style.display = 'block'; playBtn.style.display = 'none'; pauseBtn.style.display = 'none';
         }
 
-        if (!sound.playing()) {
+        // 如果声音已经加载完成，并且没有在播放，就播放它
+        if (sound.state() === 'loaded' && !sound.playing()) {
             sound.play();
         }
 
@@ -517,19 +549,31 @@ Player.prototype = {
             playNum = index;
             this.loadLyric(data.lyric || null);
             if ('mediaSession' in navigator) this.updateMediaSession(data);
-            this.setupVisualization(sound);
+            // setupVisualization 会在 onplay 中被调用
         }
 
-        if (sound.state() === 'loaded') {
+        // 根据当前加载状态更新UI
+        if (this.currentlyLoadingIndex === index) {
+            loading.style.display = 'block';
+            playBtn.style.display = 'none';
+            pauseBtn.style.display = 'none';
+        } else if (sound.state() === 'loaded') {
             loading.style.display = 'none';
-            this.updateDurationDisplays(sound.duration());
-            preloadedDurations[index] = sound.duration();
-        } else if (sound.state() === 'loading') {
-            loading.style.display = 'block'; playBtn.style.display = 'none'; pauseBtn.style.display = 'none';
-        } else { // unloaded state, should be handled by the new Howl creation logic above
-            console.warn(`Howl state is unexpected for ${data.title}: ${sound.state()}`);
-            loading.style.display = 'block'; playBtn.style.display = 'none'; pauseBtn.style.display = 'none';
+            if (sound.playing()) {
+                playBtn.style.display = 'none';
+                pauseBtn.style.display = 'block';
+            } else {
+                playBtn.style.display = 'block';
+                pauseBtn.style.display = 'none';
+            }
+        } else {
+            // 如果不是当前加载的，也不是已加载的，可能是发生了错误或者状态不明确
+            console.warn(`Unexpected sound state for ${data.title}: ${sound.state()}`);
+            loading.style.display = 'none';
+            playBtn.style.display = 'block';
+            pauseBtn.style.display = 'none';
         }
+
         this.index = index;
         this.preloadAdjacentTracks(this.index);
     },
@@ -542,12 +586,8 @@ Player.prototype = {
         pendingSeekPercent = null;
     },
 
-    // 优化后的 preloadDuration 不再创建临时Howl，而是依赖Player构造函数或play方法创建的Howl实例
-    // 并且不再需要手动调用，因为Howl实例已在构造函数或play方法中创建并负责加载时长
-    // 此函数可以被移除或简化
+    // 简化 preloadDuration，主要用于确保 durationDisplays 被更新
     preloadDuration: function(data, index) {
-        // 由于Player构造函数和play方法现在负责创建Howl实例和加载时长
-        // 这个函数主要用于确保 durationDisplays 被更新，而不是启动加载
         if (preloadedDurations[index]) {
             this.updateDurationDisplays(preloadedDurations[index]);
             return;
@@ -567,21 +607,26 @@ Player.prototype = {
                 console.log(`Failed to get duration for ${data.title} during preload.`);
             });
         }
-        // else: Howl instance not yet created, will be handled by play() or initial Player construction
     },
 
     preloadAdjacentTracks: function(currentTrackIndex) {
         const nextIndex = (currentTrackIndex + 1) % this.playlist.length;
         const prevIndex = (currentTrackIndex - 1 + this.playlist.length) % this.playlist.length;
 
-        // 预加载下一曲 (如果Howl实例还未创建)
-        if (!this.playlist[nextIndex].howl) {
+        // 预加载下一曲 (如果Howl实例还未创建且不是当前正在加载的歌曲)
+        if (!this.playlist[nextIndex].howl && nextIndex !== this.currentlyLoadingIndex) {
             this.playlist[nextIndex].howl = new Howl({
                 src: [media + this.playlist[nextIndex].mp3],
                 html5: isMobile(),
                 preload: 'metadata', // 预加载时只获取元数据
                 onloadeddata: () => {
-                    console.log(`预加载下一曲元数据: ${this.playlist[nextIndex].title}`);
+                    console.log(`预加载下一曲 (${this.playlist[nextIndex].title}) 元数据完成 (HTML5模式)`);
+                    if (!preloadedDurations[nextIndex] && this.playlist[nextIndex].howl.duration()) {
+                        preloadedDurations[nextIndex] = this.playlist[nextIndex].howl.duration();
+                    }
+                },
+                onload: () => {
+                    console.log(`预加载下一曲 (${this.playlist[nextIndex].title}) 加载完成`);
                     if (!preloadedDurations[nextIndex] && this.playlist[nextIndex].howl.duration()) {
                         preloadedDurations[nextIndex] = this.playlist[nextIndex].howl.duration();
                     }
@@ -593,13 +638,19 @@ Player.prototype = {
         }
 
         // 预加载上一曲 (可选，优先级低于下一曲)
-        if (!this.playlist[prevIndex].howl) {
+        if (!this.playlist[prevIndex].howl && prevIndex !== this.currentlyLoadingIndex) {
             this.playlist[prevIndex].howl = new Howl({
                 src: [media + this.playlist[prevIndex].mp3],
                 html5: isMobile(),
                 preload: 'metadata',
                 onloadeddata: () => {
-                    console.log(`预加载上一曲元数据: ${this.playlist[prevIndex].title}`);
+                    console.log(`预加载上一曲 (${this.playlist[prevIndex].title}) 元数据完成 (HTML5模式)`);
+                    if (!preloadedDurations[prevIndex] && this.playlist[prevIndex].howl.duration()) {
+                        preloadedDurations[prevIndex] = this.playlist[prevIndex].howl.duration();
+                    }
+                },
+                 onload: () => {
+                    console.log(`预加载上一曲 (${this.playlist[prevIndex].title}) 加载完成`);
                     if (!preloadedDurations[prevIndex] && this.playlist[prevIndex].howl.duration()) {
                         preloadedDurations[prevIndex] = this.playlist[prevIndex].howl.duration();
                     }
@@ -614,7 +665,7 @@ Player.prototype = {
     updateDurationDisplays: function(duration) {
         if (duration && !isNaN(duration) && isFinite(duration)) {
             const formattedDuration = this.formatTime(Math.round(duration));
-            if (window.duration.innerHTML !== formattedDuration) { // 使用 window.duration
+            if (window.duration.innerHTML !== formattedDuration) {
                 window.duration.innerHTML = formattedDuration;
             }
             if (durationDisplay.innerHTML !== formattedDuration) {
@@ -653,7 +704,7 @@ Player.prototype = {
             if (audioEl) {
                 this.mediaSource = Howler.ctx.createMediaElementSource(audioEl);
                 this.mediaSource.connect(this.analyser);
-                this.analyser.connect(Howler.masterGain); // 将Analyser连接到Howler的masterGain
+                this.analyser.connect(Howler.masterGain);
                 console.log("可视化已连接到 HTML5 Audio 元素 (流式)。");
             } else {
                 console.warn("无法获取 HTML5 Audio 元素进行可视化。");
@@ -733,26 +784,23 @@ Player.prototype = {
         img.src = media + encodeURI(coverPic);
     },
 
-    // 优化后的 setBackground
     setBackground: function(picData, forceReset = false) {
         if (backgroundInterval) clearInterval(backgroundInterval);
         backgroundInterval = null;
-        
-        // Always reset image cache if forceReset or new picData is provided
+
         if (forceReset || !currentImageCache || currentImageCache.length === 0 || !picData || !Array.isArray(picData)) {
             currentImageCache = [];
             currentBgIndex = 0;
             const imagesToPreload = Array.isArray(picData) ? picData : [picData];
             imagesToPreload.forEach(picName => {
                 const img = new Image();
-                img.src = media + encodeURI(picName); // Trigger browser cache
+                img.src = media + encodeURI(picName);
                 currentImageCache.push(img);
             });
         }
 
         if (Array.isArray(picData) && picData.length > 1) {
             this.isSlideshowRunning = true;
-            // Use directly preloaded image objects
             const firstImageSrc = currentImageCache[0] ? currentImageCache[0].src : `url('${media}${encodeURI(picData[0])}')`;
             bgLayer1.style.backgroundImage = `url('${firstImageSrc}')`;
             bgLayer1.style.opacity = 1;
@@ -775,10 +823,9 @@ Player.prototype = {
 
     startBackgroundSlideshow: function(images, resetIndex = true) {
         if (backgroundInterval) clearInterval(backgroundInterval);
-        
+
         if (resetIndex) currentBgIndex = 0;
-        
-        // Ensure image cache is ready, if not, re-init (shouldn't happen with optimized setBackground)
+
         if (currentImageCache.length === 0) {
             images.forEach(picName => {
                 const img = new Image();
@@ -786,23 +833,22 @@ Player.prototype = {
                 currentImageCache.push(img);
             });
         }
-        
+
         const changeImage = () => {
             if (currentImageCache.length === 0) return;
-            
+
             currentBgIndex = (currentBgIndex + 1) % images.length;
             const nextImage = currentImageCache[currentBgIndex];
             if(nextImage) {
                 let nextLayer = (activeBgLayer === 1) ? bgLayer2 : bgLayer1;
                 let currentLayer = (activeBgLayer === 1) ? bgLayer1 : bgLayer2;
-                // Directly use src from Image object, which should be cached
                 nextLayer.style.backgroundImage = `url('${nextImage.src}')`;
                 currentLayer.style.opacity = 0;
                 nextLayer.style.opacity = 1;
                 activeBgLayer = (activeBgLayer === 1) ? 2 : 1;
             }
         };
-        
+
         backgroundInterval = setInterval(changeImage, BACKGROUND_SLIDESHOW_INTERVAL);
     },
 
@@ -817,6 +863,7 @@ Player.prototype = {
         }
         playBtn.style.display = 'block';
         pauseBtn.style.display = 'none';
+        loading.style.display = 'none'; // 确保暂停时隐藏加载动画
     },
 
     skip: function (direction) {
@@ -851,6 +898,17 @@ Player.prototype = {
         this.resetProgressBar();
         if (lyricInterval) clearInterval(lyricInterval);
         lastLyricIndex = -1;
+
+        // 切换歌曲时，需要先设置新歌曲信息，再尝试播放
+        const data = this.playlist[index];
+        track.innerHTML = data.title;
+        artist.innerHTML = data.artist;
+        document.title = `${data.title} - Gmemp`;
+        post.innerHTML = `<p><b>${data.date}</b></p>${data.article}`;
+        const initialPicForOG = Array.isArray(data.pic) ? data.pic[0] : data.pic;
+        document.querySelector('meta[property="og:image"]').setAttribute('content', media + encodeURI(initialPicForOG));
+        document.querySelector('meta[property="og:title"]').setAttribute('content', data.title);
+
         this.play(index);
     },
 
@@ -921,7 +979,7 @@ Player.prototype = {
 
         if (duration && isFinite(duration)) {
             const formattedTotal = this.formatTime(Math.floor(duration));
-            if (window.duration.innerHTML !== formattedTotal) { // 使用 window.duration
+            if (window.duration.innerHTML !== formattedTotal) {
                 window.duration.innerHTML = formattedTotal;
             }
             if (durationDisplay.innerHTML !== formattedTotal) {
@@ -1001,6 +1059,9 @@ Player.prototype = {
         } else {
             if (player && player.playlist[player.index].howl && player.playlist[player.index].howl.playing()) {
                 if (!player.drawId) player.drawId = requestAnimationFrame(player.draw.bind(player));
+            } else if (player && player.playlist[player.index].howl) {
+                // 如果没有播放，但有howl实例，重新 setupVisualization 以便在播放时启动
+                player.setupVisualization(player.playlist[player.index].howl);
             }
         }
     },
