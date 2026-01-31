@@ -8,9 +8,6 @@ let isVolumeDragging = false;
 export function setupEventListeners(player, uiManager, visualization) {
     const dom = DOMElements;
 
-    // Make playerInstance globally available for UIManager's toggleLoading fallback logic
-    // This is a common pattern for tightly coupled UI/Player, but generally avoid global if possible.
-    // For this specific fallback, it's acceptable.
     window.playerInstance = player;
 
     // Playback controls
@@ -54,7 +51,7 @@ export function setupEventListeners(player, uiManager, visualization) {
         const duration = (currentSound && currentSound.duration()) || player.preloadedDurations[player.index] || 0;
         const seekTime = duration * percent;
         uiManager.updateProgressBar(seekTime, duration);
-        updateLyricDisplayAtTime(seekTime);
+        updateLyricDisplayAtTime(seekTime, player.currentDisplayedLyrics); // Pass currentDisplayedLyrics
     };
 
     const endSeek = (e) => {
@@ -153,20 +150,29 @@ export function setupEventListeners(player, uiManager, visualization) {
     });
 
     // Keyboard shortcuts
-    document.addEventListener('keyup', e => {
+    document.addEventListener('keydown', e => { // Changed to keydown for faster response on seek
         if (!player) return;
         const currentSound = player.playlist[player.index].howl;
 
         if (e.key === ' ' || e.key === "MediaPlayPause") {
+            e.preventDefault(); // Prevent spacebar from scrolling the page
             if (currentSound && currentSound.playing()) {
                 player.pause();
             } else {
                 player.play();
             }
-        } else if (e.key === "MediaTrackNext") {
-            player.skip('next');
-        } else if (e.key === "MediaTrackPrevious") {
+        } else if (e.key === "ArrowRight") { // 右方向键快进
+            e.preventDefault();
+            player.seekBy(3); // 快进 3 秒
+        } else if (e.key === "ArrowLeft") { // 左方向键快退
+            e.preventDefault();
+            player.seekBy(-3); // 快退 3 秒
+        } else if (e.key === "<" || e.key === ",") { // < 切换上一首
+            e.preventDefault();
             player.skip('prev');
+        } else if (e.key === ">" || e.key === ".") { // > 切换下一首
+            e.preventDefault();
+            player.skip('next');
         } else if (e.key === "l" || e.key === "L") {
             uiManager.togglePlaylist();
         } else if (e.key === "p" || e.key === "P") {

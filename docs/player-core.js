@@ -24,6 +24,7 @@ export class Player {
         this.preloadedDurations = {}; // Cache for preloaded durations
         this.preloadedLyrics = {}; // Cache for preloaded lyrics (key: trackIndex, value: parsedLyricsArray)
         this.currentDisplayedLyrics = []; // Hold the lyrics array currently being displayed
+        this._retryCounts = {}; // Track retry counts for each track
 
         // Initialize UI with first track data
         const initialTrack = this.playlist[this.index];
@@ -80,6 +81,9 @@ export class Player {
             return;
         }
 
+        // Initialize retry count for this track
+        this._retryCounts[index] = this._retryCounts[index] || 0;
+
         // Create Howl instance for preloading
         data.howl = new window.Howl({
             src: [MEDIA_PATH + data.mp3], html5: isMobile(), preload: true,
@@ -104,6 +108,8 @@ export class Player {
                 if (!window.Howler._audioUnlocked && window.Howler.ctx) {
                     window.Howler._unlockAudio();
                 }
+                // Reset retry count on successful load
+                this._retryCounts[index] = 0;
             },
             onend: () => { this.playNextTrack(); },
             onpause: () => { 
@@ -126,12 +132,34 @@ export class Player {
             },
             onloaderror: (id, error) => {
                 console.error(`Error loading track ${data.title} (ID: ${id}):`, error);
+
+                // Check for decoding error specifically, and retry once
+                if (error === 'Decoding audio data failed' && this._retryCounts[index] < 1) {
+                    this._retryCounts[index]++;
+                    console.warn(`Retrying load for track ${data.title} (Retry ${this._retryCounts[index]})`);
+                    // Unload and then re-preload/load
+                    data.howl.unload();
+                    delete data.howl; // Remove the failed howl instance
+                    // Schedule a re-load. If a play was pending, it will retry
+                    if (this._pendingPlayPromise) {
+                        this._preloadTrack(index); // This will create a new Howl and its promises
+                    } else {
+                        // If no pending play, just preload for next time
+                        this._preloadTrack(index);
+                    }
+                    return; // Exit here, let the retry handle it
+                }
+                
+                // If retry failed or it's not a decoding error, proceed to error handling
                 if (this._pendingPlayPromise) {
                     this._pendingPlayPromise.reject(new Error("Audio load failed"));
                     this._pendingPlayPromise = null;
                 }
                 this.uiManager.toggleLoading(false);
-                this.uiManager.updatePlayPauseButtons(false);
+                this.uiManager.updatePlayPauseButtons(false); // show play button on error
+                // On persistent error, skip to next track
+                console.error(`Failed to load track ${data.title} after retry. Skipping.`);
+                this.playNextTrack();
             }
         });
         this._preloadDuration(data, index); // Display cached/estimated duration if available
@@ -265,6 +293,18 @@ export class Player {
             if (this.visualization.isVisible()) {
                 this.visualization.stop();
             }
+        }
+    }
+
+    // 增加一个 seekBy 方法，用于按秒数调整进度
+    seekBy(seconds) {
+        const sound = this.playlist[this.index].howl;
+        if (sound && (sound.state() === 'loaded' || sound.playing())) {
+            let currentSeek = sound.seek() || 0;
+            let newSeek = currentSeek + seconds;
+            let duration = sound.duration();
+            newSeek = Math.max(0, Math.min(newSeek, duration)); // Clamp between 0 and duration
+            this.seek(newSeek / duration); // Convert to percentage and use existing seek method
         }
     }
 
