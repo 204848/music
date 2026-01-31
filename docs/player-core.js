@@ -41,7 +41,17 @@ export class Player {
         window.Howler.autoUnlock = true;
         
         // 预加载当前歌曲（但不自动播放）
-        this._preloadTrack(this.index);
+        this._preloadTrack(this.index).then(() => {
+            // Fix: Initial lyric display after the first track's lyrics are loaded
+            // Ensure currentDisplayedLyrics is set and then update the display.
+            const initialTrack = this.playlist[this.index];
+            if (initialTrack.lyric && this.preloadedLyrics[this.index]) {
+                this.currentDisplayedLyrics = this.preloadedLyrics[this.index];
+                // Display lyrics at time 0 (or current seek if Howl somehow started)
+                const initialSeek = initialTrack.howl ? initialTrack.howl.seek() : 0;
+                updateLyricDisplayAtTime(initialSeek, this.currentDisplayedLyrics);
+            }
+        });
         this._preloadNeighbors(this.index); // 预加载相邻歌曲
     }
 
@@ -72,12 +82,13 @@ export class Player {
         return parsedLyrics;
     }
 
-    _preloadTrack(index) {
+    // 调整为 async 函数，以便等待歌词加载
+    async _preloadTrack(index) {
         const data = this.playlist[index];
         if (data.howl && data.howl.state() !== 'unloaded') {
             // Already loaded or loading
             this._preloadDuration(data, index); // Still update duration displays
-            this._loadTrackLyrics(data.lyric, index); // Ensure lyrics are cached
+            await this._loadTrackLyrics(data.lyric, index); // Ensure lyrics are cached
             return;
         }
 
@@ -163,7 +174,7 @@ export class Player {
             }
         });
         this._preloadDuration(data, index); // Display cached/estimated duration if available
-        this._loadTrackLyrics(data.lyric, index); // Ensure lyrics are cached
+        await this._loadTrackLyrics(data.lyric, index); // Ensure lyrics are cached, and await it
     }
 
     _preloadDuration(data, index) {
@@ -237,7 +248,7 @@ export class Player {
         }
 
         if (!sound || sound.state() === 'unloaded') {
-            this._preloadTrack(index);
+            await this._preloadTrack(index); // Ensure sound is created and lyrics are loaded
             sound = data.howl;
         }
         
@@ -247,7 +258,7 @@ export class Player {
             window.location.hash = "#" + index;
             this.uiManager.updateActivePlaylistItem(oldIndex, index);
             this.uiManager.scrollPlaylistToActive(index);
-            await this._loadTrackLyrics(data.lyric, index); // 确保歌词已加载到缓存
+            // After _preloadTrack, lyrics should already be in cache and currentDisplayedLyrics set.
             this.currentDisplayedLyrics = this.preloadedLyrics[index]; // 设置当前显示歌词
             updateLyricDisplayAtTime(sound.seek() || 0, this.currentDisplayedLyrics); // 立即更新歌词显示
             this._updateMediaSession(data);
