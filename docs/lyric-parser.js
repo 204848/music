@@ -99,8 +99,7 @@ function parseLRC(lrcText) {
 function parseSRT(srtText) {
     if (!srtText) return [];
     const lines = srtText.split(/\r?\n/);
-    const tempMap = {}; // 使用 Map 处理相同时间的翻译
-    const result = [];
+    const tempMap = {}; 
     let i = 0;
     while (i < lines.length) {
         const indexLine = lines[i].trim();
@@ -119,48 +118,45 @@ function parseSRT(srtText) {
             text += lines[i].trim();
             i++;
         }
-        if (text) result.push({ time: start, end, text });
-        while (i < lines.length && lines[i].trim() === '') {
-            i++;
-        }
+        
         if (text) {
             const fixedTime = start.toFixed(3);
             if (!tempMap[fixedTime]) {
                 tempMap[fixedTime] = { time: start, end: end, text: text, trans: "" };
             } else {
-                tempMap[fixedTime].trans = text; // 合并为翻译
+                tempMap[fixedTime].trans = text; // 如果时间相同，存为翻译
             }
         }
     }
-    return Object.values(tempMap).sort((a, b) => a.time - b.time);
+    // 转换成数组并排序
+    const sortedResult = Object.values(tempMap).sort((a, b) => a.time - b.time);
+    // 补齐结束时间
+    for (let j = 0; j < sortedResult.length - 1; j++) {
+        sortedResult[j].end = sortedResult[j + 1].time;
+    }
+    return sortedResult;
 }
 
 function getCurrentLyricIndex(time, lyrics) {
     if (!lyrics || lyrics.length === 0) return -1;
-    if (time < lyrics[0].time) return 0;
+    
+    // 增加一个微小的偏移量（0.1秒），解决由于性能波动导致的“慢半拍”感觉
+    const adjustedTime = time + 0.1; 
 
-    let left = 0;
-    let right = lyrics.length - 1;
     let result = -1;
-
-    while (left <= right) {
-        const mid = Math.floor((left + right) / 2);
-        if (lyrics[mid].time <= time) {
-            result = mid;
-            left = mid + 1;
+    for (let i = 0; i < lyrics.length; i++) {
+        if (adjustedTime >= lyrics[i].time) {
+            result = i;
         } else {
-            right = mid - 1;
+            break;
         }
     }
-
-    if (result >= 0 && time < (lyrics[result].end || Infinity)) {
-        return result;
-    }
-    return Math.max(0, result);
+    return result;
 }
 
 // 修改 updateLyricDisplay 函数
 function updateLyricDisplay(lyrics, currentIndex) {
+    const container = DOMElements.lyricContainer; // 获取外层容器
     const wrapper = DOMElements.lyricsWrapper;
     const lines = wrapper.querySelectorAll('.lyric-line');
     
@@ -173,8 +169,15 @@ function updateLyricDisplay(lyrics, currentIndex) {
     const activeLine = lines[currentIndex];
     activeLine.classList.add('active');
 
-    // --- 计算滚动偏移量 ---
-    // 容器高度的一半 (150px) 减去 当前行相对于 wrapper 顶部的高度
-    const offset = 150 - activeLine.offsetTop;
+    // --- 修复点：动态计算中心偏移量 ---
+    // container.offsetHeight / 2 是容器的中心线
+    // activeLine.offsetTop 是当前行距离 wrapper 顶部的距离
+    // activeLine.offsetHeight / 2 是为了让当前行的文字中线也对准容器中心
+    const containerMid = container.offsetHeight / 2;
+    const lineMid = activeLine.offsetTop + (activeLine.offsetHeight / 2);
+    
+    const offset = containerMid - lineMid;
+    
+    // 应用平滑滚动
     wrapper.style.transform = `translateY(${offset}px)`;
 }

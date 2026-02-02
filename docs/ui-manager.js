@@ -142,49 +142,60 @@ export class UIManager {
     }
 
     // 在 UIManager 类中添加
-    renderAllLyrics(lyrics) {
-        this.dom.lyricsWrapper.innerHTML = '';
-        if (!lyrics || lyrics.length === 0) {
-            this.dom.lyricsWrapper.innerHTML = '<div class="lyric-line active">暂无歌词</div>';
-            this.dom.transBtn.style.display = 'none';
-            return;
-        }
-
-        let hasTrans = false;
-        lyrics.forEach((line, index) => {
-            const lineDiv = document.createElement('div');
-            lineDiv.className = 'lyric-line';
-            lineDiv.setAttribute('data-index', index);
-            
-            const textSpan = document.createElement('span');
-            textSpan.className = 'lyric-text';
-            textSpan.textContent = line.text;
-            lineDiv.appendChild(textSpan);
-
-            if (line.trans) {
-                hasTrans = true;
-                const transSpan = document.createElement('span');
-                transSpan.className = 'lyric-trans';
-                transSpan.textContent = line.trans;
-                lineDiv.appendChild(transSpan);
-            }
-
-            this.dom.lyricsWrapper.appendChild(lineDiv);
-        });
-
-        // 如果有翻译，显示开关
-        this.dom.transBtn.style.display = hasTrans ? 'block' : 'none';
+renderAllLyrics(lyrics) {
+    this.dom.lyricsWrapper.innerHTML = '';
+    this.dom.transBtn.style.display = 'none'; // 1. 先隐藏按钮
+    
+    if (!lyrics || lyrics.length === 0) {
+        this.dom.lyricsWrapper.innerHTML = '<div class="lyric-line active">暂无歌词</div>';
+        return;
     }
 
-    toggleTranslation() {
-        this.dom.lyricsWrapper.classList.toggle('show-trans');
-        // 切换后重新计算一下当前位置，防止高度变化导致的错位
-        const activeLine = this.dom.lyricsWrapper.querySelector('.lyric-line.active');
-        if (activeLine) {
-            const offset = 150 - activeLine.offsetTop;
-            this.dom.lyricsWrapper.style.transform = `translateY(${offset}px)`;
+    let hasTrans = false;
+    lyrics.forEach((line, index) => {
+        const lineDiv = document.createElement('div');
+        lineDiv.className = 'lyric-line';
+        
+        const textSpan = document.createElement('span');
+        textSpan.className = 'lyric-text';
+        textSpan.textContent = line.text;
+        lineDiv.appendChild(textSpan);
+
+        // 检查这一行是否有翻译
+        if (line.trans && line.trans.trim() !== "") {
+            hasTrans = true; // 2. 标记存在翻译
+            const transSpan = document.createElement('span');
+            transSpan.className = 'lyric-trans';
+            transSpan.textContent = line.trans;
+            lineDiv.appendChild(transSpan);
         }
+
+        this.dom.lyricsWrapper.appendChild(lineDiv);
+    });
+
+    // 3. 如果整首歌有翻译，显示开关按钮
+    if (hasTrans) {
+        this.dom.transBtn.style.display = 'block'; 
+        // 强制设置按钮位置和显示
+        this.dom.transBtn.style.visibility = 'visible';
     }
+}
+
+toggleTranslation() {
+    const isShowing = this.dom.lyricsWrapper.classList.toggle('show-trans');
+    
+    // 新增：让按钮本身也切换 active 类，配合上面的 CSS 变色
+    if (this.dom.transBtn) {
+        this.dom.transBtn.classList.toggle('active', isShowing);
+    }
+
+    // 重新计算偏移
+    const activeLine = this.dom.lyricsWrapper.querySelector('.lyric-line.active');
+    if (activeLine) {
+        const offset = 150 - activeLine.offsetTop;
+        this.dom.lyricsWrapper.style.transform = `translateY(${offset}px)`;
+    }
+}
 
     updateModeButton(mode) {
         this.dom.modeBtn.style.backgroundImage = `url("${MODE_ICONS[mode]}")`;

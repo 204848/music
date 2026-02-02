@@ -63,14 +63,18 @@ body {
   z-index: 10;
 }
 
+/* --- 歌词每一行的基础样式 --- */
+/* --- 歌词容器优化 --- */
 #lyricContainer {
   position: relative;
-  height: 300px; /* 建议给一个明确的高度，比如 300px 或 40vh */
+  height: 320px; /* 固定高度 */
   overflow: hidden;
-  margin-top: 20px;
-  /* 增加一个背景色方便调试，确定它显示在屏幕上 */
-  background: rgba(0,0,0,0.1); 
-  border-radius: 15px;
+  margin-top: 25px;
+  background: radial-gradient(circle at center, rgba(0, 0, 0, 0.3) 0%, rgba(0, 0, 0, 0) 85%);
+  border-radius: 20px;
+  /* 顶部和底部的淡出遮罩 */
+  mask-image: linear-gradient(to bottom, transparent, black 25%, black 75%, transparent);
+  -webkit-mask-image: linear-gradient(to bottom, transparent, black 25%, black 75%, transparent);
 }
 
 #lyrics-wrapper {
@@ -78,40 +82,66 @@ body {
   width: 100%;
   top: 0;
   left: 0;
-  transition: transform 0.6s cubic-bezier(0.23, 1, 0.32, 1); /* 平滑滚动动画 */
+  /* 关键：使用更丝滑的贝塞尔曲线，时间缩短到 0.5s 让响应更快 */
+  transition: transform 0.5s cubic-bezier(0.12, 0.72, 0.29, 1);
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 150px 0; /* 上下留白，保证第一行和最后一行能居中 */
-  background: none; /* 去掉背景，靠遮罩实现效果 */
-  backdrop-filter: none;
-  border: none;
+  padding: 160px 0; /* 留白等于容器高度的一半 */
 }
 
 .lyric-line {
-  padding: 12px 20px;
-  width: 90%;
+  padding: 14px 25px;
+  width: 85%;
   text-align: center;
-  transition: all 0.4s;
-  opacity: 0.4;
-  transform: scale(0.9);
+  transition: all 0.4s ease;
+  opacity: 0.3; /* 非活跃行大幅透明 */
+  transform: scale(0.85); /* 非活跃行缩小 */
   font-size: 18px;
   color: #fff;
-  cursor: pointer;
   display: flex;
-  flex-direction: column; /* 方便显示翻译 */
-  gap: 4px;
+  flex-direction: column;
+  gap: 8px;
+  /* 强力文字投影，解决背景亮色看不清的问题 */
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.8);
 }
 
 /* 高亮当前行 */
 .lyric-line.active {
   opacity: 1;
-  transform: scale(1.1);
-  font-weight: bold;
+  transform: scale(1.05); /* 适度放大 */
+  filter: drop-shadow(0 0 5px rgba(255, 255, 255, 0.2));
 }
 
 .lyric-text {
   display: block;
+  font-weight: 500;
+}
+
+.lyric-trans {
+  font-size: 15px;
+  color: rgba(255, 255, 255, 0.85); /* 翻译稍微暗一点点 */
+  font-weight: normal;
+  display: none;
+}
+
+/* 开启翻译时显示并添加淡入 */
+.show-trans .lyric-trans {
+  display: block;
+  animation: lyricFadeIn 0.4s ease;
+}
+
+@keyframes lyricFadeIn {
+  from { opacity: 0; transform: translateY(5px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* 手机端适配 */
+@media screen and (max-width: 600px) {
+  #lyricContainer { height: 220px; }
+  #lyrics-wrapper { padding: 110px 0; }
+  .lyric-line { font-size: 16px; padding: 10px 15px; }
+  .lyric-trans { font-size: 13px; }
 }
 
 .lyric-trans {
@@ -126,19 +156,35 @@ body {
   display: block;
 }
 
-/* 翻译开关按钮样式 */
 #transBtn {
-  width: 35px;
-  height: 35px;
-  line-height: 35px;
+  width: 32px;
+  height: 32px;
+  line-height: 30px; /* 稍微调整居中 */
   text-align: center;
   color: #fff;
-  border: 1px solid #fff;
-  border-radius: 5px;
-  font-size: 14px;
-  right: calc(5% + 195px); /* 位置根据你的布局调整 */
+  border: 1.5px solid rgba(255, 255, 255, 0.8); /* 半透明边框 */
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: bold;
+  right: calc(5% + 195px);
   top: 50%;
-  margin: -17.5px auto;
+  margin: -16px auto;
+  z-index: 100;
+  background: rgba(0, 0, 0, 0.2);
+  backdrop-filter: blur(5px); /* 毛玻璃效果 */
+  transition: all 0.3s;
+}
+
+#transBtn:hover {
+  background: rgba(255, 255, 255, 0.2);
+  transform: scale(1.05);
+}
+
+/* 当按钮处于激活状态（显示翻译）时改变颜色 */
+#transBtn.active {
+  background: #fff;
+  color: #000;
+  border-color: #fff;
 }
 
 /* 顶部时间显示 */
