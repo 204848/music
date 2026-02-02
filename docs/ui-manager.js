@@ -141,6 +141,51 @@ export class UIManager {
         this.dom.lyricContainer.style.display = (show === undefined) ? (this.dom.lyricContainer.style.display === 'none' || !this.dom.lyricContainer.style.display ? 'block' : 'none') : (show ? 'block' : 'none');
     }
 
+    // 在 UIManager 类中添加
+    renderAllLyrics(lyrics) {
+        this.dom.lyricsWrapper.innerHTML = '';
+        if (!lyrics || lyrics.length === 0) {
+            this.dom.lyricsWrapper.innerHTML = '<div class="lyric-line active">暂无歌词</div>';
+            this.dom.transBtn.style.display = 'none';
+            return;
+        }
+
+        let hasTrans = false;
+        lyrics.forEach((line, index) => {
+            const lineDiv = document.createElement('div');
+            lineDiv.className = 'lyric-line';
+            lineDiv.setAttribute('data-index', index);
+            
+            const textSpan = document.createElement('span');
+            textSpan.className = 'lyric-text';
+            textSpan.textContent = line.text;
+            lineDiv.appendChild(textSpan);
+
+            if (line.trans) {
+                hasTrans = true;
+                const transSpan = document.createElement('span');
+                transSpan.className = 'lyric-trans';
+                transSpan.textContent = line.trans;
+                lineDiv.appendChild(transSpan);
+            }
+
+            this.dom.lyricsWrapper.appendChild(lineDiv);
+        });
+
+        // 如果有翻译，显示开关
+        this.dom.transBtn.style.display = hasTrans ? 'block' : 'none';
+    }
+
+    toggleTranslation() {
+        this.dom.lyricsWrapper.classList.toggle('show-trans');
+        // 切换后重新计算一下当前位置，防止高度变化导致的错位
+        const activeLine = this.dom.lyricsWrapper.querySelector('.lyric-line.active');
+        if (activeLine) {
+            const offset = 150 - activeLine.offsetTop;
+            this.dom.lyricsWrapper.style.transform = `translateY(${offset}px)`;
+        }
+    }
+
     updateModeButton(mode) {
         this.dom.modeBtn.style.backgroundImage = `url("${MODE_ICONS[mode]}")`;
         this.dom.modeBtn.title = MODE_TITLES[mode];

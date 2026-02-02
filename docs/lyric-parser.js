@@ -51,13 +51,14 @@ export function updateLyricDisplayAtTime(time, lyricsToDisplay) {
 }
 
 // Internal functions for parsing and updating display
+// 修改 parseLRC 函数
 function parseLRC(lrcText) {
     if (!lrcText) return [];
     const lines = lrcText.split(/\r?\n/);
-    const result = [];
+    const tempMap = {}; // 使用对象合并相同时间的歌词
+
     for (let line of lines) {
         line = line.trim();
-        if (!line) continue;
         const regex = /\[(\d{1,2}):(\d{2})(?:\.(\d{2,3})|\:(\d{2}))?\]/g;
         let match;
         let lastIndex = 0;
@@ -74,11 +75,18 @@ function parseLRC(lrcText) {
         const text = line.substring(lastIndex).trim();
         if (text && times.length > 0) {
             for (let time of times) {
-                result.push({ time, text });
+                const fixedTime = time.toFixed(3);
+                if (!tempMap[fixedTime]) {
+                    tempMap[fixedTime] = { time: parseFloat(fixedTime), text: text, trans: "" };
+                } else {
+                    // 如果时间戳已存在，认为是翻译
+                    tempMap[fixedTime].trans = text;
+                }
             }
         }
     }
-    result.sort((a, b) => a.time - b.time);
+    
+    const result = Object.values(tempMap).sort((a, b) => a.time - b.time);
     for (let i = 0; i < result.length - 1; i++) {
         result[i].end = result[i + 1].time;
     }
@@ -91,6 +99,7 @@ function parseLRC(lrcText) {
 function parseSRT(srtText) {
     if (!srtText) return [];
     const lines = srtText.split(/\r?\n/);
+    const tempMap = {}; // 使用 Map 处理相同时间的翻译
     const result = [];
     let i = 0;
     while (i < lines.length) {
@@ -114,8 +123,16 @@ function parseSRT(srtText) {
         while (i < lines.length && lines[i].trim() === '') {
             i++;
         }
+        if (text) {
+            const fixedTime = start.toFixed(3);
+            if (!tempMap[fixedTime]) {
+                tempMap[fixedTime] = { time: start, end: end, text: text, trans: "" };
+            } else {
+                tempMap[fixedTime].trans = text; // 合并为翻译
+            }
+        }
     }
-    return result;
+    return Object.values(tempMap).sort((a, b) => a.time - b.time);
 }
 
 function getCurrentLyricIndex(time, lyrics) {
@@ -142,52 +159,22 @@ function getCurrentLyricIndex(time, lyrics) {
     return Math.max(0, result);
 }
 
-// 更新：updateLyricDisplay 接受一个歌词数组参数
+// 修改 updateLyricDisplay 函数
 function updateLyricDisplay(lyrics, currentIndex) {
-    const lyricLines = DOMElements.lyricLines;
+    const wrapper = DOMElements.lyricsWrapper;
+    const lines = wrapper.querySelectorAll('.lyric-line');
+    
+    if (currentIndex === -1 || !lines[currentIndex]) return;
 
-    if (!lyrics || lyrics.length === 0) {
-        lyricLines.prev2.textContent = '';
-        lyricLines.prev1.textContent = '';
-        lyricLines.current.textContent = '暂无歌词';
-        lyricLines.next1.textContent = '';
-        lyricLines.next2.textContent = '';
-        return;
-    }
+    // 移除所有高亮
+    lines.forEach(line => line.classList.remove('active'));
+    
+    // 高亮当前行
+    const activeLine = lines[currentIndex];
+    activeLine.classList.add('active');
 
-    const prev2El = lyricLines.prev2;
-    const prev1El = lyricLines.prev1;
-    const currentEl = lyricLines.current;
-    const next1El = lyricLines.next1;
-    const next2El = lyricLines.next2;
-
-    // Add fade-out effect
-    prev2El.style.opacity = '0';
-    prev1El.style.opacity = '0';
-    currentEl.style.opacity = '0';
-    next1El.style.opacity = '0';
-    next2El.style.opacity = '0';
-
-    setTimeout(() => {
-        const index = Math.max(0, Math.min(currentIndex, lyrics.length - 1));
-
-        prev2El.textContent = (index >= 2) ? lyrics[index - 2].text : '';
-        prev1El.textContent = (index >= 1) ? lyrics[index - 1].text : '';
-        currentEl.textContent = (index >= 0) ? lyrics[index].text : '';
-        next1El.textContent = (index < lyrics.length - 1) ? lyrics[index + 1].text : '';
-        next2El.textContent = (index < lyrics.length - 2) ? lyrics[index + 2].text : '';
-
-        // Add fade-in and transform effects
-        prev2El.style.opacity = index >= 2 ? '0.7' : '0';
-        prev1El.style.opacity = index >= 1 ? '0.7' : '0';
-        currentEl.style.opacity = '1';
-        next1El.style.opacity = index < lyrics.length - 1 ? '0.7' : '0';
-        next2El.style.opacity = index < lyrics.length - 2 ? '0.7' : '0';
-
-        prev2El.style.transform = index >= 2 ? 'translateY(-32px)' : 'translateY(0)';
-        prev1El.style.transform = index >= 1 ? 'translateY(-16px)' : 'translateY(0)';
-        currentEl.style.transform = 'scale(1.05)';
-        next1El.style.transform = index < lyrics.length - 1 ? 'translateY(16px)' : 'translateY(0)';
-        next2El.style.transform = index < lyrics.length - 2 ? 'translateY(32px)' : 'translateY(0)';
-    }, 150);
+    // --- 计算滚动偏移量 ---
+    // 容器高度的一半 (150px) 减去 当前行相对于 wrapper 顶部的高度
+    const offset = 150 - activeLine.offsetTop;
+    wrapper.style.transform = `translateY(${offset}px)`;
 }

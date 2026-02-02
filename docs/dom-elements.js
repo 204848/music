@@ -4,7 +4,7 @@ const elms = [
     'track', 'artist', 'timer', 'duration', 'post', 'playBtn', 'pauseBtn',
     'prevBtn', 'nextBtn', 'playlistBtn', 'postBtn', 'waveBtn', 'volumeBtn',
     'waveCanvas', 'loading', 'playlist', 'list', 'lyricBtn', 'lyricContainer',
-    'modeBtn'
+    'modeBtn', 'transBtn' // 添加这个
 ];
 
 export const DOMElements = {};
@@ -30,11 +30,5 @@ DOMElements.volumePercentage = document.getElementById('volume-percentage');
 DOMElements.bgLayer1 = document.getElementById('bg-layer1');
 DOMElements.bgLayer2 = document.getElementById('bg-layer2');
 
-// Lyric lines
-DOMElements.lyricLines = {
-    prev2: document.querySelector('.lyric-line.prev-line-2'),
-    prev1: document.querySelector('.lyric-line.prev-line-1'),
-    current: document.querySelector('.lyric-line.current-line'),
-    next1: document.querySelector('.lyric-line.next-line-1'),
-    next2: document.querySelector('.lyric-line.next-line-2')
-};
+// Lyrics wrapper
+DOMElements.lyricsWrapper = document.getElementById('lyrics-wrapper');

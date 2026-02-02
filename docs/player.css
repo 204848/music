@@ -64,117 +64,81 @@ body {
 }
 
 #lyricContainer {
-  color: rgba(255, 255, 255, 0.9);
-  font-size: 18px;
-  line-height: 1.4;
-  text-align: center;
-  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.6);
-  max-height: 220px;
-  overflow: hidden;
-  padding: 8px 0;
-  transition: opacity 0.3s;
   position: relative;
-  z-index: 10;
+  height: 300px; /* 建议给一个明确的高度，比如 300px 或 40vh */
+  overflow: hidden;
   margin-top: 20px;
+  /* 增加一个背景色方便调试，确定它显示在屏幕上 */
+  background: rgba(0,0,0,0.1); 
+  border-radius: 15px;
 }
 
 #lyrics-wrapper {
+  position: absolute;
+  width: 100%;
+  top: 0;
+  left: 0;
+  transition: transform 0.6s cubic-bezier(0.23, 1, 0.32, 1); /* 平滑滚动动画 */
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
-  height: 100%;
-  position: relative;
-  overflow: hidden;
-  padding: 15px 20px;
-  background: rgba(0, 0, 0, 0.25);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-  border-radius: 15px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  box-sizing: border-box;
-  /* 确保圆角在内容溢出时仍然有效 */
-  overflow: hidden;
-  mask-image: radial-gradient(white, black);
-  -webkit-mask-image: radial-gradient(white, black);
+  padding: 150px 0; /* 上下留白，保证第一行和最后一行能居中 */
+  background: none; /* 去掉背景，靠遮罩实现效果 */
+  backdrop-filter: none;
+  border: none;
 }
 
 .lyric-line {
-  transition: all 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
-  padding: 8px 20px;
-  width: 100%;
-  box-sizing: border-box;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  opacity: 0.7;
-  transform: translateY(0);
-  filter: blur(0.5px);
-  font-size: 16px;
-  color: rgba(255, 255, 255, 0.8);
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
-  /* 防止内容溢出破坏圆角 */
-  border-radius: 8px;
-  margin: 2px 0;
-  min-height: 26px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.prev-line-2 {
-  transform: translateY(-32px);
-}
-
-.prev-line-1 {
-  transform: translateY(-16px);
-}
-
-.current-line {
-  font-size: 22px;
-  font-weight: bold;
-  opacity: 1;
-  filter: none;
-  transform: scale(1.05);
-  margin: 10px 0;
+  padding: 12px 20px;
+  width: 90%;
+  text-align: center;
+  transition: all 0.4s;
+  opacity: 0.4;
+  transform: scale(0.9);
+  font-size: 18px;
   color: #fff;
-  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.7);
-  z-index: 2;
-  position: relative;
-  /* 当前行添加特殊背景 */
-  background: rgba(255, 255, 255, 0.15);
-  border-radius: 10px;
-  padding: 12px 25px;
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
-  min-height: 32px;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column; /* 方便显示翻译 */
+  gap: 4px;
 }
 
-.next-line-1 {
-  transform: translateY(16px);
+/* 高亮当前行 */
+.lyric-line.active {
+  opacity: 1;
+  transform: scale(1.1);
+  font-weight: bold;
 }
 
-.next-line-2 {
-  transform: translateY(32px);
+.lyric-text {
+  display: block;
 }
 
-/* 当前歌词高亮效果 */
-.current-line::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: linear-gradient(90deg, rgba(255,255,255,0.1), rgba(255,255,255,0.3), rgba(255,255,255,0.1));
-  border-radius: 10px;
-  z-index: -1;
-  opacity: 0.3;
+.lyric-trans {
+  font-size: 14px;
+  opacity: 0.8;
+  font-weight: normal;
+  display: none; /* 默认隐藏翻译 */
 }
 
-.no-lyrics {
-  font-style: italic;
-  opacity: 0.7;
+/* 当开启翻译类时显示 */
+.show-trans .lyric-trans {
+  display: block;
+}
+
+/* 翻译开关按钮样式 */
+#transBtn {
+  width: 35px;
+  height: 35px;
+  line-height: 35px;
+  text-align: center;
+  color: #fff;
+  border: 1px solid #fff;
+  border-radius: 5px;
+  font-size: 14px;
+  right: calc(5% + 195px); /* 位置根据你的布局调整 */
+  top: 50%;
+  margin: -17.5px auto;
 }
 
 /* 顶部时间显示 */
@@ -613,7 +577,7 @@ body {
   #postBtn { left: calc(5% + 80px); }
   #waveBtn { right: calc(5% + 50px); }
   #volumeBtn { right: 5%; }
-  #lyricContainer { font-size: 16px; max-height: 150px; padding: 5px 0; margin-top: 10px; }
+  #lyricContainer { font-size: 16px; height: 200px; padding: 5px 0; margin-top: 10px; }
   #track { font-size: 28px; }
   #artist { font-size: 16px; }
   
@@ -639,40 +603,24 @@ body {
     top: calc(50% - 80px);
   }
   
+  #transBtn {
+    right: calc(5% + 150px);
+    top: calc(50% - 80px);
+  }
+  
   .lyric-line {
     font-size: 14px;
-    padding: 5px 15px;
+    padding: 8px 15px;
     margin: 1px 0;
     min-height: 22px;
   }
   
-  .current-line {
-    font-size: 18px;
-    padding: 8px 20px;
-    margin: 6px 0;
-    min-height: 28px;
+  .lyric-trans {
+    font-size: 12px;
   }
   
   #lyrics-wrapper {
-    padding: 8px 15px;
-    border-radius: 12px;
-    max-height: 140px;
-  }
-  
-  .prev-line-2 {
-    transform: translateY(-24px);
-  }
-
-  .prev-line-1 {
-    transform: translateY(-12px);
-  }
-
-  .next-line-1 {
-    transform: translateY(12px);
-  }
-
-  .next-line-2 {
-    transform: translateY(24px);
+    padding: 100px 0; /* 移动端调整留白 */
   }
   
   /* 确保移动端歌词完整显示 */

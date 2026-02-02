@@ -106,6 +106,10 @@ export function setupEventListeners(player, uiManager, visualization) {
     dom.modeBtn.addEventListener('click', () => player.toggleMode());
     dom.lyricBtn.addEventListener('click', () => uiManager.toggleLyricContainer());
 
+    if (dom.transBtn) {
+    dom.transBtn.addEventListener('click', () => uiManager.toggleTranslation());
+}
+
     // Volume control events
     dom.volumeBtn.addEventListener('mouseenter', () => uiManager.showVolumePopup());
     dom.volumeBtn.addEventListener('mouseleave', () => uiManager.hideVolumePopup());

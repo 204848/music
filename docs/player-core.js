@@ -47,6 +47,7 @@ export class Player {
             const initialTrack = this.playlist[this.index];
             if (initialTrack.lyric && this.preloadedLyrics[this.index]) {
                 this.currentDisplayedLyrics = this.preloadedLyrics[this.index];
+                this.uiManager.renderAllLyrics(this.currentDisplayedLyrics); // 新增
                 // Display lyrics at time 0 (or current seek if Howl somehow started)
                 const initialSeek = initialTrack.howl ? initialTrack.howl.seek() : 0;
                 updateLyricDisplayAtTime(initialSeek, this.currentDisplayedLyrics);
@@ -260,11 +261,13 @@ export class Player {
             this.uiManager.scrollPlaylistToActive(index);
             // After _preloadTrack, lyrics should already be in cache and currentDisplayedLyrics set.
             this.currentDisplayedLyrics = this.preloadedLyrics[index]; // 设置当前显示歌词
+            this.uiManager.renderAllLyrics(this.currentDisplayedLyrics); // 新增
             updateLyricDisplayAtTime(sound.seek() || 0, this.currentDisplayedLyrics); // 立即更新歌词显示
             this._updateMediaSession(data);
         } else {
             // 如果是同一首歌的再次播放（比如暂停后播放），确保歌词状态正确
             this.currentDisplayedLyrics = this.preloadedLyrics[index];
+            this.uiManager.renderAllLyrics(this.currentDisplayedLyrics);
             updateLyricDisplayAtTime(sound.seek() || 0, this.currentDisplayedLyrics);
         }
 
