@@ -36,7 +36,7 @@ export class Player {
         this.uiManager.updateModeButton(this.playbackMode);
         this.uiManager.updateVolumeDisplay(window.Howler.volume()); // Access Howler globally
         this.uiManager.updatePlayPauseButtons(false); // 默认显示播放按钮
-
+        this._greedyPreload();
         // Howler AudioContext 自动解锁配置
         window.Howler.autoUnlock = true;
         
@@ -82,7 +82,7 @@ export class Player {
         this.preloadedLyrics[trackIndex] = parsedLyrics;
         return parsedLyrics;
     }
-
+    
     // 调整为 async 函数，以便等待歌词加载
     async _preloadTrack(index) {
         const data = this.playlist[index];
@@ -177,6 +177,27 @@ export class Player {
         this._preloadDuration(data, index); // Display cached/estimated duration if available
         await this._loadTrackLyrics(data.lyric, index); // Ensure lyrics are cached, and await it
     }
+     
+   _greedyPreload() {
+    // 利用浏览器空闲时间
+    if ('requestIdleCallback' in window) {
+        requestIdleCallback(() => {
+            this.playlist.forEach((item, index) => {
+                // 1. 预解析所有歌词
+                if (item.lyric && !this.preloadedLyrics[index]) {
+                    this._loadTrackLyrics(item.lyric, index);
+                }
+                // 2. 预下载所有图片
+                const pics = Array.isArray(item.pic) ? item.pic : [item.pic];
+                pics.forEach(p => {
+                    const img = new Image();
+                    img.src = MEDIA_PATH + encodeURI(p);
+                });
+            });
+            console.log("Greedy preload (lyrics & images) completed.");
+        });
+    }
+}
 
     _preloadDuration(data, index) {
         if (this.preloadedDurations[index]) {
@@ -196,30 +217,31 @@ export class Player {
     }
 
     _preloadNeighbors(currentIndex) {
-        const nextIndex = (currentIndex + 1) % this.playlist.length;
-        if (nextIndex !== currentIndex) {
-            this._preloadTrack(nextIndex);
-        }
-
-        const prevIndex = (currentIndex - 1 + this.playlist.length) % this.playlist.length;
-        if (prevIndex !== currentIndex && prevIndex !== nextIndex) {
-            this._preloadTrack(prevIndex);
-        }
+        const RANGE = 3; // 预加载范围：当前歌曲的前后3首
+        for (let i = 1; i <= RANGE; i++) {
+        const nextIndex = (currentIndex + i) % this.playlist.length;
+        const prevIndex = (currentIndex - i + this.playlist.length) % this.playlist.length;
         
-        this._unloadDistantTracks(currentIndex, nextIndex, prevIndex);
+        this._preloadTrack(nextIndex);
+        this._preloadTrack(prevIndex);
+        }
+        // 调大卸载阈值：只有距离超过 5 首歌的才卸载
+        this._unloadDistantTracks(currentIndex, 5);
     }
 
-    _unloadDistantTracks(currentIndex, nextIndex, prevIndex) {
+    _unloadDistantTracks(currentIndex, threshold) {
         for (let i = 0; i < this.playlist.length; i++) {
-            if (i !== currentIndex && i !== nextIndex && i !== prevIndex) {
-                const trackData = this.playlist[i];
-                if (trackData.howl && trackData.howl.state() !== 'unloaded') {
-                    console.log(`Unloading distant track: ${trackData.title}`);
-                    trackData.howl.unload();
-                    delete trackData.howl; // Clear the howl instance
-                    // Also remove from preloaded caches if unloaded
-                    delete this.preloadedDurations[i];
-                    delete this.preloadedLyrics[i];
+            // 计算索引距离
+            const distance = Math.min(
+                Math.abs(i - currentIndex),
+                this.playlist.length - Math.abs(i - currentIndex)
+            );
+
+        if (distance > threshold) {
+            const trackData = this.playlist[i];
+            if (trackData.howl && trackData.howl.state() !== 'unloaded') {
+                trackData.howl.unload();
+                delete trackData.howl;
                 }
             }
         }

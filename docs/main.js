@@ -14,6 +14,11 @@ import { setupEventListeners } from './event-handlers.js';
 let playerInstance; 
 
 async function initApp() {
+    if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('./sw.js')
+        .then(() => console.log('SW registered!'))
+        .catch(err => console.log('SW failed!', err));
+    }
     try {
         const response = await fetch("memp.json");
         const playlistData = await response.json();
