@@ -14,11 +14,15 @@ import { setupEventListeners } from './event-handlers.js';
 let playerInstance; 
 
 async function initApp() {
-    if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('./sw.js')
-        .then(() => console.log('SW registered!'))
-        .catch(err => console.log('SW failed!', err));
-    }
+if ('serviceWorker' in navigator) {
+    // 获取当前路径，处理 GitHub Pages 子目录
+    const swPath = './sw.js'; 
+    navigator.serviceWorker.register(swPath)
+        .then(reg => {
+            console.log('SW 注册成功，作用域:', reg.scope);
+        })
+        .catch(err => console.error('SW 注册失败:', err));
+}
     try {
         const response = await fetch("memp.json");
         const playlistData = await response.json();

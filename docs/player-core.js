@@ -178,23 +178,28 @@ export class Player {
         await this._loadTrackLyrics(data.lyric, index); // Ensure lyrics are cached, and await it
     }
      
-   _greedyPreload() {
-    // 利用浏览器空闲时间
+_greedyPreload() {
     if ('requestIdleCallback' in window) {
         requestIdleCallback(() => {
             this.playlist.forEach((item, index) => {
-                // 1. 预解析所有歌词
-                if (item.lyric && !this.preloadedLyrics[index]) {
-                    this._loadTrackLyrics(item.lyric, index);
+                // 1. 缓存歌词 (fetch 才能触发 SW 缓存)
+                if (item.lyric) {
+                    fetch(MEDIA_PATH + item.lyric).catch(() => {});
                 }
-                // 2. 预下载所有图片
+
+                // 2. 缓存图片
                 const pics = Array.isArray(item.pic) ? item.pic : [item.pic];
                 pics.forEach(p => {
                     const img = new Image();
                     img.src = MEDIA_PATH + encodeURI(p);
                 });
+
+                // 3. 缓存音乐 (可选：建议只缓存前 5 首，全缓存太占流量)
+                if (index < 5) {
+                    fetch(MEDIA_PATH + item.mp3, { mode: 'no-cors' }).catch(() => {});
+                }
             });
-            console.log("Greedy preload (lyrics & images) completed.");
+            console.log("所有资源已加入静默下载队列");
         });
     }
 }
