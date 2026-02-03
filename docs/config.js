@@ -22,3 +22,7 @@ export const MODE_TITLES = {
     shuffle: '随机播放',
     single: '单曲循环'
 };
+
+// --- 预加载优化设置 ---
+export const PRELOAD_AUDIO_COUNT = 5;      // 启动后静默缓存的音频数量（建议3-5首）
+export const DEBUG_MODE = false;           // 是否开启调试输出（关闭后控制台会干净很多）

@@ -179,29 +179,35 @@ export class Player {
     }
      
 _greedyPreload() {
-    if ('requestIdleCallback' in window) {
-        requestIdleCallback(() => {
-            this.playlist.forEach((item, index) => {
-                // 1. 缓存歌词 (fetch 才能触发 SW 缓存)
-                if (item.lyric) {
-                    fetch(MEDIA_PATH + item.lyric).catch(() => {});
-                }
+    // 延迟 3 秒再开始预加载，给首首歌的加载留出绝对带宽
+    setTimeout(() => {
+        if ('requestIdleCallback' in window) {
+            requestIdleCallback(async () => {
+                for (let i = 0; i < this.playlist.length; i++) {
+                    const item = this.playlist[i];
+                    
+                    // 1. 缓存歌词
+                    if (item.lyric) fetch(MEDIA_PATH + item.lyric).catch(() => {});
 
-                // 2. 缓存图片
-                const pics = Array.isArray(item.pic) ? item.pic : [item.pic];
-                pics.forEach(p => {
-                    const img = new Image();
-                    img.src = MEDIA_PATH + encodeURI(p);
-                });
+                    // 2. 缓存图片
+                    const pics = Array.isArray(item.pic) ? item.pic : [item.pic];
+                    pics.forEach(p => {
+                        const img = new Image();
+                        img.src = MEDIA_PATH + encodeURI(p);
+                    });
 
-                // 3. 缓存音乐 (可选：建议只缓存前 5 首，全缓存太占流量)
-                if (index < 5) {
-                    fetch(MEDIA_PATH + item.mp3, { mode: 'no-cors' }).catch(() => {});
+                    // 3. 缓存音频（限制前几个）
+                    if (i < PRELOAD_AUDIO_COUNT) {
+                        // 使用低优先级的 fetch (如果浏览器支持)
+                        fetch(MEDIA_PATH + item.mp3, { mode: 'no-cors', priority: 'low' }).catch(() => {});
+                    }
+
+                    // --- 核心优化：每处理完一首歌，暂停 300ms，释放连接给切歌请求 ---
+                    await new Promise(resolve => setTimeout(resolve, 300));
                 }
             });
-            console.log("所有资源已加入静默下载队列");
-        });
-    }
+        }
+    }, 3000); 
 }
 
     _preloadDuration(data, index) {
@@ -221,18 +227,22 @@ _greedyPreload() {
         }
     }
 
-    _preloadNeighbors(currentIndex) {
-        const RANGE = 3; // 预加载范围：当前歌曲的前后3首
+_preloadNeighbors(currentIndex) {
+    const RANGE = 3;
+    // 使用延迟，确保当前这首歌先开始播放，再去加载邻居
+    setTimeout(() => {
         for (let i = 1; i <= RANGE; i++) {
-        const nextIndex = (currentIndex + i) % this.playlist.length;
-        const prevIndex = (currentIndex - i + this.playlist.length) % this.playlist.length;
-        
-        this._preloadTrack(nextIndex);
-        this._preloadTrack(prevIndex);
+            const nextIndex = (currentIndex + i) % this.playlist.length;
+            const prevIndex = (currentIndex - i + this.playlist.length) % this.playlist.length;
+            
+            // 每次预加载邻居也错开 200ms
+            setTimeout(() => this._preloadTrack(nextIndex), i * 200);
+            setTimeout(() => this._preloadTrack(prevIndex), i * 200 + 100);
         }
-        // 调大卸载阈值：只有距离超过 5 首歌的才卸载
-        this._unloadDistantTracks(currentIndex, 5);
-    }
+    }, 1000); // 1秒后开始加载邻居
+
+    this._unloadDistantTracks(currentIndex, 10); // 距离 10 以外才卸载，保持内存利用率
+}
 
     _unloadDistantTracks(currentIndex, threshold) {
         for (let i = 0; i < this.playlist.length; i++) {

@@ -15,13 +15,8 @@ let playerInstance;
 
 async function initApp() {
 if ('serviceWorker' in navigator) {
-    // 获取当前路径，处理 GitHub Pages 子目录
-    const swPath = './sw.js'; 
-    navigator.serviceWorker.register(swPath)
-        .then(reg => {
-            console.log('SW 注册成功，作用域:', reg.scope);
-        })
-        .catch(err => console.error('SW 注册失败:', err));
+    navigator.serviceWorker.register('./sw.js').catch(() => {}); 
+    // 注册成功不用打 log，静默工作即可
 }
     try {
         const response = await fetch("memp.json");
